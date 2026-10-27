@@ -1,0 +1,66 @@
+name: Deploy
+
+# Production deploy on every push to main: checks, then database migrations, then the Vercel
+# deploy. Migrations always land before the code that needs them. Vercel's own Git deploys are off
+# (vercel.json), so this is the only way production changes.
+#
+# Repository secrets:
+#   PROD_DATABASE_URL  Supabase session-pooler URL (port 5432) for migrations
+#   VERCEL_TOKEN       vercel.com/account/tokens
+#   VERCEL_ORG_ID      "orgId" in .vercel/project.json
+#   VERCEL_PROJECT_ID  "projectId" in .vercel/project.json
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://qazbot-kanban.vercel.app
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrate production database
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - run: npm install --global vercel@65.4.0
+      - name: Pull production settings and env
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Smoke test
+        run: |
+          for path in /login /workers; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://qazbot-kanban.vercel.app$path")
+            echo "$path $code"
+            [ "$code" = 200 ] || exit 1
+          done
