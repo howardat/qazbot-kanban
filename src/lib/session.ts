@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { cache } from "react";
+import { eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { profiles } from "@/db/schema";
-import { isEmailAllowed } from "@/lib/access";
+import { allowedEmails, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 
 export type CurrentUser = typeof profiles.$inferSelect;
@@ -17,34 +17,45 @@ async function demoProfile(): Promise<CurrentUser | null> {
   return any ?? null;
 }
 
+type Session = { user: CurrentUser | null; signedIn: boolean };
+
+/**
+ * Who is making this request, looked up once per request (the layout and the page share it).
+ * getClaims() verifies the session JWT locally, without a round trip to the auth server; the
+ * profile and the access check come back in one query. Re-checking access on every request means
+ * removing someone from the access list locks them out immediately.
+ */
+const session = cache(async (): Promise<Session> => {
+  if (demoNoAuth) {
+    const user = await demoProfile();
+    if (user) return { user, signedIn: true };
+  }
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims.sub;
+  if (!id) return { user: null, signedIn: false };
+  const domain = process.env.ALLOWED_DOMAIN?.trim().toLowerCase();
+  const [row] = await db
+    .select({
+      profile: profiles,
+      allowed: sql<boolean>`exists (select 1 from ${allowedEmails} where ${allowedEmails.email} = ${profiles.email})`,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, id));
+  const allowed = !!row && (row.allowed || (!!domain && row.profile.email.endsWith(`@${domain}`)));
+  return { user: allowed ? row.profile : null, signedIn: true };
+});
+
 /** Signed-in, allowed user with profile, or null. */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  if (demoNoAuth) return demoProfile();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return null;
-  if (!(await isEmailAllowed(user.email))) return null;
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  return profile ?? null;
+  return (await session()).user;
 }
 
 /** Use in every page and server action. Re-checks the allowlist so revoking access takes effect immediately. */
 export async function requireUser() {
-  if (demoNoAuth) {
-    const profile = await demoProfile();
-    if (profile) return profile;
-  }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) redirect("/login");
-  if (!(await isEmailAllowed(user.email))) redirect("/login?error=AccessDenied");
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id));
-  if (!profile) redirect("/login");
-  return profile;
+  const { user, signedIn } = await session();
+  if (!user) redirect(signedIn ? "/login?error=AccessDenied" : "/login");
+  return user;
 }
 
 export async function requireAdmin() {

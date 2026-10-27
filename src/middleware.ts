@@ -20,8 +20,9 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Must be called right after creating the client so expired tokens get refreshed.
-  await supabase.auth.getUser();
+  // Must be called right after creating the client so expired tokens get refreshed. getClaims()
+  // checks the JWT locally; it only calls the auth server when the token needs refreshing.
+  await supabase.auth.getClaims();
 
   return response;
 }
