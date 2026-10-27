@@ -130,7 +130,7 @@ export function TimelineView({
         {/* Weekend shading + today line, behind rows */}
         <div className="pointer-events-none absolute top-0 bottom-0 flex" style={{ left: SIDE_W }}>
           {days.map((d) => (
-            <div key={d} style={{ width: dayWidth }} className={cn("h-full shrink-0", weekday(d) >= 5 && "bg-muted/50")} />
+            <div key={d} style={{ width: dayWidth }} className={cn("h-full shrink-0", weekday(d) >= 5 && "bg-muted/30")} />
           ))}
         </div>
         {todayOffset >= 0 && todayOffset < span && (
@@ -188,7 +188,7 @@ function DayHeader({ days, dayWidth, today }: { days: ISODate[]; dayWidth: numbe
             style={{ width: dayWidth }}
             className={cn(
               "relative shrink-0 pt-1.5 pb-1 text-center text-[11px] text-muted-foreground",
-              wd >= 5 && "bg-muted/60",
+              wd >= 5 && "bg-muted/35",
               !showDays && wd === 0 && "border-l",
             )}
           >
@@ -214,7 +214,7 @@ function DayHeader({ days, dayWidth, today }: { days: ISODate[]; dayWidth: numbe
 
 function GroupHeader({ name, count, width, hint }: { name: string; count: number; width: number; hint?: string }) {
   return (
-    <div className="flex items-center gap-2 border-b bg-muted/70 px-4 py-1.5 text-xs" style={{ width: width + SIDE_W }}>
+    <div className="flex items-center gap-2 border-b bg-muted/45 px-4 py-1.5 text-xs" style={{ width: width + SIDE_W }}>
       <span className="sticky left-4 flex items-center gap-2">
         <span className="font-semibold text-muted-foreground">{name}</span>
         <span className="text-muted-foreground tabular-nums">{count}</span>

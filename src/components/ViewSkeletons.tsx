@@ -24,7 +24,7 @@ function Header() {
     <div className="flex items-center gap-3 border-b px-4 py-4 md:px-6">
       <div className="mr-auto space-y-2">
         <div className={`h-6 w-44 ${bar}`} />
-        <div className={`h-4 w-64 max-w-full ${bar} bg-muted/70`} />
+        <div className={`h-4 w-64 max-w-full ${bar} bg-muted/45`} />
       </div>
       <div className={`hidden h-8 w-56 sm:block ${bar}`} />
     </div>
@@ -42,7 +42,7 @@ export function BoardSkeleton() {
         </div>
         {[5, 3, 2].map((rows, i) => (
           <div key={i}>
-            <div className="flex h-10 items-center gap-2 border-b bg-muted/70 px-4 md:px-6">
+            <div className="flex h-10 items-center gap-2 border-b bg-muted/45 px-4 md:px-6">
               <div className={`h-4 w-28 ${bar}`} />
             </div>
             {Array.from({ length: rows }, (_, j) => (
@@ -106,7 +106,7 @@ function TimelineInner() {
       {board && <Bar boardId={board} active="timeline" />}
       <Header />
       <div className="space-y-2 px-4 py-5 md:px-6">
-        <div className={`h-8 w-full ${bar} bg-muted/60`} />
+        <div className={`h-8 w-full ${bar} bg-muted/35`} />
         {[30, 55, 20, 45, 35, 60].map((w, i) => (
           <div key={i} className="flex h-8 items-center">
             <div className="h-6 animate-pulse rounded-md bg-muted" style={{ width: `${w}%`, marginLeft: `${(i * 9) % 40}%` }} />

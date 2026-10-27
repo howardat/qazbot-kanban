@@ -95,7 +95,7 @@ export function CalendarView({
           <div className={cn("grid", cols === 7 ? "min-w-[46rem] grid-cols-7" : "min-w-[34rem] grid-cols-5")}>
             {/* Weekday names from a known Monday (5 Jan 2026), in the viewer's language */}
             {Array.from({ length: cols }, (_, i) => (
-              <div key={i} className={cn("flex h-11 items-center justify-end border-b bg-muted/60 px-4 text-[13px] font-medium capitalize", i < cols - 1 && "border-r border-r-border/70")}>
+              <div key={i} className={cn("flex h-11 items-center justify-end border-b bg-muted/35 px-4 text-[13px] font-medium capitalize", i < cols - 1 && "border-r border-r-border/70")}>
                 {t.fmt.weekday(addDays("2026-01-05", i))}
               </div>
             ))}
@@ -186,12 +186,12 @@ function DayCell({
         view === "week" ? "min-h-[26rem]" : "min-h-28",
         !lastCol && "border-r border-r-border/70",
         !lastRow && "border-b border-b-border/70",
-        weekend && "bg-muted/40",
+        weekend && "bg-muted/25",
         isOver && "bg-brand-soft opacity-80",
       )}
     >
       {/* Plane's day header: number top-right, month name on the 1st, today filled */}
-      <div className={cn("flex items-center justify-end gap-1 px-2 py-1.5 text-[11px]", inMonth ? "font-medium" : "text-muted-foreground/60", weekend && "bg-muted/60")}>
+      <div className={cn("flex items-center justify-end gap-1 px-2 py-1.5 text-[11px]", inMonth ? "font-medium" : "text-muted-foreground/60", weekend && "bg-muted/35")}>
         {(date === 1 || view === "week") && <span className="text-muted-foreground">{t.fmt.monthShort(day)}</span>}
         <span
           className={cn(

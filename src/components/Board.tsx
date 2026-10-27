@@ -478,7 +478,7 @@ function Column({
       <section
         ref={setNodeRef}
         style={{ transform: CSS.Translate.toString(transform), transition }}
-        className={cn("flex max-h-full w-11 shrink-0 flex-col rounded-xl bg-muted/70 p-1 dark:bg-black/20", isDragging && "opacity-50")}
+        className={cn("flex max-h-full w-11 shrink-0 flex-col rounded-xl bg-muted/45 p-1 dark:bg-black/15", isDragging && "opacity-50")}
       >
         <button
           type="button"
@@ -499,7 +499,7 @@ function Column({
     <section
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn("flex max-h-full w-[350px] shrink-0 flex-col rounded-xl bg-muted/70 px-2 pb-2 dark:bg-black/20", isDragging && "opacity-50")}
+      className={cn("flex max-h-full w-[350px] shrink-0 flex-col rounded-xl bg-muted/45 px-2 pb-2 dark:bg-black/15", isDragging && "opacity-50")}
     >
       {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph. */}
       <header className="group/col flex shrink-0 items-center gap-1 px-1 py-2">
@@ -772,7 +772,7 @@ function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean;
         aria-label={t.column.addCard}
         className="w-full bg-transparent px-3 py-3 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
       />
-      <div className="bg-muted/60 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
+      <div className="bg-muted/35 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
     </div>
   );
 }
@@ -810,7 +810,7 @@ function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnDat
   const [adding, setAdding] = useState(false);
   return (
     <section aria-label={column.name}>
-      <div className="sticky top-0 z-[2] flex items-center gap-2 border-b bg-muted/70 py-1 pr-4 pl-4 backdrop-blur-sm hover:bg-muted md:pl-6">
+      <div className="sticky top-0 z-[2] flex items-center gap-2 border-b bg-muted/45 py-1 pr-4 pl-4 backdrop-blur-sm hover:bg-muted/60 md:pl-6">
         <button type="button" onClick={onToggle} aria-expanded={!folded} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-1.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
           <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !folded && "rotate-90")} />
           <StateIcon done={column.isDone} inProgress={column.isInProgress} first={first} className="size-3.5" />
