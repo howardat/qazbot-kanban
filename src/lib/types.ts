@@ -1,3 +1,4 @@
+import type { Priority } from "@/lib/priority";
 import type { Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 
@@ -15,6 +16,7 @@ export type CardData = {
   assigneeIds: string[];
   tagIds: string[];
   project: Project | null;
+  priority: Priority | null;
 };
 
 /** Card plus where it lives, for cross-board views (dashboard, calendar, timeline). */

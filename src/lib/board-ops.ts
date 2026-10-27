@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profiles, TAG_COLORS, tags } from "@/db/schema";
 import { CARD_DONE } from "@/lib/activity";
 import { addDays, diffDays, isValidDate } from "@/lib/dates";
+import { PRIORITIES } from "@/lib/priority";
 import { PROJECTS } from "@/lib/projects";
 
 // Board and card writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
@@ -31,6 +32,7 @@ export const cardUpdate = z
     assigneeIds: z.array(id).max(50),
     tagIds: z.array(id).max(30),
     project: z.enum(PROJECTS).nullable(),
+    priority: z.enum(PRIORITIES).nullable(),
   })
   .refine(datesInOrder, DATES_ORDER);
 
@@ -148,6 +150,7 @@ export async function patchCardOp(cardId: string, patch: Partial<z.input<typeof 
     assigneeIds: assignees.map((a) => a.id),
     tagIds: cardTagRows.map((t) => t.id),
     project: card.project,
+    priority: card.priority,
     ...patch,
   });
 }

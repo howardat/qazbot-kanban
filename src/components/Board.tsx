@@ -24,6 +24,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { toast } from "sonner";
 import {
   ArrowRightLeft,
   CircleCheck,
@@ -45,12 +46,14 @@ import {
   deleteColumn,
   moveCard,
   moveColumn,
+  quickUpdateCard,
   renameBoard,
   renameColumn,
   setColumnDone,
   setColumnInProgress,
 } from "@/app/actions";
 import { Avatar, AvatarStack, DueBadge, TagBadge } from "@/components/atoms";
+import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
 import { TagManager } from "@/components/TagManager";
@@ -114,6 +117,7 @@ type Ctx = {
   open: (card: CardData) => void;
   moveTo: (cardId: string, columnId: string) => void;
   remove: (cardId: string) => void;
+  patch: (cardId: string, patch: QuickPatch) => void;
 };
 
 // Collapsed columns are a per-viewer preference, remembered per board in this browser only.
@@ -193,6 +197,19 @@ export function Board({
     });
     startTransition(() => moveCard(cardId, columnId, 1_000_000));
   }
+  /** Quick buttons on a card: show the change at once, save it, and roll back if saving fails. */
+  function patch(cardId: string, change: QuickPatch) {
+    const before = cols;
+    setCols((prev) => prev.map((c) => ({ ...c, cards: c.cards.map((x) => (x.id === cardId ? { ...x, ...change } : x)) })));
+    startTransition(async () => {
+      try {
+        await quickUpdateCard(cardId, change);
+      } catch {
+        setCols(before);
+        toast.error(t.quick.saveFailed);
+      }
+    });
+  }
   function remove(cardId: string) {
     setCols((prev) => prev.map((c) => ({ ...c, cards: c.cards.filter((x) => x.id !== cardId) })));
     startTransition(() => deleteCard(cardId));
@@ -206,6 +223,7 @@ export function Board({
     open: setEditing,
     moveTo,
     remove,
+    patch,
   };
 
   // Reordering a filtered list would compute wrong positions, so drag is off while filtering.
@@ -755,18 +773,26 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
       {card.description && (
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
       )}
-      {/* Properties row, as on Plane's cards: dates and labels as chips, people on the right */}
-      {(card.dueDate || card.startDate || cardTags.length > 0 || people.length > 0) && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <DueBadge start={card.startDate} due={card.dueDate} today={ctx.today} done={done} />
+      {cardTags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {cardTags.map((t) => (
             <TagBadge key={t.id} tag={t} />
           ))}
-          <span className="ml-auto">
-            <AvatarStack members={people} size={20} />
-          </span>
         </div>
       )}
+      {/* Properties row, as on Plane's cards: priority, dates and people, each editable in place */}
+      <div className="mt-2.5">
+        {overlay ? (
+          <div className="flex items-center gap-1.5">
+            <DueBadge start={card.startDate} due={card.dueDate} today={ctx.today} done={done} />
+            <span className="ml-auto">
+              <AvatarStack members={people} size={20} />
+            </span>
+          </div>
+        ) : (
+          <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} onPatch={(p) => ctx.patch(card.id, p)} />
+        )}
+      </div>
     </article>
   );
 }

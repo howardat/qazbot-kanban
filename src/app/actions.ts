@@ -18,6 +18,7 @@ import {
   id,
   moveCardOp,
   name,
+  patchCardOp,
   rescheduleCardOp,
   setCardDatesOp,
   setColumnFlagOp,
@@ -205,6 +206,14 @@ export async function moveCard(cardId: string, toColumnId: string, toIndex: numb
   const user = await requireUser();
   await track(user.id, "card.move");
   await moveCardOp(cardId, toColumnId, toIndex);
+  refreshAll();
+}
+
+/** Board card quick buttons: change only the deadline, assignees or priority. */
+export async function quickUpdateCard(cardId: string, patch: Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority">>) {
+  const user = await requireUser();
+  await track(user.id, "card.quickEdit");
+  await patchCardOp(cardId, patch);
   refreshAll();
 }
 

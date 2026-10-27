@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { Maximize, Minimize } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { WorkerSheet } from "@/components/WorkerSheet";
@@ -15,9 +16,37 @@ const WorkersScene = dynamic(() => import("@/components/WorkersScene"), {
   loading: () => <div className="absolute inset-0" style={{ background: PAL.bg }} />,
 });
 
-/** The office view filling the page, with a floating title, legend and full-screen toggle. */
-export function WorkersView({ workers, robots }: { workers: Worker[]; robots: Robot[] }) {
+const REFRESH_MS = 30_000;
+
+/**
+ * The same data for as long as it hasn't changed, so a refetch that brings nothing new doesn't rebuild
+ * the 3D scene (which would also reset the view).
+ */
+function useStable<T>(value: T): T {
+  const ref = useRef({ key: JSON.stringify(value), value });
+  const key = JSON.stringify(value);
+  if (key !== ref.current.key) ref.current = { key, value };
+  return ref.current.value;
+}
+
+/** The office view filling the page, with a floating legend, team list and full-screen toggle. */
+export function WorkersView({ workers: fresh, robots: freshRobots }: { workers: Worker[]; robots: Robot[] }) {
   const t = useT();
+  const router = useRouter();
+  const workers = useStable(fresh);
+  const robots = useStable(freshRobots);
+  // Keep the office live: refetch every 30 s while the tab is visible, and right away when it's shown again.
+  useEffect(() => {
+    const refresh = () => document.visibilityState === "visible" && router.refresh();
+    const timer = setInterval(refresh, REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [router]);
   const w = t.workers;
   const box = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
@@ -50,10 +79,7 @@ export function WorkersView({ workers, robots }: { workers: Worker[]; robots: Ro
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45))]" />
 
       <div className="pointer-events-none absolute top-3 left-3 flex items-start gap-2 md:top-4 md:left-4">
-        <div className="pointer-events-auto rounded-lg bg-[#24201c]/90 px-3 py-2 text-[#f1ebe1] shadow-lg backdrop-blur-sm">
-          <h1 className="text-base font-semibold tracking-tight">{w.title}</h1>
-          <p className="hidden max-w-sm text-xs text-[#c9bfb2] sm:block">{w.hint}</p>
-        </div>
+        <h1 className="sr-only">{w.title}</h1>
         <button
           type="button"
           onClick={toggle}

@@ -387,6 +387,7 @@ export const en = {
       "card.timelineDrag": "Drag on timeline",
       "card.calendarDrag": "Drag on calendar",
       "card.workOn": "Work on a queued card",
+      "card.quickEdit": "Quick deadline / assignee / priority",
       "tag.create": "Create tag",
       "tag.edit": "Edit tag",
       "tag.delete": "Delete tag",
@@ -404,6 +405,23 @@ export const en = {
       "mcp.tokenCreate": "Create MCP token",
       "language.change": "Change language",
     } satisfies Record<Feature, string> as Record<Feature, string>,
+  },
+
+  priority: {
+    label: "Priority",
+    none: "No priority",
+    urgent: "Urgent",
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  },
+
+  quick: {
+    deadline: "Set deadline",
+    clearDeadline: "Clear deadline",
+    assignees: "Assignees",
+    priority: "Set priority",
+    saveFailed: "Couldn't save. Check the dates and try again.",
   },
 
   projects: {

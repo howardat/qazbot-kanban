@@ -15,6 +15,7 @@ import {
   type Actor,
 } from "@/lib/board-ops";
 import { loadCards, loadMembers } from "@/lib/data";
+import { PRIORITIES } from "@/lib/priority";
 import { PROJECTS } from "@/lib/projects";
 import type { CardRow } from "@/lib/types";
 
@@ -67,6 +68,7 @@ const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, s
   assignees: c.assigneeIds.map((id) => ({ id, name: names.get(id) ?? id })),
   tags: c.tagIds.map((id) => tagNames.get(id) ?? id),
   project: c.project,
+  priority: c.priority,
 });
 
 async function lookups() {
@@ -220,6 +222,7 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         project: z.enum(PROJECTS).nullable().optional().describe(PROJECT_HINT),
+        priority: z.enum(PRIORITIES).nullable().optional().describe("urgent, high, medium or low; null clears it."),
       },
       annotations: WRITE,
     },
@@ -227,10 +230,11 @@ export function createMcpServer(ctx: McpContext) {
       const cardId = await addCardOp(a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate });
       const [col] = await db.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, a.columnId));
       const tagIds = await tagIdsFor(col.boardId, a.tags);
-      if (a.description || a.assigneeIds || tagIds || a.project) {
+      if (a.description || a.assigneeIds || tagIds || a.project || a.priority) {
         await patchCardOp(cardId, {
           ...(a.description ? { description: a.description } : {}),
           ...(a.project ? { project: a.project } : {}),
+          ...(a.priority ? { priority: a.priority } : {}),
           ...(a.assigneeIds ? { assigneeIds: a.assigneeIds } : {}),
           ...(tagIds ? { tagIds } : {}),
         });
@@ -255,6 +259,7 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         project: z.enum(PROJECTS).nullable().optional().describe(PROJECT_HINT),
+        priority: z.enum(PRIORITIES).nullable().optional().describe("urgent, high, medium or low; null clears it."),
       },
       annotations: WRITE,
     },

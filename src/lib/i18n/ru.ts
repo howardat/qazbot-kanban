@@ -391,6 +391,7 @@ export const ru: Dict = {
       "card.timelineDrag": "Перетаскивание на таймлайне",
       "card.calendarDrag": "Перетаскивание в календаре",
       "card.workOn": "Взять карточку из очереди",
+      "card.quickEdit": "Быстрый срок / исполнитель / приоритет",
       "tag.create": "Создать тег",
       "tag.edit": "Изменить тег",
       "tag.delete": "Удалить тег",
@@ -408,6 +409,23 @@ export const ru: Dict = {
       "mcp.tokenCreate": "Создать токен MCP",
       "language.change": "Сменить язык",
     },
+  },
+
+  priority: {
+    label: "Приоритет",
+    none: "Без приоритета",
+    urgent: "Срочно",
+    high: "Высокий",
+    medium: "Средний",
+    low: "Низкий",
+  },
+
+  quick: {
+    deadline: "Назначить срок",
+    clearDeadline: "Убрать срок",
+    assignees: "Исполнители",
+    priority: "Назначить приоритет",
+    saveFailed: "Не удалось сохранить. Проверьте даты и попробуйте снова.",
   },
 
   projects: {

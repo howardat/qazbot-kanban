@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Flag, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, TagBadge } from "@/components/atoms";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TAG_STYLE } from "@/lib/colors";
+import { PRIORITIES, PRIORITY_STYLE, type Priority } from "@/lib/priority";
 import { PROJECTS, type Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -43,6 +44,7 @@ export function CardEditor({
   const [assigneeIds, setAssigneeIds] = useState<string[]>(card.assigneeIds);
   const [tagIds, setTagIds] = useState<string[]>(card.tagIds);
   const [project, setProject] = useState<Project | null>(card.project);
+  const [priority, setPriority] = useState<Priority | null>(card.priority);
   const [tags, setTags] = useState<Tag[]>(boardTags);
   const [newTag, setNewTag] = useState("");
   const [newTagColor, setNewTagColor] = useState<TagColor>("sky");
@@ -66,6 +68,7 @@ export function CardEditor({
           assigneeIds,
           tagIds,
           project,
+          priority,
         });
         toast.success(t.editor.saved);
         onClose();
@@ -206,6 +209,23 @@ export function CardEditor({
                   })}
                 </ul>
               </fieldset>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">{t.priority.label}</div>
+                <Select value={priority ?? NO_PROJECT} onValueChange={(v) => setPriority(v === NO_PROJECT ? null : (v as Priority))}>
+                  <SelectTrigger aria-label={t.priority.label} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_PROJECT}>{t.priority.none}</SelectItem>
+                    {PRIORITIES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        <Flag className={PRIORITY_STYLE[p]} /> {t.priority[p]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">{t.editor.project}</div>

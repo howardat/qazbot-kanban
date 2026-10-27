@@ -64,6 +64,13 @@
       "when": 1793093073650,
       "tag": "0008_steep_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793098075414,
+      "tag": "0009_rich_rockslide",
+      "breakpoints": true
     }
   ]
 }

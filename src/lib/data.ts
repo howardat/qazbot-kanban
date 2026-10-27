@@ -56,6 +56,7 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
     assigneeIds: byCardAssignees.get(card.id) ?? [],
     tagIds: byCardTags.get(card.id) ?? [],
     project: card.project,
+    priority: card.priority,
     boardName,
     columnName,
     done,

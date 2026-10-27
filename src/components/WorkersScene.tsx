@@ -167,6 +167,7 @@ export default function WorkersScene({
 }) {
   const t = useT();
   const mount = useRef<HTMLDivElement>(null);
+  const view = useRef<{ target: THREE.Vector3; zoom: number } | null>(null);
   const select = useRef(onSelect);
   useEffect(() => {
     select.current = onSelect;
@@ -404,6 +405,15 @@ export default function WorkersScene({
     controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
     // The constructor aimed the camera at the origin; re-aim it at the new target.
     controls.update();
+    // A rebuild after new data keeps where the viewer had panned and zoomed to.
+    if (view.current) {
+      const shift = view.current.target.clone().sub(controls.target);
+      controls.target.add(shift);
+      camera.position.add(shift);
+      camera.zoom = view.current.zoom;
+      controls.update();
+    }
+    controls.addEventListener("change", () => (view.current = { target: controls.target.clone(), zoom: camera.zoom }));
 
     const draw = () => {
       renderer.render(scene, camera);

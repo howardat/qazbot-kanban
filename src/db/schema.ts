@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
+import { PRIORITIES } from "../lib/priority";
 import { PROJECTS, ROBOT_MODELS } from "../lib/projects";
 import { TAG_COLORS } from "../lib/tag-colors";
 
@@ -50,6 +51,7 @@ export const allowedEmails = pgTable("allowed_email", {
 
 // Which project (room on the workers view) a card belongs to; null counts as back office.
 export const projectEnum = pgEnum("project", PROJECTS);
+export const priorityEnum = pgEnum("priority", PRIORITIES);
 
 export const boards = pgTable("board", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -91,6 +93,7 @@ export const cards = pgTable(
     dueDate: date("due_date"),
     position: integer("position").notNull(),
     project: projectEnum("project"),
+    priority: priorityEnum("priority"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     // When the card last entered its column: the "last status update" on the workers view.
     columnChangedAt: timestamp("column_changed_at", { mode: "date" }).notNull().defaultNow(),

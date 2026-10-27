@@ -26,6 +26,7 @@ export const FEATURES = [
   "card.timelineDrag",
   "card.calendarDrag",
   "card.workOn",
+  "card.quickEdit",
   "tag.create",
   "tag.edit",
   "tag.delete",
