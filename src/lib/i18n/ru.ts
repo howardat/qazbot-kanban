@@ -282,6 +282,7 @@ export const ru: Dict = {
     title: "Таймлайн",
     description: (from, to, board) => `${fmt.day(from)} — ${fmt.day(to)}, ${board ?? "все доски"}`,
     zoom: "Масштаб",
+    days: (n) => `${n} ${p(n, "день", "дня", "дней")}`,
     zooms: { week: "Неделя", month: "Месяц", quarter: "Квартал" },
     earlier: "Раньше",
     later: "Позже",

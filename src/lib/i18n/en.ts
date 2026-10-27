@@ -277,6 +277,7 @@ export const en = {
     description: (from: ISODate, to: ISODate, board: string | null) =>
       `${fmt.day(from)} to ${fmt.day(to)}, ${board ?? "all boards"}`,
     zoom: "Zoom",
+    days: (n: number) => `${n} ${s(n, "day")}`,
     zooms: { week: "Week", month: "Month", quarter: "Quarter" },
     earlier: "Earlier",
     later: "Later",

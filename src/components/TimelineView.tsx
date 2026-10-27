@@ -6,7 +6,7 @@ import { setCardDates } from "@/app/actions";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
 import { AvatarStack } from "@/components/atoms";
-import { TAG_DOT } from "@/lib/colors";
+import { StateIcon } from "@/components/BoardToolbar";
 import { addDays, diffDays, weekday, type ISODate } from "@/lib/dates";
 import type { CardRow, Member, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -238,8 +238,8 @@ type RowProps = {
   onSave: (card: CardRow, next: Dates) => void;
 };
 
-function BarRow({ card, from, span, dayWidth, today, drag, memberById, tagById, onDrag, onOpen, onSave }: RowProps) {
-  const firstTag = card.tagIds.map((id) => tagById.get(id)).find(Boolean);
+function BarRow({ card, from, span, dayWidth, today, drag, memberById, onDrag, onOpen, onSave }: RowProps) {
+  const t = useT();
   const dragging = drag?.id === card.id ? drag : null;
   const shown = dragging ? shifted(card, dragging.mode, dragging.delta) : card;
   const start = shown.startDate ?? shown.dueDate;
@@ -250,11 +250,13 @@ function BarRow({ card, from, span, dayWidth, today, drag, memberById, tagById, 
       <button
         type="button"
         onClick={() => onOpen(card)}
-        className="sticky left-0 z-[6] flex shrink-0 items-center gap-2 border-r bg-card px-4 text-left text-sm group-hover/row:bg-secondary hover:text-primary"
+        className="sticky left-0 z-[6] flex shrink-0 items-center gap-2 border-r bg-card px-4 text-left text-[13px] group-hover/row:bg-secondary hover:text-primary"
         style={{ width: SIDE_W }}
       >
-        <span className={cn("size-2 shrink-0 rounded-full", firstTag ? TAG_DOT[firstTag.color] : "bg-muted-foreground/30")} aria-hidden />
-        <span className={cn("truncate", card.done && "text-muted-foreground line-through")}>{card.title}</span>
+        {/* Plane's Gantt sidebar row: state icon, title, and the length in days on the right */}
+        <StateIcon done={card.done} inProgress={card.inProgress} className="size-3.5" />
+        <span className={cn("min-w-0 flex-1 truncate font-medium", card.done && "text-muted-foreground line-through")}>{card.title}</span>
+        {start && end && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{t.timeline.days(diffDays(end, start) + 1)}</span>}
       </button>
 
       {start && end ? (
@@ -340,13 +342,12 @@ function Bar({
         }}
         title={t.timeline.barTitle(card.title, start, end)}
         aria-label={t.timeline.barAria(card.title, start, end)}
+        // Plane's Gantt block: the state colour softened toward the surface, with dark text on it.
+        style={{ backgroundColor: `color-mix(in oklch, ${late ? "var(--destructive)" : card.done ? "var(--success)" : card.inProgress ? "var(--warning)" : "var(--primary)"} ${card.done ? 22 : 28}%, var(--card))` }}
         className={cn(
-          "flex h-full cursor-grab items-center justify-between gap-1 overflow-hidden rounded-md px-2.5 text-xs font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-          card.done
-            ? "bg-muted text-muted-foreground"
-            : late
-              ? "bg-destructive/10 text-destructive ring-1 ring-destructive/40"
-              : "bg-primary-gradient text-primary-foreground shadow-xs hover:brightness-110",
+          "flex h-full cursor-grab items-center justify-between gap-1 overflow-hidden rounded-sm px-2.5 text-[13px] text-foreground shadow-xs outline-none hover:brightness-[0.97] focus-visible:ring-3 focus-visible:ring-ring/50",
+          card.done && "text-muted-foreground",
+          late && "ring-1 ring-destructive/40",
           dragging?.moved && "cursor-grabbing shadow-md ring-2 ring-ring/60",
           s < 0 && "rounded-l-none",
           e > span - 1 && "rounded-r-none",

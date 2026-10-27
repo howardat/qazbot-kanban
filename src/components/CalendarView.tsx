@@ -16,7 +16,6 @@ import { addCard, rescheduleCard } from "@/app/actions";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
 import { AvatarStack } from "@/components/atoms";
-import { TAG_DOT } from "@/lib/colors";
 import { addDays, monthOf, weekday, type ISODate } from "@/lib/dates";
 import type { CardRow, Member, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -96,7 +95,7 @@ export function CalendarView({
           <div className={cn("grid", cols === 7 ? "min-w-[46rem] grid-cols-7" : "min-w-[34rem] grid-cols-5")}>
             {/* Weekday names from a known Monday (5 Jan 2026), in the viewer's language */}
             {Array.from({ length: cols }, (_, i) => (
-              <div key={i} className={cn("border-b px-3 py-2 text-xs font-medium text-muted-foreground capitalize", i >= 5 && "bg-muted/50")}>
+              <div key={i} className={cn("flex h-11 items-center justify-end border-b bg-muted/60 px-4 text-[13px] font-medium capitalize", i < cols - 1 && "border-r border-r-border/70")}>
                 {t.fmt.weekday(addDays("2026-01-05", i))}
               </div>
             ))}
@@ -183,28 +182,28 @@ function DayCell({
     <div
       ref={setNodeRef}
       className={cn(
-        "group/day relative flex flex-col p-1.5",
+        "group/day relative flex flex-col",
         view === "week" ? "min-h-[26rem]" : "min-h-28",
-        !lastCol && "border-r",
-        !lastRow && "border-b",
-        weekend && "bg-muted/50",
-        isOver && "bg-brand-soft",
+        !lastCol && "border-r border-r-border/70",
+        !lastRow && "border-b border-b-border/70",
+        weekend && "bg-muted/40",
+        isOver && "bg-brand-soft opacity-80",
       )}
     >
       {/* Plane's day header: number top-right, month name on the 1st, today filled */}
-      <div className={cn("mb-1 flex items-center justify-end gap-1 text-[11px]", inMonth ? "font-medium" : "text-muted-foreground/60")}>
+      <div className={cn("flex items-center justify-end gap-1 px-2 py-1.5 text-[11px]", inMonth ? "font-medium" : "text-muted-foreground/60", weekend && "bg-muted/60")}>
         {(date === 1 || view === "week") && <span className="text-muted-foreground">{t.fmt.monthShort(day)}</span>}
         <span
           className={cn(
             "inline-flex size-5 items-center justify-center rounded-full",
-            isToday && "bg-primary-gradient font-semibold text-primary-foreground",
+            isToday && "bg-primary font-semibold text-primary-foreground",
           )}
           aria-current={isToday ? "date" : undefined}
         >
           {date}
         </span>
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 px-1.5 pb-1.5">
         {shown.map((c) => (
           <Chip key={c.id} card={c} {...ctx} />
         ))}
@@ -218,7 +217,11 @@ function DayCell({
           </button>
         )}
       </div>
-      {quickAdd.targets.length > 0 && <DayQuickAdd day={day} {...quickAdd} />}
+      {quickAdd.targets.length > 0 && (
+        <div className="px-1.5 pb-1.5">
+          <DayQuickAdd day={day} {...quickAdd} />
+        </div>
+      )}
     </div>
   );
 }
@@ -300,15 +303,14 @@ function Chip({ card, ...ctx }: { card: CardRow } & ChipCtx) {
   );
 }
 
-// Plane's calendar block: a thin colored bar, then the title. Red bar when late.
-function ChipBody({ card, memberById, tagById, today, showBoard, overlay }: { card: CardRow; overlay?: boolean } & ChipCtx) {
+// Plane's calendar block: a thin bar in the card's state colour, then the title. Red when late.
+function ChipBody({ card, memberById, today, showBoard, overlay }: { card: CardRow; overlay?: boolean } & ChipCtx) {
   const late = !card.done && !!card.dueDate && card.dueDate < today;
-  const firstTag = card.tagIds.map((id) => tagById.get(id)).find(Boolean);
   const people = card.assigneeIds.map((id) => memberById.get(id)).filter((m): m is Member => !!m);
   return (
     <div
       className={cn(
-        "flex h-7 cursor-pointer items-center gap-1.5 rounded-sm border bg-card pr-1 text-xs hover:border-border-strong hover:bg-secondary",
+        "flex h-7 cursor-pointer items-center gap-1.5 rounded-sm border bg-card pr-1 text-[11px] font-medium hover:border-border-strong",
         late && "border-destructive/30 bg-destructive/5",
         card.done && "text-muted-foreground line-through",
         overlay && "shadow-lg",
@@ -318,7 +320,7 @@ function ChipBody({ card, memberById, tagById, today, showBoard, overlay }: { ca
       <span
         className={cn(
           "ml-1 h-4 w-0.5 shrink-0 rounded-full",
-          late ? "bg-destructive" : firstTag ? TAG_DOT[firstTag.color] : "bg-muted-foreground/30",
+          late ? "bg-destructive" : card.done ? "bg-success" : card.inProgress ? "bg-warning" : "bg-muted-foreground/40",
         )}
         aria-hidden
       />
