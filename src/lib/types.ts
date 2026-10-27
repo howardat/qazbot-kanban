@@ -20,6 +20,14 @@ export type CardData = {
 };
 
 /** Card plus where it lives, for cross-board views (dashboard, calendar, timeline). */
-export type CardRow = CardData & { boardName: string; columnName: string; done: boolean };
+export type CardRow = CardData & {
+  boardName: string;
+  columnName: string;
+  done: boolean;
+  /** In a column marked "in progress". */
+  inProgress: boolean;
+  /** When the card entered its current column (ISO). */
+  movedAt: string;
+};
 
 export const displayName = (m: Pick<Member, "name" | "email">) => m.name?.trim() || m.email.split("@")[0];

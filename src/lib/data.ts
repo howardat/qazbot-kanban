@@ -24,6 +24,7 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
       boardName: boards.name,
       columnName: columns.name,
       done: columns.isDone,
+      inProgress: columns.isInProgress,
     })
     .from(cards)
     .innerJoin(columns, eq(columns.id, cards.columnId))
@@ -45,7 +46,7 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
   const byCardAssignees = group(assignees, (a) => a.profileId);
   const byCardTags = group(cardTagRows, (t) => t.tagId);
 
-  return rows.map(({ card, boardName, columnName, done }) => ({
+  return rows.map(({ card, boardName, columnName, done, inProgress }) => ({
     id: card.id,
     boardId: card.boardId,
     columnId: card.columnId,
@@ -60,6 +61,8 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
     boardName,
     columnName,
     done,
+    inProgress,
+    movedAt: card.columnChangedAt.toISOString(),
   }));
 }
 

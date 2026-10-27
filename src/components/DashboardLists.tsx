@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Flag } from "lucide-react";
 import { AvatarStack, DueBadge } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PRIORITY_STYLE } from "@/lib/priority";
 import type { CardRow, Member } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type List = { key: string; label: string; empty: string; cards: CardRow[] };
 
-/** Tabbed card lists on the dashboard (mine / late / this week). */
+/** Tabbed card lists on the dashboard (focus / mine / late / this week), most pressing first. */
 export function DashboardLists({ lists, members, today }: { lists: List[]; members: Member[]; today: string }) {
   const t = useT();
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -41,6 +43,9 @@ export function DashboardLists({ lists, members, today }: { lists: List[]; membe
                         {c.boardName}, {c.columnName}
                       </div>
                     </div>
+                    {c.priority && (
+                      <Flag className={cn("size-3.5 shrink-0", PRIORITY_STYLE[c.priority])} fill="currentColor" aria-label={t.priority[c.priority]} />
+                    )}
                     <DueBadge start={null} due={c.dueDate} today={today} done={c.done} />
                     <AvatarStack members={c.assigneeIds.map((id) => memberById.get(id)).filter((m): m is Member => !!m)} />
                     <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-foreground" />

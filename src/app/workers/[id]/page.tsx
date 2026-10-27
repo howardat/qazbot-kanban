@@ -4,6 +4,7 @@ import { Bot, ChevronLeft, CircleDot, NotebookPen, Trophy } from "lucide-react";
 import { z } from "zod";
 import { Avatar, PageHeader, Panel } from "@/components/atoms";
 import { EmployeeNotes } from "@/components/EmployeeNotes";
+import { WorkerKanban } from "@/components/WorkerKanban";
 import { WorkerQueue } from "@/components/WorkerQueue";
 import { track } from "@/lib/activity";
 import { addDays, startOfWeek, todayISO, weekday } from "@/lib/dates";
@@ -11,6 +12,7 @@ import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { displayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { loadCards, loadMembers } from "@/lib/data";
 import { loadDoneByDay, loadNotes, loadRobots, loadWorkers } from "@/lib/workers";
 
 const LEVELS = ["bg-muted", "bg-primary/25", "bg-primary/50", "bg-primary/75", "bg-primary"];
@@ -30,10 +32,12 @@ export default async function WorkerPage({ params }: { params: Promise<{ id: str
   const today = todayISO();
   const first = startOfWeek(addDays(today, -364));
   // A day of slack on the lower bound covers the app time zone being ahead of UTC.
-  const [done, notes, allRobots] = await Promise.all([
+  const [done, notes, allRobots, cards, members] = await Promise.all([
     loadDoneByDay(worker.id, new Date(Date.parse(`${first}T00:00:00Z`) - 86_400_000)),
     isAdmin ? loadNotes(worker.id) : Promise.resolve([]),
     loadRobots(),
+    loadCards(),
+    loadMembers(),
   ]);
   const myRobots = allRobots.filter((r) => r.profileId === worker.id);
   const days = Array.from({ length: 53 * 7 }, (_, i) => addDays(first, i)).filter((d) => d <= today);
@@ -77,6 +81,8 @@ export default async function WorkerPage({ params }: { params: Promise<{ id: str
             </ul>
           </Panel>
         )}
+
+        <WorkerKanban cards={cards} members={members} personId={worker.id} today={today} />
 
         <Panel icon={<Trophy />} title={w.productivity} action={<span className="text-xs tabular-nums">{w.finished(total)}</span>}>
           <div className="overflow-x-auto px-4 py-4">

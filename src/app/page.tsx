@@ -13,7 +13,14 @@ import { getT } from "@/lib/i18n/server";
 import { track } from "@/lib/activity";
 import { requireUser } from "@/lib/session";
 import { displayName } from "@/lib/types";
+import { byUrgency } from "@/lib/urgency";
+import { avatarHue } from "@/lib/colors";
 import { cn } from "@/lib/utils";
+
+/** About a full plate in load points (see availability below). */
+const CAPACITY = 6;
+const LEVEL_TEXT = { free: "text-success", room: "text-sky-600 dark:text-sky-400", busy: "text-amber-600 dark:text-amber-400", overloaded: "text-destructive" };
+const LEVEL_BAR = { free: "bg-success", room: "bg-sky-500", busy: "bg-amber-500", overloaded: "bg-destructive" };
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -25,14 +32,15 @@ export default async function DashboardPage() {
 
   const open = cards.filter((c) => !c.done);
   const isLate = (c: (typeof cards)[number]) => !!c.dueDate && c.dueDate < today;
-  const late = open.filter(isLate).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
-  const mine = open
-    .filter((c) => c.assigneeIds.includes(user.id))
-    .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+  // Every list puts the most pressing first: overdue, then highest priority, then closest deadline.
+  const urgent = byUrgency(today);
+  const late = open.filter(isLate).sort(urgent);
+  const mine = open.filter((c) => c.assigneeIds.includes(user.id)).sort(urgent);
   const myLate = mine.filter(isLate).length;
   const upcoming = open
     .filter((c) => c.dueDate && c.dueDate >= today && diffDays(c.dueDate, today) < 7)
     .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
+  const focus = open.filter((c) => isLate(c) || c.priority === "urgent" || c.priority === "high").sort(urgent);
   const doneCount = cards.length - open.length;
   const donePct = cards.length ? (doneCount / cards.length) * 100 : 0;
   const lateBoards = new Set(late.map((c) => c.boardId)).size;
@@ -50,14 +58,20 @@ export default async function DashboardPage() {
     return { ...b, total: bc.length, done, late: bc.filter((c) => !c.done && isLate(c)).length };
   });
 
-  const workload = members
-    .map((m) => {
-      const theirs = open.filter((c) => c.assigneeIds.includes(m.id));
-      return { member: m, open: theirs.length, late: theirs.filter(isLate).length };
+  const availability = members
+    .map((member) => {
+      const theirs = open.filter((c) => c.assigneeIds.includes(member.id));
+      const lateN = theirs.filter(isLate).length;
+      const doing = theirs.filter((c) => c.inProgress).sort((a, b) => b.movedAt.localeCompare(a.movedAt));
+      const soon = theirs.filter((c) => !isLate(c) && c.dueDate && diffDays(c.dueDate, today) < 7).length;
+      // Rough load: late work weighs most, then what's in progress, then this week's deadlines,
+      // then the rest of the backlog. CAPACITY is about a full plate.
+      const load = lateN * 2 + doing.length * 1.5 + soon + (theirs.length - lateN - doing.length) * 0.25;
+      const free = Math.max(0, Math.min(100, Math.round(100 - (load / CAPACITY) * 100)));
+      const level = free >= 75 ? "free" : free >= 40 ? "room" : free >= 10 ? "busy" : "overloaded";
+      return { member, free, level, late: lateN, current: doing[0] ?? null, soon } as const;
     })
-    .sort((a, b) => b.open - a.open);
-  const workMax = Math.max(1, ...workload.map((w) => w.open));
-  const unassigned = open.filter((c) => c.assigneeIds.length === 0).length;
+    .sort((a, b) => b.free - a.free);
 
   return (
     <main>
@@ -117,6 +131,48 @@ export default async function DashboardPage() {
           </Panel>
         </div>
 
+        {/* Every board at a glance */}
+        <section aria-label={d.allBoards}>
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Columns3 className="size-4" /> {d.allBoards}
+            <span className="tabular-nums">{boards.length}</span>
+          </h2>
+          {boards.length === 0 ? (
+            <p className="rounded-lg border bg-card px-4 py-8 text-center text-sm text-muted-foreground">{d.firstBoard}</p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {boardStats.map((b) => {
+                const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
+                return (
+                  <li key={b.id}>
+                    <Link href={`/boards/${b.id}`} className="group block h-full rounded-lg border bg-card p-4 shadow-xs transition-colors hover:border-border-strong hover:bg-accent/40">
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className="avatar grid size-6 shrink-0 place-items-center rounded-md text-xs font-semibold"
+                          style={{ "--hue": avatarHue(b.id) } as React.CSSProperties}
+                        >
+                          {b.name.trim()[0]?.toUpperCase() ?? "B"}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">{b.name}</span>
+                        <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-foreground" />
+                      </div>
+                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={d.pctDone(pct)} title={d.pctDone(pct)}>
+                        <div className="bg-brand-gradient h-full rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+                        <span>{d.boardDone(b.done, b.total)}</span>
+                        <span>· {d.boardCards(b.total - b.done)}</span>
+                        {b.late > 0 && <span className="ml-auto font-medium text-destructive">{d.nLate(b.late)}</span>}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="space-y-4">
             <Panel
@@ -164,6 +220,7 @@ export default async function DashboardPage() {
                 members={members}
                 today={today}
                 lists={[
+                  { key: "focus", label: d.tabs.focus, empty: d.empty.focus, cards: focus },
                   { key: "mine", label: d.tabs.mine, empty: d.empty.mine, cards: mine },
                   { key: "late", label: d.tabs.late, empty: d.empty.late, cards: late },
                   { key: "week", label: d.tabs.week, empty: d.empty.week, cards: upcoming },
@@ -172,62 +229,32 @@ export default async function DashboardPage() {
             </section>
           </div>
 
-          <div className="space-y-4">
-            <Panel icon={<Columns3 />} title={t.nav.boards} action={<span className="text-xs tabular-nums">{boards.length}</span>}>
-              <ul id="boards" className="divide-y">
-                {boardStats.map((b) => {
-                  const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
-                  return (
-                    <li key={b.id}>
-                      <Link href={`/boards/${b.id}`} className="group block px-4 py-3 hover:bg-accent">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="truncate text-sm font-medium">{b.name}</span>
-                          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                            {d.boardDone(b.done, b.total)}
-                            <ChevronRight className="size-3.5 opacity-50 group-hover:opacity-100" />
-                          </span>
-                        </div>
-                        <div
-                          className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                          role="img"
-                          aria-label={d.pctDone(pct)}
-                          title={d.pctDone(pct)}
-                        >
-                          <div className="bg-brand-gradient h-full rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                        {b.late > 0 && <div className="mt-1.5 text-xs font-medium text-destructive">{d.nLate(b.late)}</div>}
-                      </Link>
-                    </li>
-                  );
-                })}
-                {boards.length === 0 && (
-                  <li className="px-4 py-8 text-center text-sm text-muted-foreground">{d.firstBoard}</li>
-                )}
-              </ul>
-            </Panel>
-
-            <Panel icon={<Users />} title={d.perPerson} action={<span className="text-xs">{d.unassigned(unassigned)}</span>}>
-              <ul className="space-y-3 p-4">
-                {workload.map(({ member, open: n, late: l }) => (
-                  <li key={member.id} className="flex items-center gap-3" title={d.personTitle(displayName(member), n, l)}>
-                    <Avatar member={member} size={28} className="ring-0" />
+          <Panel icon={<Users />} title={d.availability} className="self-start">
+            <p className="border-b px-4 py-2 text-xs text-muted-foreground">{d.availabilityHint}</p>
+            <ul className="divide-y">
+              {availability.map(({ member, free, level, late: l, current, soon }) => (
+                <li key={member.id}>
+                  <Link href={`/workers/${member.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent">
+                    <Avatar member={member} size={30} className="ring-0" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="truncate">{displayName(member)}</span>
-                        <span className="shrink-0 text-muted-foreground tabular-nums">
-                          {l > 0 && <span className="mr-1.5 text-xs font-medium text-destructive">{d.late(l)}</span>}
-                          {n}
-                        </span>
+                        <span className="truncate font-medium">{displayName(member)}</span>
+                        <span className={cn("shrink-0 text-xs font-medium", LEVEL_TEXT[level])}>{d.levels[level]}</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 rounded-full bg-muted">
-                        <div className="bg-brand-gradient h-full rounded-full" style={{ width: `${(n / workMax) * 100}%` }} />
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={d.freePct(free)} title={d.freePct(free)}>
+                        <div className={cn("h-full rounded-full", LEVEL_BAR[level])} style={{ width: `${Math.max(free, 3)}%` }} />
+                      </div>
+                      <div className="mt-1 truncate text-xs text-muted-foreground">
+                        {current ? d.workingOn(current.title) : d.freeNow}
+                        {l > 0 && <span className="text-destructive"> · {d.late(l)}</span>}
+                        {soon > 0 && <> · {d.dueSoon(soon)}</>}
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
         </div>
       </div>
     </main>
