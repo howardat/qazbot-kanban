@@ -187,6 +187,8 @@ export const en = {
     confirmDelete: (n: number) => `Click again to delete ${n} ${s(n, "card")}`,
     deleteColumn: "Delete column",
     addPlaceholder: "What needs doing?",
+    newCard: "New card",
+    addHint: "Press Enter to add another card, Esc to close",
   },
 
   card: {

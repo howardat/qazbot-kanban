@@ -53,7 +53,7 @@ export function TagBadge({ tag, className }: { tag: Pick<Tag, "name" | "color">;
   return (
     <span
       className={cn(
-        "inline-flex h-5 max-w-40 items-center gap-1.5 rounded-sm border border-border-strong px-1.5 text-[11px] font-medium leading-none text-muted-foreground",
+        "inline-flex h-5 max-w-40 items-center gap-1.5 rounded-sm border-[0.5px] border-border-strong px-1.5 text-[11px] font-medium leading-none text-muted-foreground",
         className,
       )}
     >
@@ -88,7 +88,7 @@ export function DueBadge({
   const state = dueState(due, today, done);
   if (state === "none") {
     return start ? (
-      <span className="inline-flex h-5 items-center gap-1 rounded-sm border border-border-strong px-1.5 text-[11px] font-medium text-muted-foreground">
+      <span className="inline-flex h-5 items-center gap-1 rounded-sm border-[0.5px] border-border-strong px-1.5 text-[11px] font-medium text-muted-foreground">
         <CalendarDays className="size-3" /> {t.due.from(start)}
       </span>
     ) : null;
@@ -96,7 +96,7 @@ export function DueBadge({
   const Icon = state === "overdue" ? AlertCircle : state === "later" || state === "done" ? CalendarDays : Clock;
   const text = state === "later" || state === "done" ? t.fmt.day(due!) : t.due.relative(due!, today);
   return (
-    <span className={cn("inline-flex h-5 items-center gap-1 rounded-sm border px-1.5 text-[11px] font-medium", DUE_STYLE[state])}>
+    <span className={cn("inline-flex h-5 items-center gap-1 rounded-sm border-[0.5px] px-1.5 text-[11px] font-medium", DUE_STYLE[state])}>
       <Icon className="size-3" />
       {start && (state === "later" || state === "done") && <span className="font-normal">{t.fmt.day(start)} –</span>}
       {text}

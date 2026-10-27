@@ -19,13 +19,13 @@ export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "pri
 const toDate = (iso: string) => new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
 const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-// Set values show as chips; unset ones are faint icon buttons that appear on hover (always on touch).
-// Everything is 20px tall, like Plane's property chips.
+// Plane's property chips: 20px tall, hairline border, small text. Fields without a value still show as
+// an icon-only chip (as in Plane), so every card has the same row and anything can be set in one click.
 const ghost =
-  "inline-flex h-5 cursor-pointer items-center gap-1 rounded-md border border-dashed px-1.5 text-xs text-muted-foreground outline-none hover:border-border-strong hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:opacity-100";
-// Unset buttons go after the set chips (flex order), so their hidden space never opens a gap.
-const hidden = "order-1 opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100";
-const chip = "cursor-pointer rounded-md outline-none hover:ring-2 hover:ring-border focus-visible:ring-3 focus-visible:ring-ring/50";
+  "inline-flex h-5 cursor-pointer items-center gap-1 rounded-sm border-[0.5px] border-border-strong px-1.5 text-[11px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
+// Empty chips go after the set ones (flex order).
+const hidden = "order-1";
+const chip = "cursor-pointer rounded-sm outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
  * Quick buttons on a board card for deadline, priority and assignees. Each opens a small picker and
@@ -59,7 +59,7 @@ export function CardQuickProps({
     onPatch({ assigneeIds: card.assigneeIds.includes(id) ? card.assigneeIds.filter((x) => x !== id) : [...card.assigneeIds, id] });
 
   return (
-    <div className="flex flex-wrap items-center gap-1" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
+    <div className="flex flex-wrap items-center gap-2 pt-2" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
       {/* Priority */}
       {show.priority && (
       <DropdownMenu>
@@ -68,7 +68,7 @@ export function CardQuickProps({
             // Icon only, in a bordered square; the name is in the tooltip.
             <button
               type="button"
-              className={cn(chip, "grid size-5 place-items-center rounded-sm border border-border-strong", card.priority === "urgent" && "border-red-500/40 bg-red-500/10")}
+              className={cn(chip, "grid size-5 place-items-center border-[0.5px] border-border-strong", card.priority === "urgent" && "border-red-500/40 bg-red-500/10")}
               aria-label={`${t.quick.priority}: ${t.priority[card.priority]}`}
               title={t.priority[card.priority]}
             >

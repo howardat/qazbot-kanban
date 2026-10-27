@@ -80,7 +80,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ISODate } from "@/lib/dates";
 import type { CardData, Member, Tag } from "@/lib/types";
@@ -345,7 +344,7 @@ export function Board({
             setCols(initial);
           }}
         >
-          <div className="flex h-full items-start gap-4">
+          <div className="flex h-full items-start gap-4 pt-0.5">
             <SortableContext items={visibleCols.map((c) => colKey(c.id))} strategy={horizontalListSortingStrategy}>
               {visibleCols.map((col) => (
                 <Column
@@ -466,18 +465,18 @@ function Column({
       <section
         ref={setNodeRef}
         style={{ transform: CSS.Translate.toString(transform), transition }}
-        className={cn("flex max-h-full w-10 shrink-0 flex-col", isDragging && "opacity-50")}
+        className={cn("flex max-h-full w-11 shrink-0 flex-col", isDragging && "opacity-50")}
       >
         <button
           type="button"
           onClick={onToggleCollapse}
           title={t.column.expand(column.name)}
-          className="flex cursor-pointer flex-col items-center gap-2 rounded-md py-2 text-sm outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex cursor-pointer flex-col items-center gap-1 rounded-md py-1.5 text-[13px] outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <UnfoldHorizontal className="size-3.5 text-muted-foreground" aria-hidden />
           <StateIcon done={isDone} inProgress={isInProgress} first={first} className="size-3.5" />
           <span className="max-h-80 truncate font-medium [writing-mode:vertical-lr]">{column.name}</span>
-          <span className="text-xs font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
+          <span className="text-[13px] font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
         </button>
       </section>
     );
@@ -487,10 +486,10 @@ function Column({
     <section
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn("flex max-h-full w-80 shrink-0 flex-col", isDragging && "opacity-50")}
+      className={cn("flex max-h-full w-[350px] shrink-0 flex-col", isDragging && "opacity-50")}
     >
       {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph. */}
-      <header className="group/col flex h-9 shrink-0 items-center gap-1.5 px-1">
+      <header className="group/col flex shrink-0 items-center gap-1 py-1.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <span {...attributes} {...listeners} aria-label={t.column.drag} className="grid size-5 cursor-grab place-items-center rounded-sm hover:bg-accent">
@@ -508,14 +507,14 @@ function Column({
           onBlur={() => name.trim() && name !== column.name && renameColumn(column.id, name)}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           size={Math.max(4, name.length)}
-          className="max-w-44 min-w-0 rounded-sm bg-transparent px-1 py-0.5 text-sm font-semibold outline-none hover:bg-accent focus:bg-card"
+          className="max-w-48 min-w-0 rounded-sm bg-transparent px-1 py-0.5 text-[13px] font-medium outline-none hover:bg-accent focus:bg-card"
           aria-label={t.column.nameAria}
         />
-        <span className="text-xs font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
-        <span className="ml-auto flex items-center opacity-0 transition-opacity group-hover/col:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100">
+        <span className="pl-1 text-[13px] font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
+        <span className="ml-auto flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label={t.column.collapseAria} onClick={onToggleCollapse}>
+              <Button variant="ghost" size="icon-xs" className="size-5 [&_svg]:size-3.5" aria-label={t.column.collapseAria} onClick={onToggleCollapse}>
                 <FoldHorizontal />
               </Button>
             </TooltipTrigger>
@@ -523,7 +522,7 @@ function Column({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label={t.column.addCard} onClick={() => setAdding(true)}>
+              <Button variant="ghost" size="icon-xs" className="size-5 [&_svg]:size-3.5" aria-label={t.column.addCard} onClick={() => setAdding(true)}>
                 <Plus />
               </Button>
             </TooltipTrigger>
@@ -531,7 +530,7 @@ function Column({
           </Tooltip>
         <DropdownMenu onOpenChange={(open) => !open && setConfirming(false)}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label={t.column.options}>
+            <Button variant="ghost" size="icon-xs" className="size-5 [&_svg]:size-3.5" aria-label={t.column.options}>
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
@@ -579,7 +578,7 @@ function Column({
         </DropdownMenu>
         </span>
       </header>
-      <div className="-mx-0.5 flex min-h-12 flex-col gap-1.5 overflow-y-auto p-0.5">
+      <div className="-mx-0.5 flex min-h-[120px] flex-col gap-2 overflow-y-auto p-0.5">
         <SortableContext items={column.cards.map((c) => cardKey(c.id))} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} />
@@ -622,14 +621,14 @@ function CardMenu({ card, ctx }: { card: CardData; ctx: Ctx }) {
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
     <div
-      className="absolute top-2 right-2 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100"
+      className="absolute top-2 right-2 rounded-md bg-card opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100"
       onPointerDown={stop}
       onClick={stop}
       onKeyDown={stop}
     >
       <DropdownMenu onOpenChange={(open) => !open && setConfirming(false)}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon-xs" aria-label={t.card.actionsFor(card.title)}>
+          <Button variant="ghost" size="icon-xs" className="size-6 text-muted-foreground [&_svg]:size-3.5" aria-label={t.card.actionsFor(card.title)}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
@@ -678,18 +677,19 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
   return (
     <article
       className={cn(
-        "cursor-pointer space-y-2 rounded-md border bg-card px-3 py-2.5 text-sm shadow-xs transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-sm",
+        "cursor-pointer rounded-lg border bg-card p-3 text-[13px] shadow-xs transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-sm",
         late && "border-destructive/30 hover:border-destructive/50",
         ctx.editingId === card.id && "border-primary ring-1 ring-primary hover:border-primary",
         overlay && "rotate-1 shadow-lg",
       )}
     >
-      <h3 className={cn("line-clamp-3 pr-5 leading-snug font-medium break-words", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
+      {/* One line, like Plane; the full title is on hover */}
+      <h3 title={card.title} className={cn("line-clamp-1 pr-6 leading-5 font-medium break-all", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
         {card.title}
       </h3>
-      {show.description && card.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
+      {show.description && card.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
       {overlay ? (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2 pt-2">
           {show.priority && card.priority && (
             <span className="grid size-5 place-items-center rounded-sm border border-border-strong">
               <PriorityIcon priority={card.priority} className="size-3" />
@@ -712,6 +712,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
   );
 }
 
+/** Plane's quick add: a "+ New card" row under the column; it opens a card-shaped field, Enter adds and stays open. */
 function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean; setOpen: (open: boolean) => void }) {
   const t = useT();
   const [title, setTitle] = useState("");
@@ -720,49 +721,43 @@ function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean;
   if (!open) {
     return (
       <button
+        type="button"
         onClick={() => setOpen(true)}
-        className="mt-1.5 flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="mt-1 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.04] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <Plus className="size-4" /> {t.column.addCard}
+        <Plus className="size-3.5" /> {t.column.newCard}
       </button>
     );
   }
+  const submit = () => {
+    if (!title.trim() || pending) return;
+    startTransition(async () => {
+      await addCard(columnId, title);
+      setTitle("");
+    });
+  };
   return (
-    <form
-      className="mt-1.5 flex flex-col gap-2 p-0.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-        startTransition(async () => {
-          await addCard(columnId, title);
-          setTitle("");
-        });
-      }}
-    >
-      <Textarea
+    <div className="m-0.5 mt-1 overflow-hidden rounded-lg border bg-card shadow-sm">
+      <input
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
+          if (e.key === "Enter") {
             e.preventDefault();
-            e.currentTarget.form?.requestSubmit();
+            submit();
           }
           if (e.key === "Escape") setOpen(false);
         }}
+        onBlur={() => !title.trim() && setOpen(false)}
+        maxLength={200}
+        disabled={pending}
         placeholder={t.column.addPlaceholder}
-        rows={2}
-        className="min-h-16 bg-card"
+        aria-label={t.column.addCard}
+        className="w-full bg-transparent px-3 py-3 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
       />
-      <div className="flex gap-1">
-        <Button size="sm" disabled={pending}>
-          {t.column.addCard}
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          {t.common.cancel}
-        </Button>
-      </div>
-    </form>
+      <div className="bg-muted/60 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
+    </div>
   );
 }
 
@@ -772,7 +767,7 @@ function AddColumn({ boardId }: { boardId: string }) {
   const [pending, startTransition] = useTransition();
   return (
     <form
-      className="w-80 shrink-0"
+      className="w-[350px] shrink-0 pt-1.5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
