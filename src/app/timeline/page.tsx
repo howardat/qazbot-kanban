@@ -3,13 +3,13 @@ import { PageHeader } from "@/components/atoms";
 import { BoardFilter } from "@/components/BoardFilter";
 import { Pager } from "@/components/Pager";
 import { TimelineView } from "@/components/TimelineView";
-import { ViewTabs } from "@/components/ViewTabs";
+import { TabLink, TabsNav } from "@/components/ui/tabs";
+import { ViewBar } from "@/components/ViewTabs";
 import { loadBoards, loadCards, loadMembers, loadTags } from "@/lib/data";
 import { addDays, isValidDate, startOfWeek, todayISO } from "@/lib/dates";
 import { getT } from "@/lib/i18n/server";
 import { track } from "@/lib/activity";
 import { requireUser } from "@/lib/session";
-import { cn } from "@/lib/utils";
 
 // Plane's gantt zoom levels: how many days are shown, how wide a day is, and how far the pager jumps.
 const ZOOMS = {
@@ -47,28 +47,26 @@ export default async function TimelinePage({
 
   return (
     <main>
+      {board && (
+        <ViewBar boardId={board.id} active="timeline">
+          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold tracking-tight hover:underline">
+            {board.name}
+          </Link>
+        </ViewBar>
+      )}
       <PageHeader
         title={t.timeline.title}
         description={t.timeline.description(from, to, board?.name ?? null)}
         actions={
           <>
-            {board && <ViewTabs boardId={board.id} active="timeline" />}
             <BoardFilter boards={boards} value={board?.id ?? null} />
-            <nav className="inline-flex h-8 items-center gap-0.5 rounded-md bg-muted p-0.5 text-xs" aria-label={t.timeline.zoom}>
+            <TabsNav aria-label={t.timeline.zoom}>
               {(Object.keys(ZOOMS) as Zoom[]).map((z) => (
-                <Link
-                  key={z}
-                  href={link({ zoom: z })}
-                  aria-current={z === zoom ? "page" : undefined}
-                  className={cn(
-                    "inline-flex h-full items-center rounded-sm px-2.5 font-medium transition-colors",
-                    z === zoom ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
+                <TabLink key={z} href={link({ zoom: z })} active={z === zoom}>
                   {t.timeline.zooms[z]}
-                </Link>
+                </TabLink>
               ))}
-            </nav>
+            </TabsNav>
             <Pager
               prev={link({ from: addDays(from, -step) })}
               today={link({ from: addDays(today, -7) })}

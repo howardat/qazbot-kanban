@@ -6,7 +6,7 @@ import { AppSidebar, SIDEBAR_COOKIE } from "@/components/AppSidebar";
 import { I18nProvider } from "@/components/I18nProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { loadBoards, loadLatestUpdates } from "@/lib/data";
+import { loadBoards } from "@/lib/data";
 import { dictFor } from "@/lib/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -25,7 +25,7 @@ export default async function RootLayout({
 }>) {
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
-  const [boards, updates] = user ? await Promise.all([loadBoards(), loadLatestUpdates()]) : [[], []];
+  const boards = user ? await loadBoards() : [];
 
   return (
     <html lang={locale}>
@@ -38,7 +38,6 @@ export default async function RootLayout({
                 <Suspense>
                   <AppSidebar
                     boards={boards}
-                    updates={updates}
                     user={{ id: user.id, name: user.name, email: user.email, image: user.image }}
                     isAdmin={user.role === "admin"}
                     collapsed={sidebarCollapsed}

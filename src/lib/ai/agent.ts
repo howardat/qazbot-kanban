@@ -189,7 +189,7 @@ export async function runAgent({
   approvals: Record<string, boolean>;
   emit: (e: AgentEvent) => void;
 }) {
-  // The person's own OpenRouter key if they set one, otherwise the team key.
+  // The person's own OpenRouter key; without one the assistant is off.
   const apiKey = await openRouterKeyFor(user.id);
   if (!apiKey) return emit({ type: "error", message: t.assistant.notConfigured });
   const found = chatId ? await ownChat(user, chatId) : null;

@@ -33,6 +33,7 @@ export const FEATURES = [
   "profile.rename",
   "profile.avatar",
   "access.remove",
+  "access.role",
   "invite.create",
   "invite.revoke",
   "note.add",

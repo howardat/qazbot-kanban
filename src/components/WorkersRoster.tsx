@@ -3,22 +3,28 @@
 import { useState } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
-import { PersonIcon } from "@/components/PersonIcon";
+import { AgeAvatar, AgeText } from "@/components/AgeRing";
+import { AGE_COLORS } from "@/components/office/palette";
+import { ageOf, isOutdated } from "@/lib/staleness";
 import { displayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { Worker } from "@/lib/workers";
 
 /**
- * Team panel docked on the right of the office: free people first, busy people below. Collapses to a
- * strip of avatar icons. Clicking someone opens their worker card.
+ * Team panel docked on the right of the office: people who haven't updated their status for 2+ days
+ * first (oldest on top), then free and busy people. Collapses to a strip of avatar icons. Clicking
+ * someone opens their worker card.
  */
 export function WorkersRoster({ workers, now, onSelect }: { workers: Worker[]; now: number; onSelect: (id: string) => void }) {
   const t = useT();
   const w = t.workers;
   const [open, setOpen] = useState(true);
   const byName = (a: Worker, b: Worker) => displayName(a).localeCompare(displayName(b));
-  const free = workers.filter((x) => !x.current).sort(byName);
-  const busy = workers.filter((x) => x.current).sort(byName);
+  const oldestFirst = (a: Worker, b: Worker) => (ageOf(b.lastUpdate, now) ?? Infinity) - (ageOf(a.lastUpdate, now) ?? Infinity) || byName(a, b);
+  const outdated = workers.filter((x) => isOutdated(x.lastUpdate, now)).sort(oldestFirst);
+  const recent = workers.filter((x) => !isOutdated(x.lastUpdate, now));
+  const free = recent.filter((x) => !x.current).sort(byName);
+  const busy = recent.filter((x) => x.current).sort(byName);
 
   const row = (x: Worker) => (
     <li key={x.id}>
@@ -31,16 +37,15 @@ export function WorkersRoster({ workers, now, onSelect }: { workers: Worker[]; n
           open ? "px-2 py-1.5" : "justify-center p-1",
         )}
       >
-        <PersonIcon member={x} size={open ? 28 : 30} className={cn("ring-2", x.current ? "ring-[#ffa94d]/70" : "ring-[#8ce99a]/70")} />
+        <AgeAvatar member={x} lastUpdate={x.lastUpdate} now={now} size={open ? 24 : 26} />
         {open && (
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-medium">{displayName(x)}</span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="truncate text-xs font-medium">{displayName(x)}</span>
+              <AgeText lastUpdate={x.lastUpdate} now={now} className="ml-auto shrink-0 text-[10px] font-medium tabular-nums" />
+            </span>
             <span className="block truncate text-[10px] text-[#c9bfb2]">
-              {x.current
-                ? `${t.projects[x.current.project]} · ${x.current.title}`
-                : x.lastUpdate
-                  ? w.updated(t.fmt.ago(x.lastUpdate, now))
-                  : w.neverUpdated}
+              {x.current ? `${t.projects[x.current.project]} · ${x.current.title}` : x.lastUpdate ? w.idle : w.neverUpdated}
             </span>
           </span>
         )}
@@ -84,6 +89,8 @@ export function WorkersRoster({ workers, now, onSelect }: { workers: Worker[]; n
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {heading(w.outdated, outdated.length, AGE_COLORS.stale)}
+        {outdated.length ? <ul>{outdated.map(row)}</ul> : open && <p className="px-2 py-1 text-xs text-[#c9bfb2]">{w.noneOutdated}</p>}
         {heading(w.free, free.length, "#8ce99a")}
         {free.length ? <ul>{free.map(row)}</ul> : open && <p className="px-2 py-1 text-xs text-[#c9bfb2]">{w.noneFree}</p>}
         {heading(w.busy, busy.length, "#ffa94d")}

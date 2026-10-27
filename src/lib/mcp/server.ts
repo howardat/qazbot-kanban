@@ -212,7 +212,7 @@ export function createMcpServer(ctx: McpContext) {
     {
       title: "Create card",
       description:
-        "Add a card at the bottom of a column. Tags are given by name; missing tags are created on that board.",
+        "Add a card at the bottom of a column. Tags are given by name; missing tags are created on that board. Without a dueDate the card is due tomorrow; without assigneeIds it is assigned to you.",
       inputSchema: {
         columnId: uuid,
         title: z.string().min(1).max(200),
@@ -227,7 +227,7 @@ export function createMcpServer(ctx: McpContext) {
       annotations: WRITE,
     },
     safe(async (a) => {
-      const cardId = await addCardOp(a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate });
+      const cardId = await addCardOp(ctx.actor, a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate });
       const [col] = await db.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, a.columnId));
       const tagIds = await tagIdsFor(col.boardId, a.tags);
       if (a.description || a.assigneeIds || tagIds || a.project || a.priority) {

@@ -197,7 +197,7 @@ function DayCell({
         <span
           className={cn(
             "inline-flex size-5 items-center justify-center rounded-full",
-            isToday && "bg-primary font-semibold text-primary-foreground",
+            isToday && "bg-primary-gradient font-semibold text-primary-foreground",
           )}
           aria-current={isToday ? "date" : undefined}
         >

@@ -1,18 +1,21 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { CheckCircle2, Trash2 } from "lucide-react";
-import { removePersonalKey, savePersonalKey, type KeyState } from "@/app/settings/actions";
+import { removePersonalKey, savePersonalKey, type KeyState } from "@/app/avatar/actions";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 /** Set, replace or remove your own OpenRouter key. The key itself never comes back to the browser. */
-export function PersonalKeyForm({ hint, teamKey }: { hint: string | null; teamKey: boolean }) {
+export function PersonalKeyForm({ hint, onSaved }: { hint: string | null; onSaved?: () => void }) {
   const t = useT();
   const s = t.settings;
   const [state, action, pending] = useActionState<KeyState, FormData>(savePersonalKey, {});
   const [removing, startRemove] = useTransition();
+  useEffect(() => {
+    if (state.saved) onSaved?.();
+  }, [state, onSaved]);
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
@@ -25,7 +28,7 @@ export function PersonalKeyForm({ hint, teamKey }: { hint: string | null; teamKe
             </Button>
           </>
         ) : (
-          <span className="text-muted-foreground">{teamKey ? s.usingTeam : s.noKey}</span>
+          <span className="text-muted-foreground">{s.noKey}</span>
         )}
       </div>
       <form action={action} className="flex flex-wrap gap-2">

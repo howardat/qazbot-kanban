@@ -57,7 +57,7 @@ import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
 import { TagManager } from "@/components/TagManager";
-import { ViewTabs } from "@/components/ViewTabs";
+import { ViewBar } from "@/components/ViewTabs";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -226,7 +226,8 @@ export function Board({
     patch,
   };
 
-  // Reordering a filtered list would compute wrong positions, so drag is off while filtering.
+  // Filters only hide cards. Drag handlers look cards up by id in the full `cols`, so a move while
+  // filtering lands at the right spot among the hidden cards too.
   const filtering = !!personFilter || !!tagFilter;
   const visibleCols = filtering
     ? cols.map((c) => ({
@@ -310,17 +311,21 @@ export function Board({
   return (
     <main className="flex h-full flex-col">
       <div className="border-b">
-        <div className="flex min-h-13 flex-wrap items-center gap-3 border-b px-4 py-2 md:px-6">
+        <ViewBar
+          boardId={board.id}
+          active="board"
+          actions={
+            <>
+              <TagManager boardId={board.id} tags={tags} />
+              {canDelete && <DeleteBoard board={board} />}
+            </>
+          }
+        >
           <BoardTitle board={board} />
           <span className="hidden text-xs text-muted-foreground tabular-nums lg:inline">
             {t.board.summary(cardCount, cols.length)}
           </span>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <ViewTabs boardId={board.id} active="board" />
-            <TagManager boardId={board.id} tags={tags} />
-            {canDelete && <DeleteBoard board={board} />}
-          </div>
-        </div>
+        </ViewBar>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 md:px-6">
           <div className="flex items-center gap-1.5" role="group" aria-label={t.board.byPerson}>
@@ -330,7 +335,8 @@ export function Board({
             >
               {t.board.myCards}
             </FilterPill>
-            <div className="flex items-center gap-1">
+            {/* Wide enough gaps that a selected person's ring isn't covered by the next avatar. */}
+            <div className="flex items-center gap-2 px-0.5">
               {members.map((m) => (
                 <Tooltip key={m.id}>
                   <TooltipTrigger asChild>
@@ -340,11 +346,11 @@ export function Board({
                       aria-label={t.board.showFor(displayName(m))}
                       onClick={() => setPersonFilter(personFilter === m.id ? null : m.id)}
                       className={cn(
-                        "cursor-pointer rounded-full transition",
-                        personFilter === m.id ? "ring-2 ring-brand ring-offset-2 ring-offset-card" : "opacity-75 hover:opacity-100",
+                        "grid size-6 cursor-pointer place-items-center rounded-full outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
+                        personFilter === m.id ? "ring-2 ring-brand ring-offset-1 ring-offset-card" : "opacity-75 hover:opacity-100",
                       )}
                     >
-                      <Avatar member={m} size={24} className="ring-0" />
+                      <Avatar member={m} size={24} className="pointer-events-none ring-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>{displayName(m)}</TooltipContent>
@@ -408,7 +414,6 @@ export function Board({
                   key={col.id}
                   column={col}
                   ctx={ctx}
-                  disabled={filtering}
                   collapsed={collapsed.includes(col.id)}
                   onToggleCollapse={() => toggleCollapsed(col.id)}
                 />
@@ -501,19 +506,16 @@ function DeleteBoard({ board }: { board: { id: string; name: string } }) {
 function Column({
   column,
   ctx,
-  disabled,
   collapsed,
   onToggleCollapse,
 }: {
   column: ColumnData;
   ctx: Ctx;
-  disabled: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: colKey(column.id),
-    disabled,
   });
   const [name, setName] = useState(column.name);
   const [isDone, setIsDone] = useState(column.isDone);
@@ -560,8 +562,7 @@ function Column({
           {...attributes}
           {...listeners}
           className={cn(
-            "rounded-sm p-0.5 text-muted-foreground",
-            disabled ? "opacity-30" : "cursor-grab hover:bg-accent hover:text-foreground",
+            "cursor-grab rounded-sm p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground",
           )}
           aria-label={t.column.drag}
         >
@@ -662,7 +663,7 @@ function Column({
       <div className="-mx-0.5 flex min-h-12 flex-col gap-2 overflow-y-auto p-0.5">
         <SortableContext items={column.cards.map((c) => cardKey(c.id))} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
-            <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} disabled={disabled} />
+            <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} />
           ))}
         </SortableContext>
       </div>
@@ -671,10 +672,9 @@ function Column({
   );
 }
 
-function SortableCard({ card, ctx, done, disabled }: { card: CardData; ctx: Ctx; done: boolean; disabled: boolean }) {
+function SortableCard({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cardKey(card.id),
-    disabled,
   });
   return (
     <div

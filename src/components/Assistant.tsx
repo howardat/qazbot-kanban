@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
   ArrowUp,
   AudioLines,
   Check,
   CircleAlert,
+  ExternalLink,
   Loader2,
+  Lock,
   MessagesSquare,
   Mic,
   Pencil,
@@ -24,10 +25,10 @@ import {
 } from "lucide-react";
 import { deleteChat, renameChat } from "@/app/assistant/actions";
 import { useT } from "@/components/I18nProvider";
+import { PersonalKeyForm } from "@/components/PersonalKeyForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useVoice } from "@/components/useVoice";
 import type { AgentEvent, CallInfo, ChatSummary, ChatView } from "@/lib/ai/agent";
 import type { ModelPrice, Tier } from "@/lib/ai/models";
@@ -101,9 +102,7 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
     setShowList(false);
   }, [initial]);
 
-  useEffect(() => {
-    setSpeakOn(read<boolean>(SPEAK_KEY) ?? false);
-    setHandsFree(read<boolean>(HANDS_FREE_KEY) ?? false);
+  const loadConfig = useCallback(() => {
     fetch("/api/assistant")
       .then((r) => r.json())
       .then((c: Config) => {
@@ -114,6 +113,12 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
       })
       .catch(() => setError(a.failed));
   }, [a.failed]);
+
+  useEffect(() => {
+    setSpeakOn(read<boolean>(SPEAK_KEY) ?? false);
+    setHandsFree(read<boolean>(HANDS_FREE_KEY) ?? false);
+    loadConfig();
+  }, [loadConfig]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
@@ -327,13 +332,9 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
 
         <div ref={scroller} className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 text-sm">
-            {config && !config.configured && (
-              <p className="flex gap-2 rounded-md border border-warning/40 bg-warning-soft p-3 text-xs text-warning">
-                <AlertTriangle className="size-4 shrink-0" /> {a.notConfigured}
-              </p>
-            )}
+            {config && !config.configured && <KeyWelcome onSaved={loadConfig} />}
 
-            {messages.length === 0 && !busy && (
+            {config?.configured && messages.length === 0 && !busy && (
               <div className="mx-auto max-w-md space-y-4 pt-10 text-center">
                 <Sparkles className="mx-auto size-7 text-primary" />
                 <p className="text-muted-foreground">{a.hint}</p>
@@ -356,7 +357,7 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
             {messages.map((m, i) => {
               if (m.role === "user")
                 return (
-                  <div key={i} className="ml-auto w-fit max-w-[85%] rounded-lg bg-brand-soft px-3 py-2 whitespace-pre-wrap">
+                  <div key={i} className="ml-auto w-fit max-w-[85%] rounded-lg bg-brand-soft-gradient px-3 py-2 whitespace-pre-wrap">
                     {m.text}
                   </div>
                 );
@@ -392,7 +393,7 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
             {busy && draft && <div className="leading-relaxed whitespace-pre-wrap">{draft}</div>}
 
             {pending.length > 0 && !busy && (
-              <div className="space-y-2 rounded-lg border border-primary/30 bg-brand-soft/50 p-3">
+              <div className="space-y-2 rounded-lg border border-primary/25 bg-brand-soft-gradient p-3">
                 <div className="text-xs font-semibold text-primary">{a.proposed}</div>
                 {pending.map((id) => {
                   const info = calls[id];
@@ -454,8 +455,14 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
             send(input);
           }}
         >
-          <div className="flex items-end gap-2 rounded-lg border bg-card p-1.5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50">
-            <Textarea
+          {/* A plain textarea: the shared Textarea's own border and fills would draw a box inside this one. */}
+          <div
+            className={cn(
+              "rounded-2xl border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-primary/50 focus-within:ring-3 focus-within:ring-ring/40",
+              !config?.configured && "opacity-60",
+            )}
+          >
+            <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -468,27 +475,38 @@ export function AssistantChat({ chats, initial }: { chats: ChatSummary[]; initia
               maxLength={8000}
               disabled={!config?.configured || pending.length > 0 || voice.listening}
               placeholder={voice.listening ? v.listening : a.placeholder}
-              className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-1.5 py-2 shadow-none focus-visible:ring-0"
+              aria-label={a.placeholder}
+              className="field-sizing-content block max-h-48 min-h-12 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             />
-            {voice.supported.input ? (
-              <Button
-                type="button"
-                size="icon-sm"
-                variant={voice.listening ? "destructive" : "ghost"}
-                aria-label={voice.listening ? v.stop : v.speak}
-                title={voice.listening ? v.stop : v.speak}
-                disabled={busy || !config?.configured}
-                className={cn(voice.listening && "animate-pulse")}
-                onClick={() => (voice.listening ? voice.stopListening() : startListening())}
-              >
-                {voice.listening ? <Square /> : <Mic />}
-              </Button>
-            ) : (
-              <span className="sr-only">{v.unsupported}</span>
-            )}
-            <Button size="icon-sm" aria-label={a.send} disabled={busy || !input.trim() || pending.length > 0 || !config?.configured}>
-              <ArrowUp />
-            </Button>
+            <div className="flex items-center gap-1 px-2 pb-2">
+              <span className="hidden px-2 text-[11px] text-muted-foreground sm:inline">{a.composerHint}</span>
+              <div className="ml-auto flex items-center gap-1">
+                {voice.supported.input ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={voice.listening ? "destructive" : "ghost"}
+                    aria-label={voice.listening ? v.stop : v.speak}
+                    title={voice.listening ? v.stop : v.speak}
+                    disabled={busy || !config?.configured}
+                    className={cn("rounded-full text-muted-foreground", voice.listening && "animate-pulse text-white")}
+                    onClick={() => (voice.listening ? voice.stopListening() : startListening())}
+                  >
+                    {voice.listening ? <Square /> : <Mic />}
+                  </Button>
+                ) : (
+                  <span className="sr-only">{v.unsupported}</span>
+                )}
+                <Button
+                  size="icon"
+                  aria-label={a.send}
+                  className="rounded-full"
+                  disabled={busy || !input.trim() || pending.length > 0 || !config?.configured}
+                >
+                  {busy ? <Loader2 className="animate-spin" /> : <ArrowUp />}
+                </Button>
+              </div>
+            </div>
           </div>
         </form>
       </section>
@@ -629,6 +647,30 @@ function ToolChip({ info }: { info?: CallInfo }) {
     <div className={cn("flex items-center gap-1.5 text-xs text-muted-foreground", failed && "text-destructive")}>
       {failed ? <CircleAlert className="size-3" /> : <Search className="size-3" />}
       <span className="truncate">{info?.summary}</span>
+    </div>
+  );
+}
+
+/** First run: the assistant stays off until this person adds their own OpenRouter key. */
+function KeyWelcome({ onSaved }: { onSaved: () => void }) {
+  const w = useT().assistant.welcome;
+  return (
+    <div className="mx-auto max-w-lg space-y-5 pt-8">
+      <div className="space-y-2 text-center">
+        <Sparkles className="mx-auto size-7 text-primary" />
+        <h2 className="text-lg font-semibold tracking-tight">{w.title}</h2>
+        <p className="text-muted-foreground">{w.intro}</p>
+      </div>
+      <p className="text-center">
+        {w.paste}{" "}
+        <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
+          {w.keyLink} <ExternalLink className="size-3" />
+        </a>
+      </p>
+      <PersonalKeyForm hint={null} onSaved={onSaved} />
+      <p className="flex gap-2 rounded-md border border-primary/20 bg-brand-soft-gradient p-3 text-xs text-muted-foreground">
+        <Lock className="size-4 shrink-0 text-primary" /> {w.privacy}
+      </p>
     </div>
   );
 }

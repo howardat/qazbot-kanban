@@ -4,22 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Activity,
   CalendarDays,
   ChartGantt,
+  Box,
   Check,
+  ChevronRight,
   ChevronsUpDown,
   Coins,
   House,
   Languages,
+  LayoutDashboard,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
   Plus,
-  Settings,
   ShieldCheck,
+  Smile,
   Sparkles,
   SquareKanban,
   Users,
@@ -29,7 +31,6 @@ import { setLocale } from "@/app/locale-actions";
 import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { NewBoardButton } from "@/components/NewBoardButton";
-import { PersonIcon } from "@/components/PersonIcon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,12 +44,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { avatarHue } from "@/lib/colors";
 import { dictFor, LOCALES } from "@/lib/i18n";
-import type { LatestUpdate } from "@/lib/data";
 import { displayName, type Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Board = { id: string; name: string };
-type Props = { boards: Board[]; updates: LatestUpdate[]; user: Member; isAdmin: boolean; collapsed: boolean };
+type Props = { boards: Board[]; user: Member; isAdmin: boolean; collapsed: boolean };
 
 /** Cookie remembering a collapsed sidebar; the layout reads it so the first paint already matches. */
 export const SIDEBAR_COOKIE = "sidebar";
@@ -57,14 +57,21 @@ const NAV = [
   { href: "/", key: "home", Icon: House },
   { href: "/calendar", key: "calendar", Icon: CalendarDays },
   { href: "/timeline", key: "timeline", Icon: ChartGantt },
-  { href: "/workers", key: "workers", Icon: Users },
 ] as const;
 
-// Plane's sidebar row: transparent until hovered, a faint fill when active.
+// Team opens into its two pages instead of linking straight to one.
+const TEAM = [
+  { href: "/workers/team", key: "teamDashboard", Icon: LayoutDashboard },
+  { href: "/workers", key: "teamOffice", Icon: Box },
+] as const;
+
+// Sidebar row: transparent until hovered; the current page is a white pill raised off the canvas.
 const row = (active: boolean) =>
   cn(
-    "flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4 [&_svg]:shrink-0",
-    active ? "bg-foreground/[0.06] font-medium text-foreground" : "text-secondary-foreground hover:bg-accent hover:text-foreground",
+    "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4 [&_svg]:shrink-0",
+    active
+      ? "bg-card font-medium text-foreground shadow-xs ring-1 ring-border-strong/70"
+      : "text-secondary-foreground hover:bg-foreground/[0.04] hover:text-foreground",
   );
 
 function useActive() {
@@ -73,6 +80,7 @@ function useActive() {
   const boardId = pathname.startsWith("/boards/") ? pathname.split("/")[2] : null;
   return {
     nav: (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`)),
+    exact: (href: string) => pathname === href,
     board: (id: string) => boardId === id || (pathname !== "/" && params.get("board") === id),
   };
 }
@@ -94,7 +102,7 @@ function Logo() {
   const t = useT();
   return (
     <Link href="/" className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1 font-semibold tracking-tight" aria-label={t.nav.homeAria}>
-      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
+      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary-gradient text-primary-foreground shadow-xs">
         <SquareKanban className="size-3.5" />
       </span>
       <span className="truncate text-sm">Qazbot</span>
@@ -129,8 +137,8 @@ function AccountItems({ user, isAdmin }: { user: Member; isAdmin: boolean }) {
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
-        <Link href="/settings">
-          <Settings /> {t.nav.settings}
+        <Link href="/avatar">
+          <Smile /> {t.nav.settings}
         </Link>
       </DropdownMenuItem>
       <DropdownMenuSub>
@@ -152,7 +160,7 @@ function AccountItems({ user, isAdmin }: { user: Member; isAdmin: boolean }) {
   );
 }
 
-export function AppSidebar({ boards, updates, user, isAdmin, collapsed: initiallyCollapsed }: Props) {
+export function AppSidebar({ boards, user, isAdmin, collapsed: initiallyCollapsed }: Props) {
   const t = useT();
   const active = useActive();
   const router = useRouter();
@@ -202,6 +210,15 @@ export function AppSidebar({ boards, updates, user, isAdmin, collapsed: initiall
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">{t.nav.workers}</DropdownMenuLabel>
+              {TEAM.map(({ href, key, Icon }) => (
+                <DropdownMenuItem key={href} asChild>
+                  <Link href={href} className={cn(active.exact(href) && "font-medium")}>
+                    <Icon /> {t.nav[key]}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">{t.nav.boards}</DropdownMenuLabel>
               {boards.map((b) => (
                 <DropdownMenuItem key={b.id} asChild>
@@ -246,6 +263,7 @@ export function AppSidebar({ boards, updates, user, isAdmin, collapsed: initiall
               <Icon /> {label(t.nav[key])}
             </Link>
           ))}
+          <TeamNav collapsed={collapsed} />
           <Link href="/assistant" className={railRow(active.nav("/assistant"))} aria-current={active.nav("/assistant") ? "page" : undefined} title={t.assistant.open}>
             <Sparkles className="text-primary" /> {label(t.nav.assistant)}
             {!collapsed && <kbd className="ml-auto font-sans text-[11px] text-muted-foreground">⌘J</kbd>}
@@ -284,8 +302,6 @@ export function AppSidebar({ boards, updates, user, isAdmin, collapsed: initiall
           </nav>
         </div>
 
-        {!collapsed && <LatestUpdates updates={updates} />}
-
         <div className="p-2">
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(railRow(false), "h-10 cursor-pointer")} title={collapsed ? displayName(user) : undefined}>
@@ -303,38 +319,59 @@ export function AppSidebar({ boards, updates, user, isAdmin, collapsed: initiall
   );
 }
 
-/** Feed of the latest card moves on any board: which card, where it went, whose it is, how long ago. */
-function LatestUpdates({ updates }: { updates: LatestUpdate[] }) {
+/** Team in the sidebar: an accordion with Dashboard and Office, or a flyout menu when the sidebar is collapsed. */
+function TeamNav({ collapsed }: { collapsed: boolean }) {
   const t = useT();
-  return (
-    <section className="border-t px-2 pt-2 pb-1" aria-label={t.nav.latestUpdates}>
-      <h2 className="flex h-6 items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground">
-        <Activity className="size-3.5" /> {t.nav.latestUpdates}
-      </h2>
-      {updates.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-muted-foreground">{t.nav.noUpdates}</p>
-      ) : (
-        <ol className="max-h-56 overflow-y-auto">
-          {updates.map((u) => (
-            <li key={u.cardId}>
-              <Link href={`/boards/${u.boardId}`} className="flex gap-2 rounded-md px-2 py-1.5 outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50">
-                {u.assignees[0] ? (
-                  <PersonIcon member={u.assignees[0]} size={20} className="mt-0.5" />
-                ) : (
-                  <span className="mt-0.5 size-5 shrink-0 rounded-full border border-dashed" aria-hidden />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-medium text-foreground">{u.title}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    <span className={cn(u.done && "text-success")}>→ {u.column}</span>
-                    {u.assignees.length > 0 && ` · ${u.assignees.map(displayName).join(", ")}`} · {t.fmt.ago(u.at)}
-                  </span>
-                </span>
+  const active = useActive();
+  const onTeam = active.nav("/workers");
+  const [open, setOpen] = useState(onTeam);
+  // Arriving on a team page from elsewhere opens the group.
+  useEffect(() => {
+    if (onTeam) setOpen(true);
+  }, [onTeam]);
+
+  if (collapsed)
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger className={cn(row(onTeam), "cursor-pointer justify-center px-0")} title={t.nav.workers} aria-label={t.nav.workers}>
+          <Users />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="right" align="start" className="w-44">
+          <DropdownMenuLabel className="text-xs text-muted-foreground">{t.nav.workers}</DropdownMenuLabel>
+          {TEAM.map(({ href, key, Icon }) => (
+            <DropdownMenuItem key={href} asChild>
+              <Link href={href} className={cn(active.exact(href) && "font-medium")}>
+                <Icon /> {t.nav[key]}
               </Link>
-            </li>
+            </DropdownMenuItem>
           ))}
-        </ol>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls="team-nav"
+        // Highlighted only while closed: when open, the current sub-page carries the highlight.
+        className={cn(row(onTeam && !open), "cursor-pointer")}
+      >
+        <Users />
+        <span className="truncate">{t.nav.workers}</span>
+        <ChevronRight className={cn("ml-auto size-3.5! opacity-60 transition-transform", open && "rotate-90")} />
+      </button>
+      {open && (
+        <div id="team-nav" className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l pl-2">
+          {TEAM.map(({ href, key, Icon }) => (
+            <Link key={href} href={href} className={row(active.exact(href))} aria-current={active.exact(href) ? "page" : undefined}>
+              <Icon /> <span className="truncate">{t.nav[key]}</span>
+            </Link>
+          ))}
+        </div>
       )}
-    </section>
+    </div>
   );
 }

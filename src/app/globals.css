@@ -8,7 +8,7 @@
 /*
   Palette, radius, shadow and density follow Plane's design system (@makeplane/propel,
   AGPL-3.0, (c) Plane Software, Inc.). Layering: one canvas (app background), surfaces on it
-  (sidebar panel, page), white cards on surfaces. One accent: Plane's brand blue, used for
+  (sidebar panel, page), white cards on surfaces. One accent: a saturated brand blue, used for
   primary actions, today and selection. Red = past deadline, amber = due soon.
 */
 :root {
@@ -20,7 +20,7 @@
   --card-foreground: oklch(0.1689 0.0021 286.18);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.1689 0.0021 286.18);
-  --primary: oklch(0.4799 0.1158 242.91);      /* accent-primary: brand-default */
+  --primary: oklch(0.52 0.155 256);            /* accent-primary: calm brand blue, 5:1 on white text */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.9821 0 0);              /* layer-1 */
   --secondary-foreground: oklch(0.3225 0.0045 219.62);
@@ -32,13 +32,13 @@
   --border: oklch(0.9396 0.0017 247.84);       /* border-subtle */
   --input: oklch(0.9123 0.0017 247.84);        /* border-subtle-1 */
   --border-strong: oklch(0.8782 0.0035 247.86);
-  --ring: oklch(0.7649 0.1392 236.3);          /* brand-600 */
+  --ring: oklch(0.72 0.12 254);
 
   --tray: oklch(0.9911 0 0);                   /* surface-2 */
-  --brand: oklch(0.4799 0.1158 242.91);
-  --brand-from: oklch(0.6766 0.1665 243.91);
-  --brand-to: oklch(0.4799 0.1158 242.91);
-  --brand-soft: oklch(0.9715 0.0167 230.9);    /* accent-subtle */
+  --brand: oklch(0.52 0.155 256);
+  --brand-from: oklch(0.64 0.13 238);       /* a touch lighter and toward cyan, for gentle gradients */
+  --brand-to: oklch(0.52 0.155 256);
+  --brand-soft: oklch(0.965 0.02 252);        /* accent-subtle */
   --warning: oklch(0.557 0.158291 45.3594);    /* amber-800 */
   --warning-soft: oklch(0.9617 0.0592 95.89);  /* amber-200 */
   --success: oklch(0.5883 0.1413 149.06);      /* green-800 */
@@ -48,6 +48,14 @@
   --tag-green-bg: #e3f5e9;  --tag-green-fg: #15803d;
   --tag-red-bg: #fde8e8;    --tag-red-fg: #b91c1c;
   --tag-violet-bg: #efe9fd; --tag-violet-fg: #6d28d9;
+
+  /* Data tones: one hue per metric, used only in small doses (tick meters, chart highlights, deltas).
+     Each has a lighter "-from" stop for its vertical gradient. */
+  --tone-sky: oklch(0.66 0.15 236);     --tone-sky-from: oklch(0.78 0.11 228);
+  --tone-violet: oklch(0.56 0.19 278);  --tone-violet-from: oklch(0.7 0.14 282);
+  --tone-orange: oklch(0.7 0.18 48);    --tone-orange-from: oklch(0.8 0.13 62);
+  --tone-green: oklch(0.66 0.15 155);   --tone-green-from: oklch(0.78 0.12 158);
+  --tone-rose: oklch(0.62 0.2 15);      --tone-rose-from: oklch(0.74 0.14 18);
   --tag-orange-bg: #fdebdd; --tag-orange-fg: #c2410c;
   --tag-pink-bg: #fce7f3;   --tag-pink-fg: #be185d;
   --tag-slate-bg: #eeeeec;  --tag-slate-fg: #52525b;
@@ -61,7 +69,7 @@
     --card-foreground: oklch(0.9235 0.0017 230.69);
     --popover: oklch(0.2158 0.0025 230.82);
     --popover-foreground: oklch(0.9235 0.0017 230.69);
-    --primary: oklch(0.6311 0.126281 238.01);
+    --primary: oklch(0.64 0.14 254);
     --primary-foreground: oklch(0.9851 0 0);
     --secondary: oklch(0.2158 0.0025 230.82);
     --secondary-foreground: oklch(0.8455 0.0035 230.72);
@@ -73,13 +81,13 @@
     --border: oklch(0.2593 0.0033 230.84);
     --input: oklch(0.3011 0.0041 230.85);
     --border-strong: oklch(0.3415 0.0049 230.86);
-    --ring: oklch(0.596 0.0937 235.63);
+    --ring: oklch(0.6 0.11 254);
 
     --tray: oklch(0.2158 0.0025 230.82);
-    --brand: oklch(0.6311 0.126281 238.01);
-    --brand-from: oklch(0.700818 0.114497 235.29);
-    --brand-to: oklch(0.6311 0.126281 238.01);
-    --brand-soft: oklch(0.2513 0.0418 234.6);
+    --brand: oklch(0.64 0.14 254);
+    --brand-from: oklch(0.72 0.11 236);
+    --brand-to: oklch(0.64 0.14 254);
+    --brand-soft: oklch(0.27 0.05 256);
     --warning: oklch(0.7724 0.172798 65.367);
     --warning-soft: oklch(0.3042 0.0853 45.16);
     --success: oklch(0.7785 0.1398 151.07);
@@ -89,6 +97,12 @@
     --tag-green-bg: #0f2a19;  --tag-green-fg: #86efac;
     --tag-red-bg: #3a1414;    --tag-red-fg: #fca5a5;
     --tag-violet-bg: #251a45; --tag-violet-fg: #c4b5fd;
+
+    --tone-sky: oklch(0.7 0.13 236);     --tone-sky-from: oklch(0.8 0.1 228);
+    --tone-violet: oklch(0.66 0.16 280); --tone-violet-from: oklch(0.76 0.12 284);
+    --tone-orange: oklch(0.74 0.16 50);  --tone-orange-from: oklch(0.82 0.12 64);
+    --tone-green: oklch(0.72 0.14 155);  --tone-green-from: oklch(0.82 0.11 158);
+    --tone-rose: oklch(0.68 0.18 15);    --tone-rose-from: oklch(0.78 0.13 18);
     --tag-orange-bg: #3a1e0c; --tag-orange-fg: #fdba74;
     --tag-pink-bg: #3a1229;   --tag-pink-fg: #f9a8d4;
     --tag-slate-bg: #26262a;  --tag-slate-fg: #d4d4d8;
@@ -121,6 +135,11 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-success: var(--success);
+  --color-tone-sky: var(--tone-sky);
+  --color-tone-violet: var(--tone-violet);
+  --color-tone-orange: var(--tone-orange);
+  --color-tone-green: var(--tone-green);
+  --color-tone-rose: var(--tone-rose);
   --color-border-strong: var(--border-strong);
   /* Plane's corners: 6px controls, 8px cards and panels; large radii stay compact */
   --radius-xs: 2px;
@@ -180,6 +199,38 @@
 /* The one accent: blue gradient for progress, today and selection */
 @utility bg-brand-gradient {
   background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+}
+
+/* Solid accent fills (primary buttons, badges, markers): a soft top light instead of a flat block */
+@utility bg-primary-gradient {
+  background-color: var(--primary);
+  background-image: linear-gradient(180deg, var(--brand-from), var(--brand-to));
+}
+
+/* Tinted panels and highlights: the soft brand wash fading into the surface */
+@utility bg-brand-soft-gradient {
+  background-color: var(--brand-soft);
+  background-image: linear-gradient(135deg, var(--brand-soft), color-mix(in oklch, var(--brand-soft) 45%, var(--card)));
+}
+
+/* Ticker for one-line text that doesn't fit: two copies side by side, shifted by one copy's width */
+@theme {
+  --animate-marquee: marquee 10s linear infinite;
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-50% - 0.75rem)); }
+  }
+}
+
+/* Highlighted chart bar: glossy brand blue, light on top, with a soft inner shine */
+@utility bg-bar-highlight {
+  background-image: linear-gradient(180deg, var(--tone-sky-from), var(--primary));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), 0 4px 12px -4px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+/* Resting chart bars: a quiet grey that fades toward the baseline */
+@utility bg-bar-rest {
+  background-image: linear-gradient(180deg, color-mix(in oklch, var(--muted) 60%, var(--border-strong)), var(--muted));
 }
 
 /* Brand wash used once per surface (login panel, card dialog header) */

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { AlertCircle, CheckCheck, CircleDot, Coffee, LayoutGrid, Users } from "lucide-react";
-import { PageHeader, Panel } from "@/components/atoms";
+import { PageHeader, Panel, StatTile } from "@/components/atoms";
+import { TickMeter } from "@/components/TickMeter";
 import { PROJECT_COLORS } from "@/components/office/palette";
 import { PersonIcon } from "@/components/PersonIcon";
-import { WorkersTabs } from "@/components/WorkersTabs";
 import { track } from "@/lib/activity";
 import { availabilityOf, LEVEL_BAR, LEVEL_TEXT } from "@/lib/availability";
 import { loadCards } from "@/lib/data";
@@ -38,9 +38,10 @@ export default async function TeamPage() {
   const roomMax = Math.max(1, ...rooms.map((r) => r.n));
 
   const stats = [
+    // Working and free get a tick meter: their share of the team, in their own tone.
     { label: w.stats.people, value: workers.length, Icon: Users },
-    { label: w.stats.working, value: working, Icon: CircleDot },
-    { label: w.stats.free, value: workers.length - working, Icon: Coffee },
+    { label: w.stats.working, value: working, Icon: CircleDot, tone: "violet" as const, share: working },
+    { label: w.stats.free, value: workers.length - working, Icon: Coffee, tone: "green" as const, share: workers.length - working },
     { label: w.stats.late, value: lateCards, Icon: AlertCircle, bad: lateCards > 0 },
     { label: w.stats.done30, value: doneTotal, Icon: CheckCheck },
   ];
@@ -48,13 +49,21 @@ export default async function TeamPage() {
 
   return (
     <main>
-      <PageHeader title={w.teamTitle} description={w.teamDescription} actions={<WorkersTabs active="team" />} />
+      <PageHeader title={w.teamTitle} description={w.teamDescription} />
       <div className="space-y-4 px-4 py-5 md:px-6">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          {stats.map(({ label, value, Icon, bad }) => (
-            <Panel key={label} icon={<Icon />} title={label}>
-              <div className={cn("p-4 text-2xl font-semibold tracking-tight tabular-nums", bad && "text-destructive")}>{value}</div>
-            </Panel>
+          {stats.map(({ label, value, Icon, bad, tone, share }) => (
+            <StatTile
+              key={label}
+              icon={<Icon />}
+              title={label}
+              value={<span className={cn(bad && "text-destructive")}>{value}</span>}
+              meter={
+                tone && (
+                  <TickMeter tone={tone} ticks={20} value={workers.length ? (share / workers.length) * 100 : 0} label={`${share} / ${workers.length}`} />
+                )
+              }
+            />
           ))}
         </div>
 

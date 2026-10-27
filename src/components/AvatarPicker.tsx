@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
-import { setAvatar } from "@/app/settings/actions";
+import { setAvatar } from "@/app/avatar/actions";
 import { useT } from "@/components/I18nProvider";
 import { AVATARS, lookOf } from "@/components/office/look";
 import { LookIcon } from "@/components/PersonIcon";
@@ -23,12 +23,12 @@ export function AvatarPicker({ me }: { me: Member }) {
       "relative grid cursor-pointer place-items-center rounded-xl border p-1.5 outline-none transition-colors hover:border-border-strong hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
       selected && "border-primary bg-primary/5 ring-2 ring-primary",
     );
-  const mark = <Check className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-primary p-0.5 text-primary-foreground" />;
+  const mark = <Check className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-primary-gradient p-0.5 text-primary-foreground" />;
   return (
     <div className={cn("grid grid-cols-5 gap-2 sm:grid-cols-7", pending && "opacity-80")} role="radiogroup" aria-label={t.settings.avatarTitle}>
-      <button type="button" role="radio" aria-checked={chosen === null} aria-label={t.settings.automatic} title={t.settings.automatic} onClick={() => choose(null)} className={tile(chosen === null)}>
+      <button type="button" role="radio" aria-checked={chosen === null} aria-label={t.settings.automaticHint} title={t.settings.automaticHint} onClick={() => choose(null)} className={tile(chosen === null)}>
         <LookIcon look={lookOf({ ...me, avatar: null })} size={48} />
-        <span className="mt-1 text-[10px] text-muted-foreground">{t.settings.automatic}</span>
+        <span className="mt-1 max-w-full truncate text-[10px] text-muted-foreground">{t.settings.automatic}</span>
         {chosen === null && mark}
       </button>
       {AVATARS.map((look, i) => (

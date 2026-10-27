@@ -1,8 +1,8 @@
 import { asc } from "drizzle-orm";
-import { ShieldCheck, UserMinus } from "lucide-react";
+import { ShieldCheck, ShieldMinus, ShieldPlus, UserMinus } from "lucide-react";
 import { db } from "@/db";
 import { allowedEmails, profiles } from "@/db/schema";
-import { removeAllowedEmail } from "@/app/actions";
+import { removeAllowedEmail, setRole } from "@/app/actions";
 import { Avatar, PageHeader, Panel } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,16 +62,31 @@ export default async function AdminPage() {
                   {isSelf ? (
                     <Badge variant="secondary">{t.admin.you}</Badge>
                   ) : (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await removeAllowedEmail(email);
-                      }}
-                    >
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                        <UserMinus /> {t.admin.remove}
-                      </Button>
-                    </form>
+                    <>
+                      {u && (
+                        <form
+                          action={async () => {
+                            "use server";
+                            await setRole(u.id, u.role === "admin" ? "member" : "admin");
+                          }}
+                        >
+                          <Button variant="ghost" size="sm">
+                            {u.role === "admin" ? <ShieldMinus /> : <ShieldPlus />}
+                            {u.role === "admin" ? t.admin.removeAdmin : t.admin.makeAdmin}
+                          </Button>
+                        </form>
+                      )}
+                      <form
+                        action={async () => {
+                          "use server";
+                          await removeAllowedEmail(email);
+                        }}
+                      >
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                          <UserMinus /> {t.admin.remove}
+                        </Button>
+                      </form>
+                    </>
                   )}
                 </li>
               );

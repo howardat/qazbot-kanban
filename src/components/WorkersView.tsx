@@ -7,7 +7,7 @@ import { Maximize, Minimize } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { WorkerSheet } from "@/components/WorkerSheet";
 import { WorkersRoster } from "@/components/WorkersRoster";
-import { PAL, STATUS_COLORS } from "@/components/office/palette";
+import { AGE_COLORS, PAL } from "@/components/office/palette";
 import type { Robot, Worker } from "@/lib/workers";
 
 // three.js only loads on this page, in the browser; the server just sends the people and robots.
@@ -33,12 +33,9 @@ function useStable<T>(value: T): T {
 export function WorkersView({
   workers: fresh,
   robots: freshRobots,
-  tabs,
 }: {
   workers: Worker[];
   robots: Robot[];
-  /** Office / Team switch, rendered by the server page. */
-  tabs: React.ReactNode;
 }) {
   const t = useT();
   const router = useRouter();
@@ -89,7 +86,6 @@ export function WorkersView({
 
       <div className="pointer-events-none absolute top-3 left-3 flex items-start gap-2 md:top-4 md:left-4">
         <h1 className="sr-only">{w.title}</h1>
-        <div className="pointer-events-auto">{tabs}</div>
         <button
           type="button"
           onClick={toggle}
@@ -107,10 +103,10 @@ export function WorkersView({
       </div>
 
       <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-[#24201c]/90 px-3 py-1.5 text-[11px] text-[#f1ebe1] shadow-lg md:bottom-4 md:left-4">
-        {/* Same colours as the status dots on people's cards and the desk lamps */}
-        <Legend color={STATUS_COLORS.fresh} label={w.legendFresh} />
-        <Legend color={STATUS_COLORS.dim} label={w.legendDim} />
-        <Legend color={STATUS_COLORS.stale} label={w.legendStale} />
+        {/* The colours of the age rings around people's avatars */}
+        <Legend color={AGE_COLORS.fresh} label={w.legendFresh} />
+        <Legend color={AGE_COLORS.dim} label={w.legendDim} />
+        <Legend color={AGE_COLORS.stale} label={w.legendStale} />
       </div>
 
       <WorkerSheet

@@ -5,8 +5,8 @@ import { profiles } from "@/db/schema";
 import { decrypt } from "@/lib/secrets";
 
 /**
- * The OpenRouter key for one person's assistant requests: their own key when they've set one,
- * otherwise the team key. `personal` tells callers to keep it out of the team budget.
+ * The OpenRouter key for one person's assistant requests. Only their own key: the assistant stays
+ * off until they add one. `personal` tells callers to keep it out of the team budget.
  */
 export async function openRouterKeyFor(profileId: string): Promise<{ key: string; personal: boolean } | null> {
   const [row] = await db.select({ enc: profiles.openrouterKeyEnc }).from(profiles).where(eq(profiles.id, profileId));
@@ -14,12 +14,11 @@ export async function openRouterKeyFor(profileId: string): Promise<{ key: string
     try {
       return { key: decrypt(row.enc), personal: true };
     } catch (e) {
-      // A key we can't decrypt (SECRETS_KEY changed) falls back to the team key rather than failing.
+      // A key we can't decrypt (SECRETS_KEY changed) counts as no key, so the person is asked again.
       console.error("personal OpenRouter key unreadable", e);
     }
   }
-  const team = process.env.OPENROUTER_API_KEY;
-  return team ? { key: team, personal: false } : null;
+  return null;
 }
 
 /** Whether OpenRouter accepts the key: a cheap call to its key-info endpoint. */

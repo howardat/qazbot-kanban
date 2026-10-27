@@ -19,17 +19,17 @@ export function DashboardLists({ lists, members, today }: { lists: List[]; membe
     <Tabs defaultValue={lists[0].key} className="gap-0">
       <div className="flex h-10 items-center justify-between gap-3 border-b pr-1.5 pl-4">
         <h2 className="text-sm font-medium">{t.dashboard.cards}</h2>
-        <TabsList className="h-7!">
+        <TabsList size="sm">
           {lists.map((l) => (
-            <TabsTrigger key={l.key} value={l.key} className="px-2.5 text-xs">
+            <TabsTrigger key={l.key} value={l.key}>
               {l.label}
-              <span className="ml-1 text-muted-foreground tabular-nums">{l.cards.length}</span>
+              <span className="text-muted-foreground tabular-nums">{l.cards.length}</span>
             </TabsTrigger>
           ))}
         </TabsList>
       </div>
       {lists.map((l) => (
-        <TabsContent key={l.key} value={l.key} className="">
+        <TabsContent key={l.key} value={l.key}>
           {l.cards.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">{l.empty}</p>
           ) : (

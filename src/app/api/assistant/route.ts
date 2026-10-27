@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-// Usable when the team has a key or this person brought their own.
+// Usable once this person has added their own key.
 const configured = async (profileId: string) => !!(await openRouterKeyFor(profileId));
 
 /** Picker data: the curated models with live prices, the default, and this month's spend. */

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { AlertCircle, CalendarClock, ChevronRight, CircleCheck, Columns3, UserRound, Users } from "lucide-react";
 import { updateMyName } from "@/app/actions";
-import { Avatar, PageHeader, Panel } from "@/components/atoms";
+import { Avatar, PageHeader, Panel, StatTile } from "@/components/atoms";
 import { DashboardLists } from "@/components/DashboardLists";
 import { NewBoardButton } from "@/components/NewBoardButton";
-import { ProgressMeter } from "@/components/ProgressMeter";
+import { TickMeter } from "@/components/TickMeter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadBoards, loadCards, loadMembers } from "@/lib/data";
@@ -40,6 +40,7 @@ export default async function DashboardPage() {
   const doneCount = cards.length - open.length;
   const donePct = cards.length ? (doneCount / cards.length) * 100 : 0;
   const lateBoards = new Set(late.map((c) => c.boardId)).size;
+  const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
 
   // Next 14 days: how many open deadlines land on each day.
   const strip = Array.from({ length: 14 }, (_, i) => {
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
 
       <div className="space-y-4 px-4 py-5 md:px-6">
         {!user.name && (
-          <form action={updateMyName} className="flex flex-wrap items-center gap-3 rounded-lg border bg-brand-soft p-3 pl-4">
+          <form action={updateMyName} className="flex flex-wrap items-center gap-3 rounded-lg border bg-brand-soft-gradient p-3 pl-4">
             <label htmlFor="display-name" className="mr-auto text-sm">
               {d.namePrompt}
             </label>
@@ -88,32 +89,38 @@ export default async function DashboardPage() {
 
         {/* Headline numbers */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat icon={<UserRound />} title={d.assignedToYou} value={mine.length}>
-            {myLate ? (
-              <span className="text-destructive">{d.nLate(myLate)}</span>
-            ) : (
-              <span className="text-success">{d.onSchedule}</span>
-            )}
-          </Stat>
-          <Stat icon={<AlertCircle />} title={d.pastDeadline} value={late.length}>
+          <StatTile
+            icon={<UserRound />}
+            title={d.assignedToYou}
+            value={mine.length}
+            meter={<TickMeter tone="sky" value={pct(mine.length - myLate, mine.length)} label={d.meterOnTime(pct(mine.length - myLate, mine.length))} />}
+          >
+            {myLate ? <span className="text-destructive">{d.nLate(myLate)}</span> : <span className="text-success">{d.onSchedule}</span>}
+          </StatTile>
+          <StatTile
+            icon={<AlertCircle />}
+            title={d.pastDeadline}
+            value={late.length}
+            meter={<TickMeter tone="rose" value={pct(late.length, open.length)} label={d.meterLate(pct(late.length, open.length))} />}
+          >
             {late.length ? d.onBoards(lateBoards) : d.nothingLate}
-          </Stat>
-          <Stat icon={<CalendarClock />} title={d.dueIn7} value={upcoming.length}>
-            {upcoming[0] ? (
-              <span className="block truncate">{d.next(upcoming[0].title, upcoming[0].dueDate!)}</span>
-            ) : (
-              d.noDeadlinesWeek
-            )}
-          </Stat>
-          <Panel icon={<CircleCheck />} title={d.completion}>
-            <div className="space-y-3 p-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold tracking-tight tabular-nums">{Math.round(donePct)}%</span>
-                <span className="text-sm text-muted-foreground">{d.doneOf(doneCount, cards.length)}</span>
-              </div>
-              <ProgressMeter value={donePct} label={d.meterLabel(Math.round(donePct))} />
-            </div>
-          </Panel>
+          </StatTile>
+          <StatTile
+            icon={<CalendarClock />}
+            title={d.dueIn7}
+            value={upcoming.length}
+            meter={<TickMeter tone="violet" value={pct(upcoming.length, open.length)} label={d.meterSoon(pct(upcoming.length, open.length))} />}
+          >
+            {upcoming[0] ? d.next(upcoming[0].title, upcoming[0].dueDate!) : d.noDeadlinesWeek}
+          </StatTile>
+          <StatTile
+            icon={<CircleCheck />}
+            title={d.completion}
+            value={`${Math.round(donePct)}%`}
+            meter={<TickMeter tone="green" value={donePct} label={d.meterLabel(Math.round(donePct))} />}
+          >
+            {d.doneOf(doneCount, cards.length)}
+          </StatTile>
         </div>
 
         {/* Every board at a glance */}
@@ -176,7 +183,7 @@ export default async function DashboardPage() {
                     title={d.stripDay(day, count)}
                     className={cn(
                       "flex h-28 flex-col justify-between px-2 py-2.5",
-                      i === 0 ? "bg-brand-soft" : "bg-card",
+                      i === 0 ? "bg-brand-soft-gradient" : "bg-card",
                       i !== 13 && "border-r",
                       i < 7 && "max-sm:border-b",
                     )}
@@ -243,26 +250,5 @@ export default async function DashboardPage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Stat({
-  icon,
-  title,
-  value,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <Panel icon={icon} title={title}>
-      <div className="space-y-1 p-4">
-        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-        <div className="text-sm text-muted-foreground">{children}</div>
-      </div>
-    </Panel>
   );
 }

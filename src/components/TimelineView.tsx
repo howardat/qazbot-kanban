@@ -346,7 +346,7 @@ function Bar({
             ? "bg-muted text-muted-foreground"
             : late
               ? "bg-destructive/10 text-destructive ring-1 ring-destructive/40"
-              : "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+              : "bg-primary-gradient text-primary-foreground shadow-xs hover:brightness-110",
           dragging?.moved && "cursor-grabbing shadow-md ring-2 ring-ring/60",
           s < 0 && "rounded-l-none",
           e > span - 1 && "rounded-r-none",

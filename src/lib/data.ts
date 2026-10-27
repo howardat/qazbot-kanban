@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { boards, cardAssignees, cards, cardTags, columns, profiles, tags } from "@/db/schema";
 import type { CardRow, Member, Tag } from "@/lib/types";
@@ -79,35 +79,4 @@ export async function loadInboxColumns(): Promise<Record<string, string>> {
   const inbox: Record<string, string> = {};
   for (const r of rows) if (!r.isDone && !inbox[r.boardId]) inbox[r.boardId] = r.id;
   return inbox;
-}
-
-export type LatestUpdate = {
-  cardId: string;
-  title: string;
-  boardId: string;
-  column: string;
-  done: boolean;
-  at: string;
-  assignees: Member[];
-};
-
-/** The most recent card moves on any board, newest first, for the sidebar's "Latest updates". */
-export async function loadLatestUpdates(limit = 8): Promise<LatestUpdate[]> {
-  const rows = await db
-    .select({ cardId: cards.id, title: cards.title, boardId: cards.boardId, column: columns.name, done: columns.isDone, at: cards.columnChangedAt })
-    .from(cards)
-    .innerJoin(columns, eq(columns.id, cards.columnId))
-    .orderBy(desc(cards.columnChangedAt))
-    .limit(limit);
-  if (rows.length === 0) return [];
-  const people = await db
-    .select({ cardId: cardAssignees.cardId, id: profiles.id, name: profiles.name, email: profiles.email, image: profiles.image, avatar: profiles.avatar })
-    .from(cardAssignees)
-    .innerJoin(profiles, eq(profiles.id, cardAssignees.profileId))
-    .where(inArray(cardAssignees.cardId, rows.map((r) => r.cardId)));
-  return rows.map((r) => ({
-    ...r,
-    at: r.at.toISOString(),
-    assignees: people.filter((p) => p.cardId === r.cardId).map((p) => ({ id: p.id, name: p.name, email: p.email, image: p.image, avatar: p.avatar })),
-  }));
 }

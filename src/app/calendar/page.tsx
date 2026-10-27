@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/atoms";
 import { BoardFilter } from "@/components/BoardFilter";
 import { CalendarOptions } from "@/components/CalendarOptions";
 import { CalendarView } from "@/components/CalendarView";
 import { Pager } from "@/components/Pager";
-import { ViewTabs } from "@/components/ViewTabs";
+import { ViewBar } from "@/components/ViewTabs";
 import { loadBoards, loadCards, loadInboxColumns, loadMembers, loadTags } from "@/lib/data";
 import {
   addDays,
@@ -63,12 +64,18 @@ export default async function CalendarPage({
 
   return (
     <main>
+      {board && (
+        <ViewBar boardId={board.id} active="calendar">
+          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold tracking-tight hover:underline">
+            {board.name}
+          </Link>
+        </ViewBar>
+      )}
       <PageHeader
         title={title}
         description={t.calendar.description(scheduled, view, board?.name ?? null)}
         actions={
           <>
-            {board && <ViewTabs boardId={board.id} active="calendar" />}
             <BoardFilter boards={boards} value={board?.id ?? null} />
             <CalendarOptions view={view} weekends={weekends} />
             {view === "week" ? (

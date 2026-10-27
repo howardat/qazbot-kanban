@@ -133,6 +133,40 @@ export function Panel({
 }
 
 /** Page header band: title, description and page actions over a hairline divider. */
+/**
+ * A headline number as a card in a card: the label sits on a grey tray, the number and its context on a
+ * white card inside it, with an optional tick meter in the metric's tone.
+ */
+export function StatTile({
+  icon,
+  title,
+  value,
+  children,
+  meter,
+}: {
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  value: React.ReactNode;
+  children?: React.ReactNode;
+  meter?: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col rounded-xl border bg-muted/60 p-1">
+      <header className="flex h-8 items-center gap-2 px-2.5 text-sm text-muted-foreground [&_svg]:size-4">
+        {icon}
+        <h2 className="truncate font-medium text-foreground">{title}</h2>
+      </header>
+      <div className="flex-1 space-y-3 rounded-lg border bg-card p-3.5 shadow-xs">
+        <div className="space-y-1">
+          <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+          {children && <div className="truncate text-sm text-muted-foreground">{children}</div>}
+        </div>
+        {meter}
+      </div>
+    </section>
+  );
+}
+
 export function PageHeader({
   title,
   description,

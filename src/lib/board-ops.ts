@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profiles, TAG_COLORS, tags } from "@/db/schema";
 import { CARD_DONE } from "@/lib/activity";
-import { addDays, diffDays, isValidDate } from "@/lib/dates";
+import { addDays, diffDays, isValidDate, todayISO } from "@/lib/dates";
 import { PRIORITIES } from "@/lib/priority";
 import { PROJECTS } from "@/lib/projects";
 
@@ -91,21 +91,32 @@ export async function setColumnFlagOp(columnId: string, flag: "done" | "inProgre
 
 // ---------- Cards ----------
 
+/**
+ * New cards are due tomorrow (or on their start date, if that's later) unless a due date is given,
+ * and start out assigned to the person who created them.
+ */
 export async function addCardOp(
+  actor: Actor,
   columnId: string,
   title: string,
   dates?: { startDate?: string | null; dueDate?: string | null },
 ) {
   const cId = id.parse(columnId);
-  const { startDate, dueDate } = cardDates.parse({ startDate: dates?.startDate ?? null, dueDate: dates?.dueDate ?? null });
+  const start = dates?.startDate ?? null;
+  const tomorrow = addDays(todayISO(), 1);
+  const defaultDue = start && start > tomorrow ? start : tomorrow;
+  const { startDate, dueDate } = cardDates.parse({ startDate: start, dueDate: dates?.dueDate ?? defaultDue });
   const [col] = await db.select().from(columns).where(eq(columns.id, cId));
   if (!col) throw new Error("Column not found.");
   const [{ top }] = await db.select({ top: max(cards.position) }).from(cards).where(eq(cards.columnId, cId));
-  const [card] = await db
-    .insert(cards)
-    .values({ boardId: col.boardId, columnId: cId, title: name.parse(title), startDate, dueDate, position: (top ?? -1) + 1 })
-    .returning({ id: cards.id });
-  return card.id;
+  return db.transaction(async (tx) => {
+    const [card] = await tx
+      .insert(cards)
+      .values({ boardId: col.boardId, columnId: cId, title: name.parse(title), startDate, dueDate, position: (top ?? -1) + 1 })
+      .returning({ id: cards.id });
+    await tx.insert(cardAssignees).values({ cardId: card.id, profileId: actor.id });
+    return card.id;
+  });
 }
 
 export async function setCardDatesOp(cardId: string, startDate: string | null, dueDate: string | null) {

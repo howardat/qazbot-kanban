@@ -135,7 +135,7 @@ export async function moveColumn(columnId: string, toIndex: number) {
 export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }) {
   const user = await requireUser();
   await track(user.id, "card.add");
-  await addCardOp(columnId, title, dates);
+  await addCardOp(user, columnId, title, dates);
   refreshAll();
 }
 
@@ -236,6 +236,16 @@ export async function removeAllowedEmail(email: string) {
     throw new Error("You can't remove your own email.");
   }
   await db.delete(allowedEmails).where(eq(allowedEmails.email, e));
+  revalidatePath("/admin");
+}
+
+/** Make someone an admin or a member again. Admins can't demote themselves, so there's always one left. */
+export async function setRole(profileId: string, role: "admin" | "member") {
+  const admin = await requireAdmin();
+  await track(admin.id, "access.role");
+  const { id, value } = z.object({ id: z.string().uuid(), value: z.enum(["admin", "member"]) }).parse({ id: profileId, value: role });
+  if (id === admin.id) throw new Error("You can't change your own role.");
+  await db.update(profiles).set({ role: value }).where(eq(profiles.id, id));
   revalidatePath("/admin");
 }
 

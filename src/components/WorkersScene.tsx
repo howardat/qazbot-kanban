@@ -8,7 +8,7 @@ import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRe
 import { useT } from "@/components/I18nProvider";
 import { buildShell, buildStation, furnish } from "@/components/office/furniture";
 import { Kit, PAL } from "@/components/office/kit";
-import { PROJECT_COLORS, STATUS_COLORS } from "@/components/office/palette";
+import { PROJECT_COLORS } from "@/components/office/palette";
 import {
   FLOOR_D,
   FLOOR_W,
@@ -37,10 +37,9 @@ import {
   type RobotMode,
 } from "@/components/office/models";
 import { lookOf } from "@/components/office/look";
-import { PersonIcon } from "@/components/PersonIcon";
-import { staleness, type Staleness } from "@/lib/staleness";
+import { AgeAvatar, AgeText } from "@/components/AgeRing";
+import { staleness } from "@/lib/staleness";
 import { displayName } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import type { Robot, Worker } from "@/lib/workers";
 
 // The office floor: project rooms, a meeting hall, a robotics lab, inventory and a lounge, with every
@@ -109,13 +108,13 @@ type PlacedLabel = {
   state: string;
 };
 
-// Approximate on-screen label sizes in px, for overlap tests (status pills are max-w-40 and one line).
+// Approximate on-screen label sizes in px, for overlap tests (status pills are a fixed w-36, two lines).
 const SIZE: Record<LabelKind, [number, number]> = {
-  worker: [150, 26],
+  worker: [144, 36],
   robot: [44, 14],
   room: [150, 20],
 };
-const CHIP = 28;
+const CHIP = 31;
 const projected = new THREE.Vector3();
 
 /**
@@ -238,7 +237,6 @@ export default function WorkersScene({
 
     // ---------- People ----------
     const actors: { root: THREE.Object3D; actor: Actor }[] = [];
-    const bubbles: { obj: CSS2DObject; base: number; seed: number }[] = [];
     const pickable: THREE.Object3D[] = [];
     const placed = new Map<string, Seat>();
     const workerScreens = new Map<string, THREE.MeshBasicMaterial>();
@@ -295,12 +293,9 @@ export default function WorkersScene({
         const screen = seatScreens.get(seat);
         if (screen) workerScreens.set(w.id, screen);
         const head = seated ? 1.75 : 2.12;
-        // Busy people's bubbles win over idle ones when they overlap.
-        bubbles.push({
-          obj: addLabel(p.root, `worker:${w.id}`, [0, head, 0], [0.5, 1], w.current ? 2 : 1),
-          base: head,
-          seed: p.seed,
-        });
+        // Busy people's bubbles win over idle ones when they overlap. Bubbles hold still: a moving
+        // target is hard to hover and click.
+        addLabel(p.root, `worker:${w.id}`, [0, head, 0], [0.5, 1], w.current ? 2 : 1);
       });
     }
 
@@ -457,7 +452,6 @@ export default function WorkersScene({
         if (actor.kind === "x2") animateHumanoid(actor.model, time, actor.mode);
         else animateDog(actor.model, time, actor.mode);
       }
-      for (const b of bubbles) b.obj.position.y = b.base + Math.sin(time * 1.8 + b.seed) * 0.03;
     };
 
     let visible = true;
@@ -564,67 +558,66 @@ function RoomTag({ room, count }: { room: RoomId; count: number }) {
 }
 
 /**
- * Status over a person's head: a pill in their current project's colour (grey when idle) with their
- * avatar, a freshness dot and their name. Hover unfolds the task, when, project and next queued cards.
- * Shrinks to just the avatar when it would cover another one (see declutter).
+ * Status over a person's head, a fixed-size pill so nothing jumps on hover: the avatar inside an age
+ * ring (see AgeAvatar), the first name with the age, and the current task scrolling underneath.
+ * Shrinks to just the ringed avatar when it would cover another one (see declutter).
  */
 function Bubble({ worker, now, onOpen: open }: { worker: Worker; now: number; onOpen: () => void }) {
   const t = useT();
   const task = worker.current;
-  const s: Staleness = staleness(worker.lastUpdate, !task, now);
-  const accent = task ? PROJECT_COLORS[task.project] : STATUS_COLORS.stale;
-  const ago = worker.lastUpdate ? t.fmt.ago(worker.lastUpdate, now) : t.workers.neverUpdated;
+  const first = displayName(worker).split(/\s+/)[0];
+  const title = `${displayName(worker)}: ${task ? task.title : t.workers.idle}`;
   return (
     <>
       <button
         type="button"
         onClick={open}
-        title={`${displayName(worker)}: ${task ? task.title : t.workers.idle}`}
-        className="pointer-events-auto relative mb-2 hidden cursor-pointer rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.35)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [[data-compact=true]_&]:block"
-        style={{ boxShadow: `0 0 0 2px ${task ? accent : "#f7f3ec"}, 0 2px 6px rgba(0,0,0,0.35)` }}
+        title={title}
+        className="pointer-events-auto mb-2 hidden cursor-pointer rounded-full bg-[#24201c]/85 shadow-[0_2px_6px_rgba(0,0,0,0.35)] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [[data-compact=true]_&]:block"
       >
-        <PersonIcon member={worker} size={24} className={cn(!task && "opacity-80 grayscale-[40%]")} />
-        <span aria-hidden className="absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2 ring-[#f7f3ec]" style={{ background: STATUS_COLORS[s] }} />
+        <AgeAvatar member={worker} lastUpdate={worker.lastUpdate} now={now} size={22} />
       </button>
-      {/* A small pill in the project's colour with the person's name. Hover or focus unfolds task, when and queue. */}
       <button
         type="button"
         onClick={open}
-        className={cn(
-          "group pointer-events-auto relative mb-2 block max-w-40 cursor-pointer rounded-full py-0.5 pr-2.5 pl-1 text-left leading-tight text-white shadow-[0_2px_10px_rgba(0,0,0,0.45)] ring-2 ring-white/90 outline-none transition-[border-radius] hover:max-w-56 hover:rounded-xl focus-visible:max-w-56 focus-visible:rounded-xl focus-visible:ring-ring [[data-compact=true]_&]:hidden",
-          s === "stale" && task && "saturate-[0.65]",
-        )}
-        style={{ background: task ? accent : "#7d746b" }}
+        title={title}
+        className="pointer-events-auto mb-2 flex w-36 cursor-pointer items-center gap-1.5 rounded-full bg-[#24201c]/90 py-1 pr-3 pl-1 text-left leading-tight text-[#f1ebe1] shadow-[0_2px_10px_rgba(0,0,0,0.45)] ring-1 ring-white/15 outline-none transition-colors hover:bg-[#3a332d] focus-visible:ring-2 focus-visible:ring-ring [[data-compact=true]_&]:hidden"
       >
-        <span className="flex items-center gap-1.5">
-          <span className="relative shrink-0">
-            <PersonIcon member={worker} size={18} className="ring-1 ring-white/70" />
-            <span
-              aria-hidden
-              className={cn("absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-[1.5px] ring-white", s === "fresh" && "animate-pulse")}
-              style={{ background: STATUS_COLORS[s] }}
-            />
+        <AgeAvatar member={worker} lastUpdate={worker.lastUpdate} now={now} size={22} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-1">
+            <span className="truncate text-[11px] font-semibold">{first}</span>
+            <AgeText lastUpdate={worker.lastUpdate} now={now} className="ml-auto shrink-0 text-[10px] font-medium tabular-nums" />
           </span>
-          <span className="truncate text-[11px] font-semibold drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">{displayName(worker)}</span>
-        </span>
-        <span className="hidden pt-1 pb-1 pl-1 text-[10px] text-white/90 group-hover:block group-focus-visible:block">
-          <span className="block truncate text-[11px] font-semibold text-white">{task ? task.title : t.workers.idle}</span>
-          <span className="mt-0.5 flex items-center gap-1">
-            {task && <span className="truncate">{t.projects[task.project]}</span>}
-            <span className="ml-auto shrink-0 pl-1">{ago}</span>
+          <span className="flex items-center gap-1 text-[10px] text-[#c9bfb2]">
+            {task && <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_COLORS[task.project] }} />}
+            <Marquee text={task ? task.title : t.workers.idle} />
           </span>
-          {worker.queue.length > 0 && (
-            <span className="mt-1 block border-t border-white/25 pt-1">
-              <span className="block font-medium">{t.workers.queued(worker.queue.length)}</span>
-              {worker.queue.slice(0, 3).map((q, i) => (
-                <span key={q.id} className="block truncate">
-                  {i + 1}. {q.title}
-                </span>
-              ))}
-            </span>
-          )}
         </span>
       </button>
     </>
+  );
+}
+
+/** One line of text that scrolls slowly, like a ticker, only when it doesn't fit. */
+function Marquee({ text }: { text: string }) {
+  const box = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    if (el) setOverflows(el.scrollWidth > el.clientWidth + 1);
+  }, [text]);
+  return (
+    <span ref={box} className="block min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+      {overflows ? (
+        // Two copies back to back; shifting by half loops seamlessly. Speed follows the length.
+        <span className="animate-marquee inline-flex gap-6 motion-reduce:animate-none" style={{ animationDuration: `${Math.max(6, text.length * 0.28)}s` }}>
+          <span>{text}</span>
+          <span aria-hidden>{text}</span>
+        </span>
+      ) : (
+        text
+      )}
+    </span>
   );
 }

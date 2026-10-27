@@ -1,4 +1,3 @@
-import { WorkersTabs } from "@/components/WorkersTabs";
 import { WorkersView } from "@/components/WorkersView";
 import { track } from "@/lib/activity";
 import { requireUser } from "@/lib/session";
@@ -12,7 +11,7 @@ export default async function WorkersPage() {
   // The office fills the whole content area; its title and legend float on top.
   return (
     <main className="h-full">
-      <WorkersView workers={workers} robots={robots} tabs={<WorkersTabs active="office" dark />} />
+      <WorkersView workers={workers} robots={robots} />
     </main>
   );
 }

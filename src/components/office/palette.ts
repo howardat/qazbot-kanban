@@ -45,5 +45,7 @@ export const PROJECT_COLORS: Record<Project, string> = {
   back_office: "#8e6bb8",
 };
 
-/** Status dot colours: updated today, 1–3 days ago, older or idle. Match the desk lamps. */
+/** Status dot colours: updated today, 1–2 days ago, older or idle. Match the desk lamps. */
 export const STATUS_COLORS = { fresh: "#4cc38a", dim: "#e0a12e", stale: "#9a918a" } as const;
+/** The age ring on people's status: same green and amber, red once it's out of date, grey for never. */
+export const AGE_COLORS = { fresh: STATUS_COLORS.fresh, dim: STATUS_COLORS.dim, stale: "#e5604f", never: STATUS_COLORS.stale } as const;

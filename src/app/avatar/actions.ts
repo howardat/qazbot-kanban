@@ -29,14 +29,14 @@ export async function savePersonalKey(_prev: KeyState, formData: FormData): Prom
     .set({ openrouterKeyEnc: encrypt(parsed.data), openrouterKeyHint: parsed.data.slice(-4) })
     .where(eq(profiles.id, user.id));
   await track(user.id, "ai.personalKey");
-  revalidatePath("/settings");
+  revalidatePath("/usage");
   return { saved: true };
 }
 
 export async function removePersonalKey() {
   const user = await requireUser();
   await db.update(profiles).set({ openrouterKeyEnc: null, openrouterKeyHint: null }).where(eq(profiles.id, user.id));
-  revalidatePath("/settings");
+  revalidatePath("/usage");
 }
 
 /** Pick one of the preset avatars (index into AVATARS), or null to go back to the automatic one. */

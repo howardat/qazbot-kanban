@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Flag, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Flag, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
-import { Avatar, TagBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, TagBadge } from "@/components/atoms";
 import { DatePicker } from "@/components/DatePicker";
 import { useT } from "@/components/I18nProvider";
 import { ColorPicker } from "@/components/TagManager";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,6 +55,7 @@ export function CardEditor({
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
   const datesInvalid = !!startDate && !!dueDate && startDate > dueDate;
+  const assignees = members.filter((m) => assigneeIds.includes(m.id));
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -97,11 +99,13 @@ export function CardEditor({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="bg-aurora relative h-16" aria-hidden>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <div className="bg-aurora relative h-16 shrink-0" aria-hidden>
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/30 dark:to-black/40" />
         </div>
-        <form onSubmit={save} className="min-w-0">
+        <form onSubmit={save} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Header and footer stay put; only the fields scroll when the card is taller than the screen. */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="px-6 pt-5 pb-4">
             {boardName && <DialogDescription className="mb-1">{boardName}</DialogDescription>}
             <DialogTitle className="sr-only">{t.editor.heading}</DialogTitle>
@@ -184,31 +188,48 @@ export function CardEditor({
             </div>
 
             <div className="space-y-5">
-              <fieldset className="min-w-0 space-y-1.5">
-                <legend className="mb-1.5 text-sm font-medium text-muted-foreground">{t.editor.assignees}</legend>
-                <ul className="space-y-0.5">
-                  {members.map((m) => {
-                    const on = assigneeIds.includes(m.id);
-                    return (
-                      <li key={m.id}>
-                        <button
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => toggle(assigneeIds, setAssigneeIds, m.id)}
-                          className={cn(
-                            "flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-left text-sm transition-colors",
-                            on ? "bg-brand-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                          )}
-                        >
-                          <Avatar member={m} size={22} className="ring-0" />
-                          <span className="min-w-0 flex-1 truncate">{displayName(m)}</span>
-                          {on && <Check className="size-4 text-brand" />}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </fieldset>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">{t.editor.assignees}</div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t.editor.assignees}
+                      className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-md border border-input bg-transparent px-2.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      {assignees.length > 0 ? (
+                        <>
+                          <AvatarStack members={assignees} size={20} />
+                          <span className="min-w-0 flex-1 truncate">
+                            {assignees.length === 1 ? displayName(assignees[0]) : t.editor.assigneeCount(assignees.length)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="size-4 text-muted-foreground" />
+                          <span className="flex-1 text-muted-foreground">{t.editor.noAssignees}</span>
+                        </>
+                      )}
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-y-auto">
+                    {members.map((m) => (
+                      <DropdownMenuItem
+                        key={m.id}
+                        onSelect={(e) => {
+                          e.preventDefault(); // keep the menu open to pick several people
+                          toggle(assigneeIds, setAssigneeIds, m.id);
+                        }}
+                      >
+                        <Avatar member={m} size={20} className="ring-0" />
+                        <span className="min-w-0 flex-1 truncate">{displayName(m)}</span>
+                        {assigneeIds.includes(m.id) && <Check className="text-brand" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">{t.priority.label}</div>
@@ -252,8 +273,9 @@ export function CardEditor({
               </div>
             </div>
           </div>
+          </div>
 
-          <div className="flex items-center justify-between gap-3 border-t bg-tray px-6 py-3">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-tray px-6 py-3">
             {confirming ? (
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">{t.editor.confirmDelete}</span>
