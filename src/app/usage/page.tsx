@@ -1,5 +1,5 @@
 import { gte, sql, sum } from "drizzle-orm";
-import { Bot, CalendarRange, Coins, KeyRound, ToggleLeft, Users, Wallet } from "lucide-react";
+import { AudioWaveform, Bot, CalendarRange, Coins, KeyRound, ToggleLeft, Users, Wallet } from "lucide-react";
 import { db } from "@/db";
 import { aiUsage } from "@/db/schema";
 import { PageHeader, Panel, StatTile } from "@/components/atoms";
@@ -101,6 +101,17 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
           <div className="space-y-3 p-4">
             <p className="text-sm text-muted-foreground">{t.settings.keyHint}</p>
             <PersonalKeyForm hint={user.openrouterKeyHint} />
+          </div>
+        </Panel>
+
+        <Panel icon={<AudioWaveform />} title={t.settings.soniox.keyTitle} className="max-w-2xl">
+          <div className="space-y-3 p-4">
+            <p className="text-sm text-muted-foreground">{t.settings.soniox.keyHint}</p>
+            <PersonalKeyForm
+              provider="soniox"
+              hint={user.sonioxKeyHint}
+              noKey={process.env.SONIOX_API_KEY ? t.settings.soniox.teamKey : undefined}
+            />
           </div>
         </Panel>
 

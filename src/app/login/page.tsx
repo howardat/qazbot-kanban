@@ -32,7 +32,7 @@ export default async function LoginPage({
         </div>
         <div className="px-8 pt-8 pb-8">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">{t.login.title}</h1>
+            <h1 className="text-2xl font-semibold">{t.login.title}</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">{t.login.subtitle}</p>
           </div>
           {error && (

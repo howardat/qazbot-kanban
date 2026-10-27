@@ -2,7 +2,7 @@
 
 import { AlertCircle, CalendarDays, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { avatarHue, TAG_DOT } from "@/lib/colors";
+import { avatarHue, TAG_DOT, boardColor } from "@/lib/colors";
 import { useT } from "@/components/I18nProvider";
 import { dueState, type ISODate } from "@/lib/dates";
 import { displayName, type Member, type Tag } from "@/lib/types";
@@ -159,7 +159,7 @@ export function StatTile({
       </header>
       <div className="flex-1 space-y-3 rounded-lg border bg-card p-3.5 shadow-xs">
         <div className="space-y-1">
-          <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+          <div className="text-2xl font-semibold tabular-nums">{value}</div>
           {children && <div className="truncate text-sm text-muted-foreground">{children}</div>}
         </div>
         {meter}
@@ -183,12 +183,25 @@ export function PageHeader({
     <div className="border-b">
       <div className="flex flex-wrap items-center gap-3 px-4 py-4 md:px-6">
         <div className="mr-auto min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
+          <h1 className="text-lg font-semibold md:text-xl">{title}</h1>
           {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {children}
     </div>
+  );
+}
+
+/** A board's icon: its initial on a rounded square in the board's colour. One look everywhere. */
+export function BoardIcon({ board, size = 16, className }: { board: { id: string; name: string }; size?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("grid shrink-0 place-items-center font-semibold text-white shadow-[inset_0_-1px_0_rgb(0_0_0/0.12)]", className)}
+      style={{ width: size, height: size, borderRadius: Math.round(size / 4), fontSize: Math.max(9, Math.round(size * 0.55)), background: boardColor(board.id) }}
+    >
+      {board.name.trim()[0]?.toUpperCase() ?? "B"}
+    </span>
   );
 }

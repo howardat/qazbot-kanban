@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Plus, SignalHigh, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Plus, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack, TagBadge } from "@/components/atoms";
@@ -181,7 +181,7 @@ export function CardEditor({
                 maxLength={200}
                 rows={1}
                 aria-label={t.editor.title}
-                className="field-sizing-content -mx-2 block w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-xl font-semibold tracking-tight outline-none hover:bg-accent focus:bg-accent"
+                className="field-sizing-content -mx-2 block w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-xl font-semibold outline-none hover:bg-accent focus:bg-accent"
               />
               <textarea
                 value={description}
@@ -229,7 +229,7 @@ export function CardEditor({
                   </DropdownMenu>
                 </Property>
 
-                <Property icon={SignalHigh} label={t.priority.label}>
+                <Property icon={Flag} label={t.priority.label}>
                   <Select value={priority ?? NONE} onValueChange={(v) => setPriority(v === NONE ? null : (v as Priority))}>
                     <SelectTrigger aria-label={t.priority.label} className={ghostSelect}>
                       <SelectValue />

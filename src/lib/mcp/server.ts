@@ -39,7 +39,8 @@ const uuid = z.string().uuid();
 const PROJECT_HINT = "Project the card belongs to; it decides which room its assignees work in on the workers view. Null means back office.";
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 
-const ok = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 1) }] });
+// Compact JSON: tool results go straight into the model's context, where whitespace costs tokens.
+const ok = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
 const fail = (message: string) => ({ content: [{ type: "text" as const, text: message }], isError: true });
 
 /** Wrap a handler so thrown errors (validation, not found, permissions) become tool errors, not crashes. */
@@ -54,21 +55,23 @@ function safe<A>(run: (args: A) => Promise<ReturnType<typeof ok>>) {
   };
 }
 
+/**
+ * A card as tools return it, kept small because every field lands in the model's context: empty
+ * fields are left out, and people and tags come as names (ids are in list_members and get_board).
+ */
 const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, string>) => ({
   id: c.id,
   title: c.title,
   ...(c.description ? { description: c.description.slice(0, 500) } : {}),
   board: c.boardName,
-  boardId: c.boardId,
   column: c.columnName,
-  columnId: c.columnId,
-  done: c.done,
-  startDate: c.startDate,
-  dueDate: c.dueDate,
-  assignees: c.assigneeIds.map((id) => ({ id, name: names.get(id) ?? id })),
-  tags: c.tagIds.map((id) => tagNames.get(id) ?? id),
-  project: c.project,
-  priority: c.priority,
+  ...(c.done ? { done: true } : {}),
+  ...(c.startDate ? { startDate: c.startDate } : {}),
+  ...(c.dueDate ? { dueDate: c.dueDate } : {}),
+  ...(c.assigneeIds.length ? { assignees: c.assigneeIds.map((id) => names.get(id) ?? id) } : {}),
+  ...(c.tagIds.length ? { tags: c.tagIds.map((id) => tagNames.get(id) ?? id) } : {}),
+  ...(c.project ? { project: c.project } : {}),
+  ...(c.priority ? { priority: c.priority } : {}),
 });
 
 async function lookups() {
@@ -158,7 +161,7 @@ export function createMcpServer(ctx: McpContext) {
     {
       title: "Search cards",
       description:
-        "Find cards across boards. All filters are optional and combine. Done cards are left out unless includeDone is true. Returns at most 60.",
+        "Find cards across boards. All filters are optional and combine. Done cards are left out unless includeDone is true. Returns at most 60. Assignees come as names; list_members has their ids, and get_board or list_boards the column ids.",
       inputSchema: {
         query: z.string().max(200).optional().describe("Text to match in title or description"),
         boardId: uuid.optional(),

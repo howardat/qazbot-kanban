@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   closestCorners,
   DndContext,
@@ -51,7 +52,7 @@ import {
   setColumnDone,
   setColumnInProgress,
 } from "@/app/actions";
-import { AvatarStack, DueBadge, TagBadge } from "@/components/atoms";
+import { AvatarStack, DueBadge, TagBadge, BoardIcon } from "@/components/atoms";
 import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
@@ -83,7 +84,6 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ISODate } from "@/lib/dates";
 import type { CardData, Member, Tag } from "@/lib/types";
-import { avatarHue } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
 export type ColumnData = { id: string; name: string; isDone: boolean; isInProgress: boolean; cards: CardData[] };
@@ -172,6 +172,17 @@ export function Board({
   const [display, setDisplay] = useDisplay();
   const [collapsed, toggleCollapsed] = useCollapsed(board.id);
   const [, startTransition] = useTransition();
+
+  // ?card=<id> (from search) opens that card's panel, then leaves the URL clean.
+  const params = useSearchParams();
+  const router = useRouter();
+  const wanted = params.get("card");
+  useEffect(() => {
+    if (!wanted) return;
+    const card = initial.flatMap((c) => c.cards).find((c) => c.id === wanted);
+    if (card) setEditing(card);
+    router.replace(layout === "list" ? `/boards/${board.id}/list` : `/boards/${board.id}`, { scroll: false });
+  }, [wanted, initial, router, board.id, layout]);
 
   // Server data wins whenever it changes (after revalidation), unless a drag is in progress.
   useEffect(() => {
@@ -381,13 +392,9 @@ export function Board({
   );
 }
 
-/** Square initial chip in the board's hue, as in the sidebar. */
+/** The board's icon, as in the sidebar. */
 function BoardMark({ id, name }: { id: string; name: string }) {
-  return (
-    <span aria-hidden className="avatar grid size-5 shrink-0 place-items-center rounded-sm text-[10px] font-semibold" style={{ "--hue": avatarHue(id) } as React.CSSProperties}>
-      {name.trim()[0]?.toUpperCase() ?? "B"}
-    </span>
-  );
+  return <BoardIcon board={{ id, name }} size={20} />;
 }
 
 function BoardTitle({ board }: { board: { id: string; name: string } }) {
@@ -700,7 +707,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
       )}
     >
       {/* One line, like Plane; the full title is on hover */}
-      <h3 title={card.title} className={cn("line-clamp-1 pr-6 leading-5 font-medium break-all", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
+      <h3 title={card.title} className={cn("line-clamp-1 pr-6 text-[14px] leading-5 font-medium break-all", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
         {card.title}
       </h3>
       {show.description && card.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}

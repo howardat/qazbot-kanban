@@ -33,7 +33,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         </div>
         <div className="px-8 pt-8 pb-8">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">{t.invite.title}</h1>
+            <h1 className="text-2xl font-semibold">{t.invite.title}</h1>
             {invite && <p className="mt-1.5 text-sm text-muted-foreground">{t.invite.subtitle}</p>}
           </div>
           {invite ? (

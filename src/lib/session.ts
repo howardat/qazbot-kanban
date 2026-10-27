@@ -5,12 +5,14 @@ import { db } from "@/db";
 import { allowedEmails, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 
-// Everything about the person except their encrypted OpenRouter key, which only lib/ai/keys reads.
-const publicColumns = Object.fromEntries(Object.entries(getTableColumns(profiles)).filter(([k]) => k !== "openrouterKeyEnc")) as Omit<
+// Everything about the person except their encrypted keys, which only lib/ai/keys reads.
+type SecretColumn = "openrouterKeyEnc" | "sonioxKeyEnc";
+const SECRET_COLUMNS: string[] = ["openrouterKeyEnc", "sonioxKeyEnc"] satisfies SecretColumn[];
+const publicColumns = Object.fromEntries(Object.entries(getTableColumns(profiles)).filter(([k]) => !SECRET_COLUMNS.includes(k))) as Omit<
   ReturnType<typeof getTableColumns<typeof profiles>>,
-  "openrouterKeyEnc"
+  SecretColumn
 >;
-export type CurrentUser = Omit<typeof profiles.$inferSelect, "openrouterKeyEnc">;
+export type CurrentUser = Omit<typeof profiles.$inferSelect, SecretColumn>;
 
 // TEMPORARY demo bypass: with DEMO_NO_AUTH=1 in dev, act as the first admin profile (or any profile). Remove before shipping.
 const demoNoAuth = process.env.DEMO_NO_AUTH === "1" && process.env.NODE_ENV !== "production";

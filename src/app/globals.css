@@ -8,37 +8,47 @@
 /*
   Palette, radius, shadow and density follow Plane's design system (@makeplane/propel,
   AGPL-3.0, (c) Plane Software, Inc.). Layering: one canvas (app background), surfaces on it
-  (sidebar panel, page), white cards on surfaces. One accent: a saturated brand blue, used for
-  primary actions, today and selection. Red = past deadline, amber = due soon.
+  (sidebar panel, page), white cards on surfaces. Accent: solid violet for primary actions, selection and highlights (the logo, progress,
+  today). No gradients as a main colour. Red = past deadline, amber = due soon.
 */
 :root {
   --radius: 0.5rem;
 
-  --background: oklch(0.9614 0.0013 286.38);   /* canvas: neutral-300 */
+  --background: oklch(0.952 0.004 265);  /* canvas */
   --foreground: oklch(0.1689 0.0021 286.18);   /* txt-primary: neutral-1200 */
-  --card: oklch(1 0 0);                        /* surface-1 */
+  --card: oklch(1 0 0);  /* page and cards */
   --card-foreground: oklch(0.1689 0.0021 286.18);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.1689 0.0021 286.18);
-  --primary: oklch(0.52 0.155 256);            /* accent-primary: calm brand blue, 5:1 on white text */
+  --primary: oklch(0.55 0.22 293);  /* accent: violet, as in the reference (primary buttons, selection) */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9821 0 0);              /* layer-1 */
+  --secondary: oklch(0.962 0.004 265);  /* secondary buttons, hovers */
   --secondary-foreground: oklch(0.3225 0.0045 219.62);
-  --muted: oklch(0.9614 0.0013 286.38);        /* layer-1-hover */
+  --muted: oklch(0.94 0.005 265);  /* tracks, fills, skeletons */
   --muted-foreground: oklch(0.4176 0.0072 239.98); /* txt-tertiary */
   --accent: oklch(0.1482 0.0034 196.79 / 4%);  /* layer-transparent-hover */
   --accent-foreground: oklch(0.1689 0.0021 286.18);
   --destructive: oklch(0.5284 0.185 28.96);    /* red-700 */
-  --border: oklch(0.9396 0.0017 247.84);       /* border-subtle */
-  --input: oklch(0.9123 0.0017 247.84);        /* border-subtle-1 */
-  --border-strong: oklch(0.8782 0.0035 247.86);
-  --ring: oklch(0.72 0.12 254);
+  --border: oklch(0.912 0.005 265);
+  --input: oklch(0.89 0.006 265);
+  --border-strong: oklch(0.855 0.007 265);
+  --ring: oklch(0.72 0.14 293);  /* focus: soft violet */
 
-  --tray: oklch(0.9911 0 0);                   /* surface-2 */
-  --brand: oklch(0.52 0.155 256);
-  --brand-from: oklch(0.64 0.13 238);       /* a touch lighter and toward cyan, for gentle gradients */
-  --brand-to: oklch(0.52 0.155 256);
-  --brand-soft: oklch(0.965 0.02 252);        /* accent-subtle */
+  --tray: oklch(0.988 0.002 265);  /* footers inside cards */
+
+  /* shadcn sidebar: on the canvas; the current item a white raised row */
+  --sidebar: oklch(0.975 0.003 265);  /* sidebar panel */
+  --sidebar-foreground: oklch(0.3 0.008 265);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.925 0.006 265);  /* current sidebar row */
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --brand: oklch(0.56 0.22 293);  /* highlights: violet */
+  --brand-from: oklch(0.7 0.19 335);  /* gradient start: fuchsia, for the logo and highlights */
+  --brand-to: oklch(0.56 0.22 293);
+  --brand-soft: oklch(0.965 0.022 300);
   --warning: oklch(0.557 0.158291 45.3594);    /* amber-800 */
   --warning-soft: oklch(0.9617 0.0592 95.89);  /* amber-200 */
   --success: oklch(0.5883 0.1413 149.06);      /* green-800 */
@@ -52,7 +62,7 @@
   /* Data tones: one hue per metric, used only in small doses (tick meters, chart highlights, deltas).
      Each has a lighter "-from" stop for its vertical gradient. */
   --tone-sky: oklch(0.66 0.15 236);     --tone-sky-from: oklch(0.78 0.11 228);
-  --tone-violet: oklch(0.56 0.19 278);  --tone-violet-from: oklch(0.7 0.14 282);
+  --tone-violet: oklch(0.62 0.2 320);  --tone-violet-from: oklch(0.75 0.14 322);  /* magenta-violet, kept apart from the accent */
   --tone-orange: oklch(0.7 0.18 48);    --tone-orange-from: oklch(0.8 0.13 62);
   --tone-green: oklch(0.66 0.15 155);   --tone-green-from: oklch(0.78 0.12 158);
   --tone-rose: oklch(0.62 0.2 15);      --tone-rose-from: oklch(0.74 0.14 18);
@@ -63,31 +73,40 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.1689 0.0021 286.18);
+    --background: oklch(0.165 0.003 265);
     --foreground: oklch(0.9235 0.0017 230.69);
-    --card: oklch(0.1917 0.002 286.21);
+    --card: oklch(0.2 0.003 265);
     --card-foreground: oklch(0.9235 0.0017 230.69);
     --popover: oklch(0.2158 0.0025 230.82);
     --popover-foreground: oklch(0.9235 0.0017 230.69);
-    --primary: oklch(0.64 0.14 254);
-    --primary-foreground: oklch(0.9851 0 0);
-    --secondary: oklch(0.2158 0.0025 230.82);
+    --primary: oklch(0.68 0.19 293);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.228 0.004 265);
     --secondary-foreground: oklch(0.8455 0.0035 230.72);
-    --muted: oklch(0.2378 0.0029 230.83);
+    --muted: oklch(0.242 0.004 265);
     --muted-foreground: oklch(0.7655 0.0054 230.76);
     --accent: oklch(1 0 0 / 5%);
     --accent-foreground: oklch(0.9235 0.0017 230.69);
     --destructive: oklch(0.72 0.124 24.83);
-    --border: oklch(0.2593 0.0033 230.84);
-    --input: oklch(0.3011 0.0041 230.85);
-    --border-strong: oklch(0.3415 0.0049 230.86);
-    --ring: oklch(0.6 0.11 254);
+    --border: oklch(0.27 0.005 265);
+    --input: oklch(0.3 0.005 265);
+    --border-strong: oklch(0.34 0.006 265);
+    --ring: oklch(0.6 0.15 293);
 
-    --tray: oklch(0.2158 0.0025 230.82);
-    --brand: oklch(0.64 0.14 254);
-    --brand-from: oklch(0.72 0.11 236);
-    --brand-to: oklch(0.64 0.14 254);
-    --brand-soft: oklch(0.27 0.05 256);
+    --tray: oklch(0.215 0.003 265);
+
+    --sidebar: oklch(0.182 0.003 265);
+    --sidebar-foreground: oklch(0.8455 0.0035 230.72);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: oklch(1 0 0 / 7%);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+    --brand: oklch(0.7 0.18 293);
+    --brand-from: oklch(0.74 0.16 335);
+    --brand-to: oklch(0.68 0.19 293);
+    --brand-soft: oklch(0.27 0.06 300);
     --warning: oklch(0.7724 0.172798 65.367);
     --warning-soft: oklch(0.3042 0.0853 45.16);
     --success: oklch(0.7785 0.1398 151.07);
@@ -99,7 +118,7 @@
     --tag-violet-bg: #251a45; --tag-violet-fg: #c4b5fd;
 
     --tone-sky: oklch(0.7 0.13 236);     --tone-sky-from: oklch(0.8 0.1 228);
-    --tone-violet: oklch(0.66 0.16 280); --tone-violet-from: oklch(0.76 0.12 284);
+    --tone-violet: oklch(0.68 0.17 320); --tone-violet-from: oklch(0.78 0.12 322);
     --tone-orange: oklch(0.74 0.16 50);  --tone-orange-from: oklch(0.82 0.12 64);
     --tone-green: oklch(0.72 0.14 155);  --tone-green-from: oklch(0.82 0.11 158);
     --tone-rose: oklch(0.68 0.18 15);    --tone-rose-from: oklch(0.78 0.13 18);
@@ -135,6 +154,14 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-success: var(--success);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --color-tone-sky: var(--tone-sky);
   --color-tone-violet: var(--tone-violet);
   --color-tone-orange: var(--tone-orange);
@@ -156,9 +183,12 @@
   --shadow-md: 0px 2px 4px -1px rgb(41 47 61 / 0.04), 0px 4px 6px -1px rgb(41 47 61 / 0.05);
   --shadow-lg: 0px 10px 10px -5px rgb(41 47 61 / 0.04), 0px 10px 40px -5px rgb(41 47 61 / 0.04);
   --shadow-xl: 0px 10px 10px -10px rgb(41 47 61 / 0.04), 0px 30px 60px -12px rgb(41 47 61 / 0.1);
-  /* Plane's density: 13px body text */
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: 1.25rem;
+  /* Plane's type scale (propel): text-sm is body-sm, 14px at 1.54, for content (descriptions, panels,
+     dialogs, card titles); controls and navigation use 13px (body-xs) via text-[13px], as Plane's
+     buttons, menus and sidebar do. text-xs is caption-md, 12px. Headings use text-2xl/xl/lg/base for
+     h3/h4/h5/h6 (24/20/18/16) with default tracking. */
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.54;
 }
 
 @layer base {
@@ -196,21 +226,19 @@
   }
 }
 
-/* The one accent: blue gradient for progress, today and selection */
+/* Brand fill (logo, progress, assistant avatar): solid violet. Named "gradient" for history; no gradients now. */
 @utility bg-brand-gradient {
-  background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+  background-color: var(--brand);
 }
 
-/* Solid accent fills (primary buttons, badges, markers): a soft top light instead of a flat block */
+/* Primary fill (buttons, badges, markers): solid violet. */
 @utility bg-primary-gradient {
   background-color: var(--primary);
-  background-image: linear-gradient(180deg, var(--brand-from), var(--brand-to));
 }
 
-/* Tinted panels and highlights: the soft brand wash fading into the surface */
+/* Tinted panels and highlights: the soft violet wash, flat. */
 @utility bg-brand-soft-gradient {
   background-color: var(--brand-soft);
-  background-image: linear-gradient(135deg, var(--brand-soft), color-mix(in oklch, var(--brand-soft) 45%, var(--card)));
 }
 
 /* Ticker for one-line text that doesn't fit: two copies side by side, shifted by one copy's width */
@@ -233,12 +261,9 @@
   background-image: linear-gradient(180deg, color-mix(in oklch, var(--muted) 60%, var(--border-strong)), var(--muted));
 }
 
-/* Brand wash used once per surface (login panel, card dialog header) */
+/* Brand wash once per surface: solid violet. */
 @utility bg-aurora {
   background-color: var(--brand);
-  background-image:
-    radial-gradient(80% 140% at 10% 0%, var(--brand-from) 0%, transparent 60%),
-    linear-gradient(120deg, var(--brand-from), var(--brand-to));
 }
 
 /* Initials avatars: hue per person, lightness per theme */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Circle, CircleCheck, CircleDashed, ListFilter, SignalHigh, SignalLow, SignalMedium, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, X } from "lucide-react";
 import { Avatar, TagBadge } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
@@ -228,8 +228,7 @@ export function StateIcon({ done, inProgress, first, className }: { done: boolea
   return <Icon className={cn("size-4 shrink-0 text-muted-foreground", className)} aria-hidden />;
 }
 
-/** Plane-style priority glyph: signal bars, or a warning sign for urgent. */
+/** Priority as a filled flag in the priority's colour (red, orange, amber, sky). */
 export function PriorityIcon({ priority, className }: { priority: Priority; className?: string }) {
-  const Icon = priority === "urgent" ? TriangleAlert : priority === "high" ? SignalHigh : priority === "medium" ? SignalMedium : SignalLow;
-  return <Icon className={cn("size-3.5 shrink-0", PRIORITY_STYLE[priority], className)} aria-hidden />;
+  return <Flag className={cn("size-3.5 shrink-0", PRIORITY_STYLE[priority], className)} fill="currentColor" aria-hidden />;
 }

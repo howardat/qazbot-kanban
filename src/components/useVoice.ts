@@ -27,7 +27,7 @@ const recognitionCtor = (): RecognitionCtor | null => {
 };
 
 /** Plain speakable text: drop markdown marks and list bullets, then split into short sentences. */
-function chunks(text: string) {
+export function chunks(text: string) {
   const plain = text
     .replace(/[*_`#>|]/g, "")
     .replace(/^\s*[-•]\s+/gm, "")

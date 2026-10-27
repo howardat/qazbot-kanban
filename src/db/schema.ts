@@ -42,6 +42,9 @@ export const profiles = pgTable("profile", {
   // is its last characters, so the UI can say which key is set without ever decrypting it.
   openrouterKeyEnc: text("openrouter_key_enc"),
   openrouterKeyHint: text("openrouter_key_hint"),
+  // Personal Soniox key for talk mode's speech recognition, stored the same way.
+  sonioxKeyEnc: text("soniox_key_enc"),
+  sonioxKeyHint: text("soniox_key_hint"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();
 

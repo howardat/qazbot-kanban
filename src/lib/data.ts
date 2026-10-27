@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { boards, cardAssignees, cards, cardTags, columns, profiles, tags } from "@/db/schema";
 import type { CardRow, Member, Tag } from "@/lib/types";
@@ -68,6 +68,17 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
 
 export async function loadBoards() {
   return db.select({ id: boards.id, name: boards.name }).from(boards).orderBy(asc(boards.createdAt));
+}
+
+/** Open (not done) cards per board, for the counts beside boards in the sidebar. */
+export async function loadOpenCounts(): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ boardId: cards.boardId, n: count() })
+    .from(cards)
+    .innerJoin(columns, eq(columns.id, cards.columnId))
+    .where(eq(columns.isDone, false))
+    .groupBy(cards.boardId);
+  return Object.fromEntries(rows.map((r) => [r.boardId, r.n]));
 }
 
 /** Where quick-added cards land on each board: its first column that isn't "done". */

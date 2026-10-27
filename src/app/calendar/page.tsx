@@ -66,7 +66,7 @@ export default async function CalendarPage({
     <main>
       {board && (
         <ViewBar boardId={board.id} active="calendar">
-          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold tracking-tight hover:underline">
+          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold hover:underline">
             {board.name}
           </Link>
         </ViewBar>

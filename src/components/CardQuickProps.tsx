@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
-import { CalendarPlus, Check, Minus, SignalLow, UserPlus, X } from "lucide-react";
+import { CalendarPlus, Check, Flag, Minus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarStack, DueBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
@@ -76,7 +76,7 @@ export function CardQuickProps({
             </button>
           ) : (
             <button type="button" className={cn(ghost, hidden)} aria-label={t.quick.priority} title={t.quick.priority}>
-              <SignalLow className="size-3" />
+              <Flag className="size-3" />
             </button>
           )}
         </DropdownMenuTrigger>

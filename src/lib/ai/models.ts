@@ -1,26 +1,11 @@
-// Assistant models on OpenRouter: three picks per price range. Prices aren't hard-coded; the picker
-// reads them live from OpenRouter's catalog (see loadModelPrices), and the agent prices each request's
-// token usage with the same numbers.
+// Assistant models on OpenRouter: budget picks (the default) and optimal ones. Prices aren't hard-coded;
+// the picker reads them live from OpenRouter's catalog (see loadModelPrices), and the agent prices each
+// request's token usage with the same numbers.
 
-export type Tier = "premium" | "balanced" | "budget";
+export type Tier = "budget" | "optimal";
+export type Provider = "anthropic" | "openai" | "google" | "deepseek";
 
 export const MODEL_TIERS: { tier: Tier; models: { id: string; label: string }[] }[] = [
-  {
-    tier: "premium",
-    models: [
-      { id: "anthropic/claude-opus-5.5", label: "Claude Opus 5.5" },
-      { id: "openai/gpt-6-astra", label: "GPT-6 Astra" },
-      { id: "anthropic/claude-fable-5.1", label: "Claude Fable 5.1" },
-    ],
-  },
-  {
-    tier: "balanced",
-    models: [
-      { id: "anthropic/claude-sonnet-5.5", label: "Claude Sonnet 5.5" },
-      { id: "openai/gpt-6.1-sol", label: "GPT-6.1 Sol" },
-      { id: "google/gemini-4-argon", label: "Gemini 4 Argon" },
-    ],
-  },
   {
     tier: "budget",
     models: [
@@ -29,11 +14,22 @@ export const MODEL_TIERS: { tier: Tier; models: { id: string; label: string }[] 
       { id: "deepseek/deepseek-v4.1-flash-1017", label: "DeepSeek V4.1 Flash" },
     ],
   },
+  {
+    tier: "optimal",
+    models: [
+      { id: "anthropic/claude-sonnet-5.5", label: "Claude Sonnet 5.5" },
+      { id: "openai/gpt-6.1-sol", label: "GPT-6.1 Sol" },
+      { id: "google/gemini-4-argon", label: "Gemini 4 Argon" },
+    ],
+  },
 ];
 
-export const DEFAULT_MODEL = "anthropic/claude-sonnet-5.5";
+/** The company behind a model id ("anthropic/…"), for its icon. */
+export const providerOf = (id: string) => id.split("/")[0] as Provider;
 
-/** The model to use when the viewer hasn't picked one: OPENROUTER_MODEL if set, else Claude Sonnet. */
+export const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
+
+/** The model to use when the viewer hasn't picked one: OPENROUTER_MODEL if set, else the budget Claude Haiku. */
 export const defaultModel = () => process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
 
 /** Only listed models (plus the configured default) may be requested, so a client can't pick anything pricier. */

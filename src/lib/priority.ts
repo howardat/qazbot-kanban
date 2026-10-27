@@ -6,6 +6,6 @@ export type Priority = (typeof PRIORITIES)[number];
 export const PRIORITY_STYLE: Record<Priority, string> = {
   urgent: "text-red-600 dark:text-red-400",
   high: "text-orange-500 dark:text-orange-400",
-  medium: "text-amber-500 dark:text-amber-300",
+  medium: "text-yellow-500 dark:text-yellow-300",
   low: "text-sky-500 dark:text-sky-400",
 };

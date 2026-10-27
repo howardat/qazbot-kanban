@@ -49,7 +49,7 @@ export default async function TimelinePage({
     <main>
       {board && (
         <ViewBar boardId={board.id} active="timeline">
-          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold tracking-tight hover:underline">
+          <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold hover:underline">
             {board.name}
           </Link>
         </ViewBar>
