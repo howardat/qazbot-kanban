@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, ChevronDown, Flag, Plus, Trash2, UserPlus } from "lucide-react";
+import { Check, ChevronDown, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack, TagBadge } from "@/components/atoms";
+import { PriorityIcon } from "@/components/BoardToolbar";
 import { DatePicker } from "@/components/DatePicker";
 import { useT } from "@/components/I18nProvider";
 import { ColorPicker } from "@/components/TagManager";
@@ -16,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TAG_STYLE } from "@/lib/colors";
-import { PRIORITIES, PRIORITY_STYLE, type Priority } from "@/lib/priority";
+import { PRIORITIES, type Priority } from "@/lib/priority";
 import { PROJECTS, type Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -241,7 +242,7 @@ export function CardEditor({
                     <SelectItem value={NO_PROJECT}>{t.priority.none}</SelectItem>
                     {PRIORITIES.map((p) => (
                       <SelectItem key={p} value={p}>
-                        <Flag className={PRIORITY_STYLE[p]} /> {t.priority[p]}
+                        <PriorityIcon priority={p} /> {t.priority[p]}
                       </SelectItem>
                     ))}
                   </SelectContent>

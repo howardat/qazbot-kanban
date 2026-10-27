@@ -27,8 +27,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import {
   ArrowRightLeft,
+  ChevronRight,
   CircleCheck,
-  CircleDot,
   FoldHorizontal,
   GripVertical,
   MoreHorizontal,
@@ -36,7 +36,6 @@ import {
   SquarePen,
   Trash2,
   UnfoldHorizontal,
-  X,
 } from "lucide-react";
 import {
   addCard,
@@ -52,10 +51,11 @@ import {
   setColumnDone,
   setColumnInProgress,
 } from "@/app/actions";
-import { Avatar, AvatarStack, DueBadge, TagBadge } from "@/components/atoms";
+import { AvatarStack, DueBadge, TagBadge } from "@/components/atoms";
 import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
+import { AppliedFilters, DisplayMenu, FiltersMenu, hasFilters, matches, NO_FILTERS, PriorityIcon, StateIcon, useDisplay, type Display, type Filters } from "@/components/BoardToolbar";
 import { TagManager } from "@/components/TagManager";
 import { ViewBar } from "@/components/ViewTabs";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ISODate } from "@/lib/dates";
-import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
+import type { CardData, Member, Tag } from "@/lib/types";
+import { avatarHue } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
 export type ColumnData = { id: string; name: string; isDone: boolean; isInProgress: boolean; cards: CardData[] };
@@ -114,6 +115,7 @@ type Ctx = {
   today: ISODate;
   columns: { id: string; name: string; isDone: boolean }[];
   editingId: string | null;
+  display: Display;
   open: (card: CardData) => void;
   moveTo: (cardId: string, columnId: string) => void;
   remove: (cardId: string) => void;
@@ -164,8 +166,8 @@ export function Board({
   const [cols, setCols] = useState(initial);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<CardData | null>(null);
-  const [personFilter, setPersonFilter] = useState<string | null>(null);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [display, setDisplay] = useDisplay();
   const [collapsed, toggleCollapsed] = useCollapsed(board.id);
   const [, startTransition] = useTransition();
 
@@ -220,6 +222,7 @@ export function Board({
     today,
     columns: cols.map(({ id, name, isDone }) => ({ id, name, isDone })),
     editingId: editing?.id ?? null,
+    display,
     open: setEditing,
     moveTo,
     remove,
@@ -228,16 +231,10 @@ export function Board({
 
   // Filters only hide cards. Drag handlers look cards up by id in the full `cols`, so a move while
   // filtering lands at the right spot among the hidden cards too.
-  const filtering = !!personFilter || !!tagFilter;
-  const visibleCols = filtering
-    ? cols.map((c) => ({
-        ...c,
-        cards: c.cards.filter(
-          (card) =>
-            (!personFilter || card.assigneeIds.includes(personFilter)) && (!tagFilter || card.tagIds.includes(tagFilter)),
-        ),
-      }))
-    : cols;
+  const filtering = hasFilters(filters);
+  const filteredCols = filtering ? cols.map((c) => ({ ...c, cards: c.cards.filter((card) => matches(filters, card)) })) : cols;
+  // "Show empty columns" off hides columns with nothing to show (never the one a drag is passing over).
+  const visibleCols = display.emptyColumns ? filteredCols : filteredCols.filter((c) => c.cards.length > 0);
   const cardCount = cols.reduce((n, c) => n + c.cards.length, 0);
 
   function columnOf(key: string, list = cols) {
@@ -316,85 +313,26 @@ export function Board({
           active="board"
           actions={
             <>
+              <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
+              <DisplayMenu value={display} onChange={setDisplay} />
               <TagManager boardId={board.id} tags={tags} />
               {canDelete && <DeleteBoard board={board} />}
             </>
           }
         >
-          <BoardTitle board={board} />
-          <span className="hidden text-xs text-muted-foreground tabular-nums lg:inline">
-            {t.board.summary(cardCount, cols.length)}
-          </span>
+          {/* Plane-style breadcrumb: Boards › this board (renamable in place) */}
+          <nav aria-label={t.nav.boards} className="flex min-w-0 items-center gap-1.5 text-sm">
+            <span className="hidden text-muted-foreground sm:inline">{t.nav.boards}</span>
+            <ChevronRight className="hidden size-3.5 text-muted-foreground/60 sm:inline" aria-hidden />
+            <BoardMark id={board.id} name={board.name} />
+            <BoardTitle board={board} />
+          </nav>
+          <span className="hidden text-xs text-muted-foreground tabular-nums lg:inline">{t.board.summary(cardCount, cols.length)}</span>
         </ViewBar>
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 md:px-6">
-          <div className="flex items-center gap-1.5" role="group" aria-label={t.board.byPerson}>
-            <FilterPill
-              active={personFilter === currentUserId}
-              onClick={() => setPersonFilter(personFilter === currentUserId ? null : currentUserId)}
-            >
-              {t.board.myCards}
-            </FilterPill>
-            {/* Wide enough gaps that a selected person's ring isn't covered by the next avatar. */}
-            <div className="flex items-center gap-2 px-0.5">
-              {members.map((m) => (
-                <Tooltip key={m.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-pressed={personFilter === m.id}
-                      aria-label={t.board.showFor(displayName(m))}
-                      onClick={() => setPersonFilter(personFilter === m.id ? null : m.id)}
-                      className={cn(
-                        "grid size-6 cursor-pointer place-items-center rounded-full outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
-                        personFilter === m.id ? "ring-2 ring-brand ring-offset-1 ring-offset-card" : "opacity-75 hover:opacity-100",
-                      )}
-                    >
-                      <Avatar member={m} size={24} className="pointer-events-none ring-0" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>{displayName(m)}</TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t.board.byTag}>
-              {tags.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={tagFilter === t.id}
-                  onClick={() => setTagFilter(tagFilter === t.id ? null : t.id)}
-                  className={cn(
-                    "cursor-pointer rounded-md transition",
-                    tagFilter === t.id ? "ring-2 ring-brand ring-offset-1 ring-offset-card" : "opacity-80 hover:opacity-100",
-                  )}
-                >
-                  <TagBadge tag={t} />
-                </button>
-              ))}
-            </div>
-          )}
-          {filtering && (
-            <span className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setPersonFilter(null);
-                  setTagFilter(null);
-                }}
-              >
-                <X /> {t.board.clearFilters}
-              </Button>
-              {t.board.dragPaused}
-            </span>
-          )}
-        </div>
+        <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
       </div>
 
-      <div className="flex-1 overflow-x-auto bg-tray px-4 py-3 md:px-6">
+      <div className="flex-1 overflow-x-auto bg-muted/40 px-4 py-4 md:px-6">
         <DndContext
           id={dndId}
           sensors={sensors}
@@ -414,6 +352,7 @@ export function Board({
                   key={col.id}
                   column={col}
                   ctx={ctx}
+                  first={col.id === cols[0]?.id && !col.isDone && !col.isInProgress}
                   collapsed={collapsed.includes(col.id)}
                   onToggleCollapse={() => toggleCollapsed(col.id)}
                 />
@@ -430,21 +369,12 @@ export function Board({
   );
 }
 
-function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+/** Square initial chip in the board's hue, as in the sidebar. */
+function BoardMark({ id, name }: { id: string; name: string }) {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "h-7 cursor-pointer rounded-md border px-2.5 text-xs font-medium transition-colors",
-        active
-          ? "border-primary/30 bg-brand-soft text-primary"
-          : "border-input bg-card text-muted-foreground shadow-xs hover:bg-secondary hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <span aria-hidden className="avatar grid size-5 shrink-0 place-items-center rounded-sm text-[10px] font-semibold" style={{ "--hue": avatarHue(id) } as React.CSSProperties}>
+      {name.trim()[0]?.toUpperCase() ?? "B"}
+    </span>
   );
 }
 
@@ -459,7 +389,7 @@ function BoardTitle({ board }: { board: { id: string; name: string } }) {
       onBlur={() => name.trim() && name !== board.name && renameBoard(board.id, name)}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       size={Math.max(8, name.length)}
-      className="-ml-1 max-w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-base font-semibold tracking-tight outline-none hover:bg-accent focus:bg-accent"
+      className="max-w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-sm font-semibold outline-none hover:bg-accent focus:bg-accent"
       aria-label={t.board.nameAria}
     />
   );
@@ -506,11 +436,14 @@ function DeleteBoard({ board }: { board: { id: string; name: string } }) {
 function Column({
   column,
   ctx,
+  first,
   collapsed,
   onToggleCollapse,
 }: {
   column: ColumnData;
   ctx: Ctx;
+  /** The board's first column, drawn as the backlog. */
+  first: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
@@ -542,8 +475,7 @@ function Column({
           className="flex cursor-pointer flex-col items-center gap-2 rounded-md py-2 text-sm outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <UnfoldHorizontal className="size-3.5 text-muted-foreground" aria-hidden />
-          {isDone && <CircleCheck className="size-3.5 text-success" aria-label={t.column.doneColumn} />}
-          {isInProgress && <CircleDot className="size-3.5 text-primary" aria-label={t.column.inProgressColumn} />}
+          <StateIcon done={isDone} inProgress={isInProgress} first={first} className="size-3.5" />
           <span className="max-h-80 truncate font-medium [writing-mode:vertical-lr]">{column.name}</span>
           <span className="text-xs font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
         </button>
@@ -557,60 +489,46 @@ function Column({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn("flex max-h-full w-80 shrink-0 flex-col", isDragging && "opacity-50")}
     >
-      <header className="flex h-9 shrink-0 items-center gap-1">
-        <span
-          {...attributes}
-          {...listeners}
-          className={cn(
-            "cursor-grab rounded-sm p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground",
-          )}
-          aria-label={t.column.drag}
-        >
-          <GripVertical className="size-4" />
-        </span>
-        {isDone && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <CircleCheck className="size-4 shrink-0 text-success" aria-label={t.column.doneColumn} />
-            </TooltipTrigger>
-            <TooltipContent>{t.column.countsAsDone}</TooltipContent>
-          </Tooltip>
-        )}
-        {isInProgress && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <CircleDot className="size-4 shrink-0 text-primary" aria-label={t.column.inProgressColumn} />
-            </TooltipTrigger>
-            <TooltipContent>{t.column.countsAsInProgress}</TooltipContent>
-          </Tooltip>
-        )}
+      {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph. */}
+      <header className="group/col flex h-9 shrink-0 items-center gap-1.5 px-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span {...attributes} {...listeners} aria-label={t.column.drag} className="grid size-5 cursor-grab place-items-center rounded-sm hover:bg-accent">
+              <span className="group-hover/col:hidden">
+                <StateIcon done={isDone} inProgress={isInProgress} first={first} />
+              </span>
+              <GripVertical className="hidden size-3.5 text-muted-foreground group-hover/col:block" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{isDone ? t.column.countsAsDone : isInProgress ? t.column.countsAsInProgress : t.column.drag}</TooltipContent>
+        </Tooltip>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => name.trim() && name !== column.name && renameColumn(column.id, name)}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-          className="min-w-0 flex-1 rounded-sm bg-transparent px-1 py-0.5 text-sm font-medium outline-none hover:bg-accent focus:bg-card"
+          size={Math.max(4, name.length)}
+          className="max-w-44 min-w-0 rounded-sm bg-transparent px-1 py-0.5 text-sm font-semibold outline-none hover:bg-accent focus:bg-card"
           aria-label={t.column.nameAria}
         />
-        <span className="px-1 text-xs font-medium text-muted-foreground tabular-nums">
-          {column.cards.length}
-        </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label={t.column.collapseAria} onClick={onToggleCollapse}>
-              <FoldHorizontal />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t.column.collapse}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label={t.column.addCard} onClick={() => setAdding(true)}>
-              <Plus />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t.column.addCard}</TooltipContent>
-        </Tooltip>
+        <span className="text-xs font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
+        <span className="ml-auto flex items-center opacity-0 transition-opacity group-hover/col:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-xs" aria-label={t.column.collapseAria} onClick={onToggleCollapse}>
+                <FoldHorizontal />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.column.collapse}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-xs" aria-label={t.column.addCard} onClick={() => setAdding(true)}>
+                <Plus />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.column.addCard}</TooltipContent>
+          </Tooltip>
         <DropdownMenu onOpenChange={(open) => !open && setConfirming(false)}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-xs" aria-label={t.column.options}>
@@ -659,8 +577,9 @@ function Column({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </span>
       </header>
-      <div className="-mx-0.5 flex min-h-12 flex-col gap-2 overflow-y-auto p-0.5">
+      <div className="-mx-0.5 flex min-h-12 flex-col gap-1.5 overflow-y-auto p-0.5">
         <SortableContext items={column.cards.map((c) => cardKey(c.id))} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} />
@@ -749,50 +668,46 @@ function CardMenu({ card, ctx }: { card: CardData; ctx: Ctx }) {
   );
 }
 
+/** Plane-style card: title, then one row of property chips (priority, dates, tags, people). */
 function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done: boolean; overlay?: boolean }) {
-  const cardTags = card.tagIds.map((id) => ctx.tagById.get(id)).filter((t): t is Tag => !!t);
+  const show = ctx.display;
+  const cardTags = show.tags ? card.tagIds.map((id) => ctx.tagById.get(id)).filter((t): t is Tag => !!t) : [];
   const people = card.assigneeIds.map((id) => ctx.memberById.get(id)).filter((m): m is Member => !!m);
   const late = !done && !!card.dueDate && card.dueDate < ctx.today;
+  const tagChips = cardTags.map((t) => <TagBadge key={t.id} tag={t} />);
   return (
     <article
       className={cn(
-        "cursor-pointer rounded-lg border bg-card p-3 text-sm shadow-xs transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-sm",
+        "cursor-pointer space-y-2 rounded-md border bg-card px-3 py-2.5 text-sm shadow-xs transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-sm",
         late && "border-destructive/30 hover:border-destructive/50",
-        ctx.editingId === card.id && "border-primary hover:border-primary",
+        ctx.editingId === card.id && "border-primary ring-1 ring-primary hover:border-primary",
         overlay && "rotate-1 shadow-lg",
       )}
     >
-      <h3
-        className={cn(
-          "pr-5 leading-snug font-medium break-words",
-          done && "text-muted-foreground line-through decoration-muted-foreground/40",
-        )}
-      >
+      <h3 className={cn("line-clamp-3 pr-5 leading-snug font-medium break-words", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
         {card.title}
       </h3>
-      {card.description && (
-        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
-      )}
-      {cardTags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {cardTags.map((t) => (
-            <TagBadge key={t.id} tag={t} />
-          ))}
-        </div>
-      )}
-      {/* Properties row, as on Plane's cards: priority, dates and people, each editable in place */}
-      <div className="mt-2.5">
-        {overlay ? (
-          <div className="flex items-center gap-1.5">
-            <DueBadge start={card.startDate} due={card.dueDate} today={ctx.today} done={done} />
+      {show.description && card.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
+      {overlay ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {show.priority && card.priority && (
+            <span className="grid size-5 place-items-center rounded-sm border border-border-strong">
+              <PriorityIcon priority={card.priority} className="size-3" />
+            </span>
+          )}
+          {show.dates && <DueBadge start={card.startDate} due={card.dueDate} today={ctx.today} done={done} />}
+          {tagChips}
+          {show.assignees && (
             <span className="ml-auto">
               <AvatarStack members={people} size={20} />
             </span>
-          </div>
-        ) : (
-          <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} onPatch={(p) => ctx.patch(card.id, p)} />
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)}>
+          {tagChips}
+        </CardQuickProps>
+      )}
     </article>
   );
 }

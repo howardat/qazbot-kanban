@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
-import { CalendarPlus, Check, Flag, UserPlus, X } from "lucide-react";
+import { CalendarPlus, Check, Minus, SignalLow, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarStack, DueBadge } from "@/components/atoms";
+import { PriorityIcon } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ISODate } from "@/lib/dates";
-import { PRIORITIES, PRIORITY_STYLE } from "@/lib/priority";
+import { PRIORITIES } from "@/lib/priority";
 import { displayName, type CardData, type Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +20,9 @@ const toDate = (iso: string) => new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1,
 const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 // Set values show as chips; unset ones are faint icon buttons that appear on hover (always on touch).
+// Everything is 20px tall, like Plane's property chips.
 const ghost =
-  "inline-flex h-6 cursor-pointer items-center gap-1 rounded-md border border-dashed px-1.5 text-xs text-muted-foreground outline-none hover:border-border-strong hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:opacity-100";
+  "inline-flex h-5 cursor-pointer items-center gap-1 rounded-md border border-dashed px-1.5 text-xs text-muted-foreground outline-none hover:border-border-strong hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:opacity-100";
 // Unset buttons go after the set chips (flex order), so their hidden space never opens a gap.
 const hidden = "order-1 opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100";
 const chip = "cursor-pointer rounded-md outline-none hover:ring-2 hover:ring-border focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -35,13 +37,19 @@ export function CardQuickProps({
   members,
   today,
   done,
+  show,
   onPatch,
+  children,
 }: {
   card: CardData;
   members: Member[];
   today: ISODate;
   done: boolean;
+  /** Which properties the board's Display menu shows. */
+  show: { priority: boolean; dates: boolean; assignees: boolean };
   onPatch: (patch: QuickPatch) => void;
+  /** Read-only chips (tags) placed after the dates. */
+  children?: React.ReactNode;
 }) {
   const t = useT();
   const [dateOpen, setDateOpen] = useState(false);
@@ -51,37 +59,45 @@ export function CardQuickProps({
     onPatch({ assigneeIds: card.assigneeIds.includes(id) ? card.assigneeIds.filter((x) => x !== id) : [...card.assigneeIds, id] });
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
+    <div className="flex flex-wrap items-center gap-1" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
       {/* Priority */}
+      {show.priority && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {card.priority ? (
-            <button type="button" className={cn(chip, "inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs font-medium")} aria-label={t.quick.priority}>
-              <Flag className={cn("size-3.5", PRIORITY_STYLE[card.priority])} fill="currentColor" />
-              {t.priority[card.priority]}
+            // Icon only, in a bordered square; the name is in the tooltip.
+            <button
+              type="button"
+              className={cn(chip, "grid size-5 place-items-center rounded-sm border border-border-strong", card.priority === "urgent" && "border-red-500/40 bg-red-500/10")}
+              aria-label={`${t.quick.priority}: ${t.priority[card.priority]}`}
+              title={t.priority[card.priority]}
+            >
+              <PriorityIcon priority={card.priority} className="size-3" />
             </button>
           ) : (
             <button type="button" className={cn(ghost, hidden)} aria-label={t.quick.priority} title={t.quick.priority}>
-              <Flag className="size-3.5" />
+              <SignalLow className="size-3" />
             </button>
           )}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-44" onClick={stop}>
           {PRIORITIES.map((p) => (
             <DropdownMenuItem key={p} onSelect={() => onPatch({ priority: p })}>
-              <Flag className={PRIORITY_STYLE[p]} fill="currentColor" /> {t.priority[p]}
+              <PriorityIcon priority={p} /> {t.priority[p]}
               {card.priority === p && <Check className="ml-auto" />}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => onPatch({ priority: null })}>
-            <Flag className="text-muted-foreground" /> {t.priority.none}
+            <Minus className="text-muted-foreground" /> {t.priority.none}
             {!card.priority && <Check className="ml-auto" />}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      )}
 
       {/* Deadline */}
+      {show.dates && (
       <Popover open={dateOpen} onOpenChange={setDateOpen}>
         <PopoverTrigger asChild>
           {card.dueDate || card.startDate ? (
@@ -90,7 +106,7 @@ export function CardQuickProps({
             </button>
           ) : (
             <button type="button" className={cn(ghost, hidden)} aria-label={t.quick.deadline} title={t.quick.deadline}>
-              <CalendarPlus className="size-3.5" />
+              <CalendarPlus className="size-3" />
             </button>
           )}
         </PopoverTrigger>
@@ -120,8 +136,12 @@ export function CardQuickProps({
           )}
         </PopoverContent>
       </Popover>
+      )}
+
+      {children}
 
       {/* Assignees */}
+      {show.assignees && (
       <span className="order-2 ml-auto">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -131,7 +151,7 @@ export function CardQuickProps({
               </button>
             ) : (
               <button type="button" className={cn(ghost, hidden)} aria-label={t.quick.assignees} title={t.quick.assignees}>
-                <UserPlus className="size-3.5" />
+                <UserPlus className="size-3" />
               </button>
             )}
           </DropdownMenuTrigger>
@@ -152,6 +172,7 @@ export function CardQuickProps({
           </DropdownMenuContent>
         </DropdownMenu>
       </span>
+      )}
     </div>
   );
 }
