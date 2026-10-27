@@ -1,19 +1,24 @@
 import { cache } from "react";
-import { eq, sql } from "drizzle-orm";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { allowedEmails, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 
-export type CurrentUser = typeof profiles.$inferSelect;
+// Everything about the person except their encrypted OpenRouter key, which only lib/ai/keys reads.
+const publicColumns = Object.fromEntries(Object.entries(getTableColumns(profiles)).filter(([k]) => k !== "openrouterKeyEnc")) as Omit<
+  ReturnType<typeof getTableColumns<typeof profiles>>,
+  "openrouterKeyEnc"
+>;
+export type CurrentUser = Omit<typeof profiles.$inferSelect, "openrouterKeyEnc">;
 
 // TEMPORARY demo bypass: with DEMO_NO_AUTH=1 in dev, act as the first admin profile (or any profile). Remove before shipping.
 const demoNoAuth = process.env.DEMO_NO_AUTH === "1" && process.env.NODE_ENV !== "production";
 
 async function demoProfile(): Promise<CurrentUser | null> {
-  const [admin] = await db.select().from(profiles).where(eq(profiles.role, "admin")).limit(1);
+  const [admin] = await db.select(publicColumns).from(profiles).where(eq(profiles.role, "admin")).limit(1);
   if (admin) return admin;
-  const [any] = await db.select().from(profiles).limit(1);
+  const [any] = await db.select(publicColumns).from(profiles).limit(1);
   return any ?? null;
 }
 
@@ -37,7 +42,7 @@ const session = cache(async (): Promise<Session> => {
   const domain = process.env.ALLOWED_DOMAIN?.trim().toLowerCase();
   const [row] = await db
     .select({
-      profile: profiles,
+      profile: publicColumns,
       allowed: sql<boolean>`exists (select 1 from ${allowedEmails} where ${allowedEmails.email} = ${profiles.email})`,
     })
     .from(profiles)

@@ -50,6 +50,7 @@ export const ru: Dict = {
     usage: "Расходы на ИИ",
     workers: "Сотрудники",
     mcp: "Доступ по MCP",
+    settings: "Настройки",
     signOut: "Выйти",
   },
 
@@ -416,6 +417,7 @@ export const ru: Dict = {
       "robot.edit": "Переназначить робота",
       "robot.delete": "Удалить робота",
       "assistant.chat": "Ассистент",
+      "ai.personalKey": "Свой ключ OpenRouter",
       "mcp.call": "Внешний MCP",
       "mcp.tokenCreate": "Создать токен MCP",
       "language.change": "Сменить язык",
@@ -548,6 +550,25 @@ export const ru: Dict = {
     setup: "Подключение клиента",
     claudeCode: "Claude Code",
     other: "Cursor и другие клиенты (mcp.json)",
+  },
+
+  settings: {
+    title: "Настройки",
+    description: "Ваши личные настройки. Их видите только вы.",
+    keyTitle: "Ваш ключ OpenRouter",
+    keyHint:
+      "Добавьте свой ключ OpenRouter — тогда запросы ассистента будут оплачиваться с вашего аккаунта OpenRouter, а не командного. Ключ используется только для вас, не входит в командный бюджет и хранится в зашифрованном виде.",
+    usingYours: (hint) => `Ассистент использует ваш ключ (…${hint}).`,
+    usingTeam: "Сейчас используется командный ключ.",
+    noKey: "Ключа пока нет: добавьте его, чтобы пользоваться ассистентом.",
+    save: "Сохранить ключ",
+    replace: "Заменить ключ",
+    checking: "Проверяем…",
+    remove: "Удалить",
+    saved: "Ключ сохранён. Следующий запрос ассистента использует его.",
+    invalid: "Это не похоже на ключ OpenRouter.",
+    rejected: "OpenRouter не принял этот ключ. Проверьте его и попробуйте снова.",
+    notAvailable: "Личные ключи на этом сервере ещё не настроены (нет SECRETS_KEY).",
   },
 
   invite: {

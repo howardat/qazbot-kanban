@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Plug,
   Plus,
+  Settings,
   ShieldCheck,
   Sparkles,
   SquareKanban,
@@ -125,6 +126,11 @@ function AccountItems({ user, isAdmin }: { user: Member; isAdmin: boolean }) {
       <DropdownMenuItem asChild>
         <Link href="/mcp">
           <Plug /> {t.nav.mcp}
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings">
+          <Settings /> {t.nav.settings}
         </Link>
       </DropdownMenuItem>
       <DropdownMenuSub>

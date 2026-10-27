@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { monthlyBudgetUsd, monthSpendUsd, runAgent, type AgentEvent } from "@/lib/ai/agent";
 import { defaultModel, isAllowedModel, loadModelPrices, MODEL_TIERS } from "@/lib/ai/models";
+import { openRouterKeyFor } from "@/lib/ai/keys";
 import { getT } from "@/lib/i18n/server";
 import { track } from "@/lib/activity";
 import { getCurrentUser } from "@/lib/session";
@@ -8,14 +9,17 @@ import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const configured = () => !!process.env.OPENROUTER_API_KEY;
+// Usable when the team has a key or this person brought their own.
+const configured = async (profileId: string) => !!(await openRouterKeyFor(profileId));
 
 /** Picker data: the curated models with live prices, the default, and this month's spend. */
 export async function GET() {
-  if (!(await getCurrentUser())) return new Response("Unauthorized", { status: 401 });
-  const [prices, monthUsd] = await Promise.all([loadModelPrices(), monthSpendUsd()]);
+  const user = await getCurrentUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
+  const [prices, monthUsd, key] = await Promise.all([loadModelPrices(), monthSpendUsd(), openRouterKeyFor(user.id)]);
   return Response.json({
-    configured: configured(),
+    configured: !!key,
+    personalKey: !!key?.personal,
     defaultModel: defaultModel(),
     tiers: MODEL_TIERS,
     prices,
@@ -36,7 +40,7 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const t = await getT();
-  if (!configured()) return Response.json({ error: t.assistant.notConfigured }, { status: 503 });
+  if (!(await configured(user.id))) return Response.json({ error: t.assistant.notConfigured }, { status: 503 });
 
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid request." }, { status: 400 });

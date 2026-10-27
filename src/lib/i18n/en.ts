@@ -47,6 +47,7 @@ export const en = {
     usage: "AI usage",
     workers: "Workers",
     mcp: "MCP access",
+    settings: "Settings",
     signOut: "Sign out",
   },
 
@@ -412,6 +413,7 @@ export const en = {
       "robot.edit": "Reassign robot",
       "robot.delete": "Remove robot",
       "assistant.chat": "Assistant",
+      "ai.personalKey": "Set own OpenRouter key",
       "mcp.call": "External MCP",
       "mcp.tokenCreate": "Create MCP token",
       "language.change": "Change language",
@@ -544,6 +546,25 @@ export const en = {
     setup: "Connect a client",
     claudeCode: "Claude Code",
     other: "Cursor and other clients (mcp.json)",
+  },
+
+  settings: {
+    title: "Settings",
+    description: "Your personal settings. Nobody else sees them.",
+    keyTitle: "Your OpenRouter key",
+    keyHint:
+      "Add your own OpenRouter key and your assistant requests are billed to your OpenRouter account instead of the team's. Only you use it, it doesn't count against the team budget, and it's stored encrypted.",
+    usingYours: (hint: string) => `Your assistant uses your key (…${hint}).`,
+    usingTeam: "You're using the team key.",
+    noKey: "No key yet: add one to use the assistant.",
+    save: "Save key",
+    replace: "Replace key",
+    checking: "Checking…",
+    remove: "Remove",
+    saved: "Key saved. Your next assistant request uses it.",
+    invalid: "That doesn't look like an OpenRouter key.",
+    rejected: "OpenRouter didn't accept this key. Check it and try again.",
+    notAvailable: "Personal keys aren't set up on this server yet (SECRETS_KEY is missing).",
   },
 
   invite: {

@@ -36,6 +36,10 @@ export const profiles = pgTable("profile", {
   name: text("name"),
   image: text("image"),
   role: roleEnum("role").notNull().default("member"),
+  // Personal OpenRouter key for this person's assistant requests, encrypted (lib/secrets); the hint
+  // is its last characters, so the UI can say which key is set without ever decrypting it.
+  openrouterKeyEnc: text("openrouter_key_enc"),
+  openrouterKeyHint: text("openrouter_key_hint"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();
 
@@ -156,6 +160,8 @@ export const aiUsage = pgTable(
     completionTokens: integer("completion_tokens").notNull().default(0),
     // US dollars; numeric keeps sub-cent amounts exact.
     costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    // Paid with the person's own OpenRouter key: shown in usage, but not counted against the team budget.
+    personal: boolean("personal").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (t) => [index("ai_usage_created_idx").on(t.createdAt), index("ai_usage_profile_idx").on(t.profileId)],

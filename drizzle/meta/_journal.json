@@ -71,6 +71,13 @@
       "when": 1793098075414,
       "tag": "0009_rich_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793100659097,
+      "tag": "0010_cuddly_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

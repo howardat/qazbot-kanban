@@ -40,6 +40,7 @@ export const FEATURES = [
   "robot.edit",
   "robot.delete",
   "assistant.chat",
+  "ai.personalKey",
   "mcp.call",
   "mcp.tokenCreate",
   "language.change",

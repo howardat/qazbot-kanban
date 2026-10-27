@@ -15,6 +15,7 @@ import { and, asc, desc, eq, gte, sum } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { aiUsage, assistantChats, assistantMessages } from "@/db/schema";
+import { openRouterKeyFor } from "@/lib/ai/keys";
 import { describeCall } from "@/lib/ai/describe";
 import { loadModelPrices, MODEL_TIERS } from "@/lib/ai/models";
 import { todayISO } from "@/lib/dates";
@@ -51,10 +52,14 @@ const AWAITING = "Waiting for the user's approval.";
 // OPENROUTER_BASE_URL lets you route through a proxy (or a local mock in development).
 const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
 
+/** This month's spend on the team key. Requests paid with personal keys don't count. */
 export async function monthSpendUsd() {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const [row] = await db.select({ total: sum(aiUsage.costUsd) }).from(aiUsage).where(gte(aiUsage.createdAt, start));
+  const [row] = await db
+    .select({ total: sum(aiUsage.costUsd) })
+    .from(aiUsage)
+    .where(and(gte(aiUsage.createdAt, start), eq(aiUsage.personal, false)));
   return Number(row?.total ?? 0);
 }
 
@@ -184,6 +189,9 @@ export async function runAgent({
   approvals: Record<string, boolean>;
   emit: (e: AgentEvent) => void;
 }) {
+  // The person's own OpenRouter key if they set one, otherwise the team key.
+  const apiKey = await openRouterKeyFor(user.id);
+  if (!apiKey) return emit({ type: "error", message: t.assistant.notConfigured });
   const found = chatId ? await ownChat(user, chatId) : null;
   if (chatId && !found) return emit({ type: "error", message: t.assistant.notFound });
   const chat = found ?? (await newChat(user, text, t));
@@ -253,7 +261,9 @@ export async function runAgent({
     }
 
     // 2. Think, look things up, and stop at the first proposed change.
-    if (await overBudget()) {
+    // The team budget only limits the team key; personal keys are the person's own business.
+    const budgetHit = async () => !apiKey.personal && (await overBudget());
+    if (await budgetHit()) {
       emit({ type: "error", message: t.assistant.overBudget });
     } else {
       const model = await openRouterModel(modelId);
@@ -262,10 +272,10 @@ export async function runAgent({
       const toolArgs = new Map<string, Record<string, unknown>>();
       const config: AgentLoopConfig = {
         model,
-        getApiKey: () => process.env.OPENROUTER_API_KEY,
+        getApiKey: () => apiKey.key,
         convertToLlm: (messages) => messages.filter((m) => !failed(m)),
         toolExecution: "sequential",
-        shouldStopAfterTurn: async ({ toolResults }) => ++steps >= MAX_STEPS || toolResults.some(isPlaceholder) || (await overBudget()),
+        shouldStopAfterTurn: async ({ toolResults }) => ++steps >= MAX_STEPS || toolResults.some(isPlaceholder) || (await budgetHit()),
       };
 
       const onEvent = async (e: PiEvent) => {
@@ -284,6 +294,7 @@ export async function runAgent({
               promptTokens: m.usage.input + m.usage.cacheRead + m.usage.cacheWrite,
               completionTokens: m.usage.output,
               costUsd: m.usage.cost.total.toFixed(6),
+              personal: apiKey.personal,
             });
             emit({ type: "usage", model: modelId, costUsd: m.usage.cost.total, monthUsd: await monthSpendUsd() });
             const said = textOf(m);
