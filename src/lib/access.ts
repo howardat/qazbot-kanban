@@ -13,7 +13,8 @@ async function profileCount() {
 
 /**
  * Sign-in rule:
- * - no profiles yet -> bootstrap: the first person to sign in becomes admin
+ * - no profiles and an empty allowlist -> bootstrap: the first person to sign in becomes admin
+ *   (seed the allowlist with the owner's email before going public so nobody else can claim it)
  * - email on allowlist -> allowed
  * - ALLOWED_DOMAIN set and email in that domain -> allowed
  */
@@ -23,7 +24,9 @@ export async function isEmailAllowed(email: string) {
   if (domain && e.endsWith(`@${domain}`)) return true;
   const hit = await db.select().from(allowedEmails).where(eq(allowedEmails.email, e)).limit(1);
   if (hit.length > 0) return true;
-  return (await profileCount()) === 0;
+  if ((await profileCount()) > 0) return false;
+  const [{ n }] = await db.select({ n: count() }).from(allowedEmails);
+  return n === 0;
 }
 
 /**
