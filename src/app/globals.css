@@ -1,26 +1,203 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* Follows the OS theme; no manual toggle. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/*
+  Palette, radius, shadow and density follow Plane's design system (@makeplane/propel,
+  AGPL-3.0, (c) Plane Software, Inc.). Layering: one canvas (app background), surfaces on it
+  (sidebar panel, page), white cards on surfaces. One accent: Plane's brand blue, used for
+  primary actions, today and selection. Red = past deadline, amber = due soon.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --radius: 0.5rem;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: oklch(0.9614 0.0013 286.38);   /* canvas: neutral-300 */
+  --foreground: oklch(0.1689 0.0021 286.18);   /* txt-primary: neutral-1200 */
+  --card: oklch(1 0 0);                        /* surface-1 */
+  --card-foreground: oklch(0.1689 0.0021 286.18);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1689 0.0021 286.18);
+  --primary: oklch(0.4799 0.1158 242.91);      /* accent-primary: brand-default */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9821 0 0);              /* layer-1 */
+  --secondary-foreground: oklch(0.3225 0.0045 219.62);
+  --muted: oklch(0.9614 0.0013 286.38);        /* layer-1-hover */
+  --muted-foreground: oklch(0.4176 0.0072 239.98); /* txt-tertiary */
+  --accent: oklch(0.1482 0.0034 196.79 / 4%);  /* layer-transparent-hover */
+  --accent-foreground: oklch(0.1689 0.0021 286.18);
+  --destructive: oklch(0.5284 0.185 28.96);    /* red-700 */
+  --border: oklch(0.9396 0.0017 247.84);       /* border-subtle */
+  --input: oklch(0.9123 0.0017 247.84);        /* border-subtle-1 */
+  --border-strong: oklch(0.8782 0.0035 247.86);
+  --ring: oklch(0.7649 0.1392 236.3);          /* brand-600 */
+
+  --tray: oklch(0.9911 0 0);                   /* surface-2 */
+  --brand: oklch(0.4799 0.1158 242.91);
+  --brand-from: oklch(0.6766 0.1665 243.91);
+  --brand-to: oklch(0.4799 0.1158 242.91);
+  --brand-soft: oklch(0.9715 0.0167 230.9);    /* accent-subtle */
+  --warning: oklch(0.557 0.158291 45.3594);    /* amber-800 */
+  --warning-soft: oklch(0.9617 0.0592 95.89);  /* amber-200 */
+  --success: oklch(0.5883 0.1413 149.06);      /* green-800 */
+
+  --tag-sky-bg: #e3f4fc;    --tag-sky-fg: #0369a1;
+  --tag-gold-bg: #fdf2d8;   --tag-gold-fg: #92400e;
+  --tag-green-bg: #e3f5e9;  --tag-green-fg: #15803d;
+  --tag-red-bg: #fde8e8;    --tag-red-fg: #b91c1c;
+  --tag-violet-bg: #efe9fd; --tag-violet-fg: #6d28d9;
+  --tag-orange-bg: #fdebdd; --tag-orange-fg: #c2410c;
+  --tag-pink-bg: #fce7f3;   --tag-pink-fg: #be185d;
+  --tag-slate-bg: #eeeeec;  --tag-slate-fg: #52525b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: oklch(0.1689 0.0021 286.18);
+    --foreground: oklch(0.9235 0.0017 230.69);
+    --card: oklch(0.1917 0.002 286.21);
+    --card-foreground: oklch(0.9235 0.0017 230.69);
+    --popover: oklch(0.2158 0.0025 230.82);
+    --popover-foreground: oklch(0.9235 0.0017 230.69);
+    --primary: oklch(0.6311 0.126281 238.01);
+    --primary-foreground: oklch(0.9851 0 0);
+    --secondary: oklch(0.2158 0.0025 230.82);
+    --secondary-foreground: oklch(0.8455 0.0035 230.72);
+    --muted: oklch(0.2378 0.0029 230.83);
+    --muted-foreground: oklch(0.7655 0.0054 230.76);
+    --accent: oklch(1 0 0 / 5%);
+    --accent-foreground: oklch(0.9235 0.0017 230.69);
+    --destructive: oklch(0.72 0.124 24.83);
+    --border: oklch(0.2593 0.0033 230.84);
+    --input: oklch(0.3011 0.0041 230.85);
+    --border-strong: oklch(0.3415 0.0049 230.86);
+    --ring: oklch(0.596 0.0937 235.63);
+
+    --tray: oklch(0.2158 0.0025 230.82);
+    --brand: oklch(0.6311 0.126281 238.01);
+    --brand-from: oklch(0.700818 0.114497 235.29);
+    --brand-to: oklch(0.6311 0.126281 238.01);
+    --brand-soft: oklch(0.2513 0.0418 234.6);
+    --warning: oklch(0.7724 0.172798 65.367);
+    --warning-soft: oklch(0.3042 0.0853 45.16);
+    --success: oklch(0.7785 0.1398 151.07);
+
+    --tag-sky-bg: #0c2a3a;    --tag-sky-fg: #7dd3fc;
+    --tag-gold-bg: #33270b;   --tag-gold-fg: #fcd34d;
+    --tag-green-bg: #0f2a19;  --tag-green-fg: #86efac;
+    --tag-red-bg: #3a1414;    --tag-red-fg: #fca5a5;
+    --tag-violet-bg: #251a45; --tag-violet-fg: #c4b5fd;
+    --tag-orange-bg: #3a1e0c; --tag-orange-fg: #fdba74;
+    --tag-pink-bg: #3a1229;   --tag-pink-fg: #f9a8d4;
+    --tag-slate-bg: #26262a;  --tag-slate-fg: #d4d4d8;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-tray: var(--tray);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-border-strong: var(--border-strong);
+  /* Plane's corners: 6px controls, 8px cards and panels; large radii stay compact */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --radius-4xl: 16px;
+  /* Plane's elevation: barely-there raised cards, soft overlays */
+  --shadow-xs: 0px 1px 6px -1px rgb(41 47 61 / 0.03), 0px 1px 4px 0px rgb(41 47 61 / 0.04);
+  --shadow-sm: 0px 1px 2px -1px rgb(41 47 61 / 0.06), 0px 1px 3px 0px rgb(41 47 61 / 0.05);
+  --shadow-md: 0px 2px 4px -1px rgb(41 47 61 / 0.04), 0px 4px 6px -1px rgb(41 47 61 / 0.05);
+  --shadow-lg: 0px 10px 10px -5px rgb(41 47 61 / 0.04), 0px 10px 40px -5px rgb(41 47 61 / 0.04);
+  --shadow-xl: 0px 10px 10px -10px rgb(41 47 61 / 0.04), 0px 30px 60px -12px rgb(41 47 61 / 0.1);
+  /* Plane's density: 13px body text */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01", "tnum";
+    font-weight: 450;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted-foreground/70;
+  }
+}
+
+/* Thin scrollbars that only show on hover, like Plane's */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  *:hover {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* The one accent: blue gradient for progress, today and selection */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+}
+
+/* Brand wash used once per surface (login panel, card dialog header) */
+@utility bg-aurora {
+  background-color: var(--brand);
+  background-image:
+    radial-gradient(80% 140% at 10% 0%, var(--brand-from) 0%, transparent 60%),
+    linear-gradient(120deg, var(--brand-from), var(--brand-to));
+}
+
+/* Initials avatars: hue per person, lightness per theme */
+.avatar {
+  background: hsl(var(--hue) 75% 90%);
+  color: hsl(var(--hue) 55% 30%);
+}
+@media (prefers-color-scheme: dark) {
+  .avatar {
+    background: hsl(var(--hue) 30% 26%);
+    color: hsl(var(--hue) 80% 86%);
+  }
 }

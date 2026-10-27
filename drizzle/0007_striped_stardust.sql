@@ -1,0 +1,1 @@
+ALTER TYPE "public"."project" ADD VALUE 'welding' BEFORE 'back_office';
