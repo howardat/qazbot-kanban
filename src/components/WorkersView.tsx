@@ -30,7 +30,16 @@ function useStable<T>(value: T): T {
 }
 
 /** The office view filling the page, with a floating legend, team list and full-screen toggle. */
-export function WorkersView({ workers: fresh, robots: freshRobots }: { workers: Worker[]; robots: Robot[] }) {
+export function WorkersView({
+  workers: fresh,
+  robots: freshRobots,
+  tabs,
+}: {
+  workers: Worker[];
+  robots: Robot[];
+  /** Office / Team switch, rendered by the server page. */
+  tabs: React.ReactNode;
+}) {
   const t = useT();
   const router = useRouter();
   const workers = useStable(fresh);
@@ -80,6 +89,7 @@ export function WorkersView({ workers: fresh, robots: freshRobots }: { workers: 
 
       <div className="pointer-events-none absolute top-3 left-3 flex items-start gap-2 md:top-4 md:left-4">
         <h1 className="sr-only">{w.title}</h1>
+        <div className="pointer-events-auto">{tabs}</div>
         <button
           type="button"
           onClick={toggle}

@@ -137,3 +137,13 @@ export async function loadFeatureUsage(since: Date) {
     return { feature: f, uses: r?.uses ?? 0, people: r?.people ?? 0, last: r?.last ?? null };
   }).sort((a, b) => a.uses - b.uses || a.feature.localeCompare(b.feature));
 }
+
+/** Cards each person finished since `since` ("card.done" credits), by profile id. */
+export async function loadDoneCounts(since: Date): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ profileId: activityEvents.profileId, n: count() })
+    .from(activityEvents)
+    .where(and(eq(activityEvents.kind, CARD_DONE), gte(activityEvents.at, since)))
+    .groupBy(activityEvents.profileId);
+  return new Map(rows.flatMap((r) => (r.profileId ? [[r.profileId, r.n] as const] : [])));
+}

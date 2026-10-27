@@ -14,13 +14,9 @@ import { track } from "@/lib/activity";
 import { requireUser } from "@/lib/session";
 import { displayName } from "@/lib/types";
 import { byUrgency } from "@/lib/urgency";
+import { availabilityOf, LEVEL_BAR, LEVEL_TEXT } from "@/lib/availability";
 import { avatarHue } from "@/lib/colors";
 import { cn } from "@/lib/utils";
-
-/** About a full plate in load points (see availability below). */
-const CAPACITY = 6;
-const LEVEL_TEXT = { free: "text-success", room: "text-sky-600 dark:text-sky-400", busy: "text-amber-600 dark:text-amber-400", overloaded: "text-destructive" };
-const LEVEL_BAR = { free: "bg-success", room: "bg-sky-500", busy: "bg-amber-500", overloaded: "bg-destructive" };
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -59,18 +55,7 @@ export default async function DashboardPage() {
   });
 
   const availability = members
-    .map((member) => {
-      const theirs = open.filter((c) => c.assigneeIds.includes(member.id));
-      const lateN = theirs.filter(isLate).length;
-      const doing = theirs.filter((c) => c.inProgress).sort((a, b) => b.movedAt.localeCompare(a.movedAt));
-      const soon = theirs.filter((c) => !isLate(c) && c.dueDate && diffDays(c.dueDate, today) < 7).length;
-      // Rough load: late work weighs most, then what's in progress, then this week's deadlines,
-      // then the rest of the backlog. CAPACITY is about a full plate.
-      const load = lateN * 2 + doing.length * 1.5 + soon + (theirs.length - lateN - doing.length) * 0.25;
-      const free = Math.max(0, Math.min(100, Math.round(100 - (load / CAPACITY) * 100)));
-      const level = free >= 75 ? "free" : free >= 40 ? "room" : free >= 10 ? "busy" : "overloaded";
-      return { member, free, level, late: lateN, current: doing[0] ?? null, soon } as const;
-    })
+    .map((member) => availabilityOf(member, open, today))
     .sort((a, b) => b.free - a.free);
 
   return (
