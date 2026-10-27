@@ -20,6 +20,7 @@ export function DatePicker({
   placeholder,
   label,
   accent,
+  ghost,
   invalid,
 }: {
   value: string;
@@ -27,6 +28,8 @@ export function DatePicker({
   placeholder: string;
   label: string;
   accent?: boolean;
+  /** Borderless, for property rows (Plane's peek panel). */
+  ghost?: boolean;
   invalid?: boolean;
 }) {
   const t = useT();
@@ -36,11 +39,11 @@ export function DatePicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
+            variant={ghost ? "ghost" : "outline"}
             aria-label={label}
             aria-invalid={invalid || undefined}
             className={cn(
-              "h-9 flex-1 justify-start rounded-xl px-3 font-normal",
+              ghost ? "h-8 flex-1 justify-start rounded-md px-2 font-normal aria-invalid:text-destructive" : "h-9 flex-1 justify-start rounded-xl px-3 font-normal",
               !value && "text-muted-foreground",
               accent && value && "border-brand/40 bg-brand-soft",
             )}

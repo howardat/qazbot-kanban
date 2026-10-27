@@ -213,6 +213,8 @@ export const en = {
     newTag: "New tag",
     newTagAria: "New tag name",
     preview: "Preview",
+    properties: "Properties",
+    addTags: "Add labels",
     assignees: "Assignees",
     noAssignees: "Unassigned",
     assigneeCount: (n: number) => `${n} people`,
@@ -228,6 +230,7 @@ export const en = {
 
   tags: {
     button: "Tags",
+    count: (n: number) => `${n} labels`,
     title: "Board tags",
     hint: "Any card on this board can use these.",
     empty: "No tags yet. Add the first one below.",

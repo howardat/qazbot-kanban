@@ -689,7 +689,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
   const cardTags = show.tags ? card.tagIds.map((id) => ctx.tagById.get(id)).filter((t): t is Tag => !!t) : [];
   const people = card.assigneeIds.map((id) => ctx.memberById.get(id)).filter((m): m is Member => !!m);
   const late = !done && !!card.dueDate && card.dueDate < ctx.today;
-  const tagChips = cardTags.map((t) => <TagBadge key={t.id} tag={t} />);
+  const tagChips = <LabelChips tags={cardTags} />;
   return (
     <article
       className={cn(
@@ -774,6 +774,18 @@ function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean;
       />
       <div className="bg-muted/35 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
     </div>
+  );
+}
+
+/** Labels on a card, as Plane shows them: the one label, or a single "3 labels" pill with the first colour. */
+function LabelChips({ tags }: { tags: Tag[] }) {
+  const t = useT();
+  if (tags.length === 0) return null;
+  if (tags.length === 1) return <TagBadge tag={tags[0]} />;
+  return (
+    <span title={tags.map((x) => x.name).join(", ")}>
+      <TagBadge tag={{ name: t.tags.count(tags.length), color: tags[0].color }} />
+    </span>
   );
 }
 
@@ -871,9 +883,7 @@ function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean 
       </span>
       <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
         <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)}>
-          {cardTags.map((t) => (
-            <TagBadge key={t.id} tag={t} />
-          ))}
+          <LabelChips tags={cardTags} />
         </CardQuickProps>
         <CardMenu card={card} ctx={ctx} className="static" />
       </span>

@@ -48,12 +48,13 @@ export function AvatarStack({ members, max = 3, size = 22 }: { members: Member[]
   );
 }
 
-/** Plane-style label chip: hairline border, colored dot, neutral text. */
-export function TagBadge({ tag, className }: { tag: Pick<Tag, "name" | "color">; className?: string }) {
+/** Plane's label pill: grey fill, no border, the label's colour as a small dot. `md` is the peek-panel size. */
+export function TagBadge({ tag, size = "sm", className }: { tag: Pick<Tag, "name" | "color">; size?: "sm" | "md"; className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 max-w-40 items-center gap-1.5 rounded-sm border-[0.5px] border-border-strong px-1.5 text-[11px] font-medium leading-none text-muted-foreground",
+        "inline-flex max-w-40 items-center gap-1.5 rounded-md bg-muted font-medium leading-none text-muted-foreground",
+        size === "sm" ? "h-5 px-2 text-[11px]" : "h-6 px-2 text-xs",
         className,
       )}
     >

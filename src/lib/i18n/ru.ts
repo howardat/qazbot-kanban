@@ -217,6 +217,8 @@ export const ru: Dict = {
     newTag: "Новый тег",
     newTagAria: "Название нового тега",
     preview: "Предпросмотр",
+    properties: "Свойства",
+    addTags: "Добавить метки",
     assignees: "Исполнители",
     noAssignees: "Не назначено",
     assigneeCount: (n: number) => `${n} ${p(n, "человек", "человека", "человек")}`,
@@ -232,6 +234,7 @@ export const ru: Dict = {
 
   tags: {
     button: "Теги",
+    count: (n) => `${n} ${p(n, "метка", "метки", "меток")}`,
     title: "Теги доски",
     hint: "Их можно использовать в любой карточке этой доски.",
     empty: "Тегов пока нет. Добавьте первый ниже.",
