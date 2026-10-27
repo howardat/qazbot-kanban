@@ -254,7 +254,7 @@ export const ru: Dict = {
     },
   },
 
-  views: { aria: "Представления доски", board: "Доска", calendar: "Календарь", timeline: "Таймлайн" },
+  views: { aria: "Представления доски", list: "Список", board: "Доска", calendar: "Календарь", timeline: "Таймлайн" },
 
   calendar: {
     description: (n, view, board) =>
@@ -409,6 +409,7 @@ export const ru: Dict = {
     featureNames: {
       "dashboard.view": "Главная",
       "board.view": "Открыть доску",
+      "board.list": "Вид списком",
       "calendar.view": "Календарь",
       "timeline.view": "Таймлайн",
       "workers.view": "Офис команды",

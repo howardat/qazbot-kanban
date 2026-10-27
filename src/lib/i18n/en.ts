@@ -250,7 +250,7 @@ export const en = {
     },
   },
 
-  views: { aria: "Board views", board: "Board", calendar: "Calendar", timeline: "Timeline" },
+  views: { aria: "Board views", list: "List", board: "Board", calendar: "Calendar", timeline: "Timeline" },
 
   calendar: {
     description: (n: number, view: "month" | "week", board: string | null) =>
@@ -405,6 +405,7 @@ export const en = {
     featureNames: {
       "dashboard.view": "Home page",
       "board.view": "Open a board",
+      "board.list": "List layout",
       "calendar.view": "Calendar",
       "timeline.view": "Timeline",
       "workers.view": "Team office",

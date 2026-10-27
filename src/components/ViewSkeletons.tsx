@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { ViewBar } from "@/components/ViewTabs";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { ViewBar, type View } from "@/components/ViewTabs";
 
 // Loading screens for a board's three views. Each draws the real view bar, so the view tabs stay
 // exactly where they were, and a placeholder shaped like the view that's coming.
@@ -10,7 +10,7 @@ import { ViewBar } from "@/components/ViewTabs";
 const bar = "rounded-md bg-muted";
 
 /** The view bar with a placeholder where the board name goes (a loading screen can't look it up). */
-function Bar({ boardId, active }: { boardId: string; active: "board" | "calendar" | "timeline" }) {
+function Bar({ boardId, active }: { boardId: string; active: View }) {
   return (
     <ViewBar boardId={boardId} active={active}>
       <div className={`h-5 w-40 ${bar}`} />
@@ -33,6 +33,28 @@ function Header() {
 
 export function BoardSkeleton() {
   const { id } = useParams<{ id: string }>();
+  // The list route shares this loading screen: same bar, rows instead of columns.
+  if (usePathname().endsWith("/list"))
+    return (
+      <main aria-busy="true" className="flex h-full flex-col">
+        <div className="border-b">
+          <Bar boardId={id} active="list" />
+        </div>
+        {[5, 3, 2].map((rows, i) => (
+          <div key={i}>
+            <div className="flex h-10 items-center gap-2 border-b bg-muted/70 px-4 md:px-6">
+              <div className={`h-4 w-28 ${bar}`} />
+            </div>
+            {Array.from({ length: rows }, (_, j) => (
+              <div key={j} className="flex h-11 animate-pulse items-center gap-3 border-b px-4 md:px-6">
+                <div className={`h-3.5 w-1/3 ${bar}`} />
+                <div className={`ml-auto h-5 w-40 ${bar}`} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </main>
+    );
   return (
     <main aria-busy="true" className="flex h-full flex-col">
       <div className="border-b">

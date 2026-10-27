@@ -2,11 +2,11 @@
 
 import { useLinkStatus } from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, ChartGantt, Columns3, Loader2 } from "lucide-react";
+import { CalendarDays, ChartGantt, Columns3, List, Loader2 } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { TabLink, TabsNav } from "@/components/ui/tabs";
 
-type View = "board" | "calendar" | "timeline";
+export type View = "list" | "board" | "calendar" | "timeline";
 
 // A full prefetch: the page's data too, not just up to its loading screen. Next types `kind` as an
 // internal enum, so the string goes through a cast.
@@ -38,11 +38,12 @@ export function ViewBar({
   );
 }
 
-/** Switch between the three views of one board. Calendar and timeline are filtered by ?board=. */
+/** Switch between a board's views, in Plane's order. Calendar and timeline are filtered by ?board=. */
 export function ViewTabs({ boardId, active }: { boardId: string; active: View }) {
   const t = useT();
   const router = useRouter();
   const tabs = [
+    { view: "list" as const, label: t.views.list, href: `/boards/${boardId}/list`, Icon: List },
     { view: "board" as const, label: t.views.board, href: `/boards/${boardId}`, Icon: Columns3 },
     { view: "calendar" as const, label: t.views.calendar, href: `/calendar?board=${boardId}`, Icon: CalendarDays },
     { view: "timeline" as const, label: t.views.timeline, href: `/timeline?board=${boardId}`, Icon: ChartGantt },
@@ -59,9 +60,11 @@ export function ViewTabs({ boardId, active }: { boardId: string; active: View })
           prefetch={false}
           onMouseEnter={() => view !== active && router.prefetch(href, FULL)}
           onFocus={() => view !== active && router.prefetch(href, FULL)}
+          aria-label={label}
+          title={label}
+          className="px-2"
         >
           <TabIcon Icon={Icon} />
-          {label}
         </TabLink>
       ))}
     </TabsNav>

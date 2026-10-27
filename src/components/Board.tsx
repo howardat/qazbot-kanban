@@ -151,6 +151,7 @@ export function Board({
   today,
   currentUserId,
   canDelete,
+  layout = "board",
 }: {
   board: { id: string; name: string };
   columns: ColumnData[];
@@ -159,6 +160,8 @@ export function Board({
   today: ISODate;
   currentUserId: string;
   canDelete: boolean;
+  /** Kanban columns, or Plane's list: one section per column with a row per card. */
+  layout?: "board" | "list";
 }) {
   const t = useT();
   const dndId = useId();
@@ -309,7 +312,7 @@ export function Board({
       <div className="border-b">
         <ViewBar
           boardId={board.id}
-          active="board"
+          active={layout}
           actions={
             <>
               <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
@@ -331,6 +334,15 @@ export function Board({
         <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
       </div>
 
+      {layout === "list" ? (
+        <ListView
+          cols={visibleCols}
+          ctx={ctx}
+          backlogId={cols[0] && !cols[0].isDone && !cols[0].isInProgress ? cols[0].id : null}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
+      ) : (
       <div className="flex-1 overflow-x-auto px-4 py-4 md:px-6">
         <DndContext
           id={dndId}
@@ -362,6 +374,7 @@ export function Board({
           <DragOverlay>{activeCard && <CardView card={activeCard} ctx={ctx} done={activeDone} overlay />}</DragOverlay>
         </DndContext>
       </div>
+      )}
 
       {editing && <CardEditor card={editing} members={members} boardTags={tags} onClose={() => setEditing(null)} />}
     </main>
@@ -613,7 +626,7 @@ function SortableCard({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boo
 }
 
 /** Plane's hover quick actions on a card: open, move to another column, delete. */
-function CardMenu({ card, ctx }: { card: CardData; ctx: Ctx }) {
+function CardMenu({ card, ctx, className }: { card: CardData; ctx: Ctx; className?: string }) {
   const t = useT();
   const [confirming, setConfirming] = useState(false);
   // The menu lives inside the draggable card (and React events bubble out of its portal), so keep
@@ -621,7 +634,10 @@ function CardMenu({ card, ctx }: { card: CardData; ctx: Ctx }) {
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
     <div
-      className="absolute top-2 right-2 rounded-md bg-card opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100"
+      className={cn(
+        "absolute top-2 right-2 rounded-md bg-card opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100 has-data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100",
+        className,
+      )}
       onPointerDown={stop}
       onClick={stop}
       onKeyDown={stop}
@@ -757,6 +773,153 @@ function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean;
         className="w-full bg-transparent px-3 py-3 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
       />
       <div className="bg-muted/60 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
+    </div>
+  );
+}
+
+// ---------- List layout (Plane's list) ----------
+
+/**
+ * Plane's list layout: a grey band per column (state icon, name, count, add), then a row per card with
+ * the title on the left and the same property chips on the right. Click a band to fold it.
+ */
+function ListView({
+  cols,
+  ctx,
+  backlogId,
+  collapsed,
+  onToggleCollapse,
+}: {
+  cols: ColumnData[];
+  ctx: Ctx;
+  backlogId: string | null;
+  collapsed: string[];
+  onToggleCollapse: (id: string) => void;
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {cols.map((col) => (
+        <ListGroup key={col.id} column={col} ctx={ctx} first={col.id === backlogId} folded={collapsed.includes(col.id)} onToggle={() => onToggleCollapse(col.id)} />
+      ))}
+    </div>
+  );
+}
+
+function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnData; ctx: Ctx; first: boolean; folded: boolean; onToggle: () => void }) {
+  const t = useT();
+  const [adding, setAdding] = useState(false);
+  return (
+    <section aria-label={column.name}>
+      <div className="sticky top-0 z-[2] flex items-center gap-2 border-b bg-muted/70 py-1 pr-4 pl-4 backdrop-blur-sm hover:bg-muted md:pl-6">
+        <button type="button" onClick={onToggle} aria-expanded={!folded} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-1.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+          <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !folded && "rotate-90")} />
+          <StateIcon done={column.isDone} inProgress={column.isInProgress} first={first} className="size-3.5" />
+          <span className="truncate text-[13px] font-medium">{column.name}</span>
+          <span className="pl-1 text-[13px] font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
+        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-5 [&_svg]:size-3.5"
+              aria-label={t.column.addCard}
+              onClick={() => {
+                if (folded) onToggle();
+                setAdding(true);
+              }}
+            >
+              <Plus />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t.column.addCard}</TooltipContent>
+        </Tooltip>
+      </div>
+      {!folded && (
+        <>
+          <ul>
+            {column.cards.map((card) => (
+              <ListRow key={card.id} card={card} ctx={ctx} done={column.isDone} />
+            ))}
+          </ul>
+          <ListQuickAdd columnId={column.id} open={adding} setOpen={setAdding} />
+        </>
+      )}
+    </section>
+  );
+}
+
+/** One card as a list row: title, then the property chips and the card menu on the right. */
+function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean }) {
+  const show = ctx.display;
+  const cardTags = show.tags ? card.tagIds.map((id) => ctx.tagById.get(id)).filter((t): t is Tag => !!t) : [];
+  const late = !done && !!card.dueDate && card.dueDate < ctx.today;
+  return (
+    <li
+      className={cn(
+        "group/card relative flex min-h-11 cursor-pointer flex-col gap-2 border-b py-2.5 pr-4 pl-4 text-[13px] transition-colors hover:bg-foreground/[0.03] md:flex-row md:items-center md:pl-6",
+        ctx.editingId === card.id && "bg-brand-soft/60",
+      )}
+      onClick={() => ctx.open(card)}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        {late && <span className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden />}
+        <span title={card.title} className={cn("truncate font-medium", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
+          {card.title}
+        </span>
+        {show.description && card.description && <span className="hidden truncate text-xs text-muted-foreground lg:inline">{card.description}</span>}
+      </span>
+      <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)}>
+          {cardTags.map((t) => (
+            <TagBadge key={t.id} tag={t} />
+          ))}
+        </CardQuickProps>
+        <CardMenu card={card} ctx={ctx} className="static" />
+      </span>
+    </li>
+  );
+}
+
+/** Plane's list quick add: a "+ New card" row; Enter adds and keeps the field open. */
+function ListQuickAdd({ columnId, open, setOpen }: { columnId: string; open: boolean; setOpen: (open: boolean) => void }) {
+  const t = useT();
+  const [title, setTitle] = useState("");
+  const [pending, startTransition] = useTransition();
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full cursor-pointer items-center gap-2 border-b py-2.5 pr-4 pl-4 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.03] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 md:pl-6"
+      >
+        <Plus className="size-3.5" /> {t.column.newCard}
+      </button>
+    );
+  return (
+    <div className="flex items-center gap-3 border-b bg-card py-1 pr-4 pl-4 shadow-sm md:pl-6">
+      <input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && title.trim() && !pending) {
+            e.preventDefault();
+            startTransition(async () => {
+              await addCard(columnId, title);
+              setTitle("");
+            });
+          }
+          if (e.key === "Escape") setOpen(false);
+        }}
+        onBlur={() => !title.trim() && setOpen(false)}
+        maxLength={200}
+        disabled={pending}
+        placeholder={t.column.addPlaceholder}
+        aria-label={t.column.addCard}
+        className="min-w-0 flex-1 bg-transparent py-2 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
+      />
+      <span className="hidden shrink-0 text-[11px] text-muted-foreground italic sm:inline">{t.column.addHint}</span>
     </div>
   );
 }
