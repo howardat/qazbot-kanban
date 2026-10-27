@@ -219,14 +219,6 @@ export async function workOnCard(cardId: string) {
 
 // ---------- Admin: allowlist ----------
 
-export async function addAllowedEmail(formData: FormData) {
-  const user = await requireAdmin();
-  await track(user.id, "access.add");
-  const email = normalizeEmail(z.string().email().parse(formData.get("email")));
-  await db.insert(allowedEmails).values({ email }).onConflictDoNothing();
-  revalidatePath("/admin");
-}
-
 export async function removeAllowedEmail(email: string) {
   const admin = await requireAdmin();
   await track(admin.id, "access.remove");

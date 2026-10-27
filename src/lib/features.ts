@@ -30,7 +30,6 @@ export const FEATURES = [
   "tag.edit",
   "tag.delete",
   "profile.rename",
-  "access.add",
   "access.remove",
   "invite.create",
   "invite.revoke",

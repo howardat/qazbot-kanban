@@ -60,21 +60,18 @@ export const en = {
 
   login: {
     title: "Sign in to Qazbot Kanban",
-    subtitle: "We'll email you a link. No password needed.",
+    subtitle: "New here? Open the invite link an admin sent you.",
     errors: {
-      AccessDenied: "This email isn't on the access list. Ask an admin to add it.",
-      LinkInvalid: "That sign-in link is invalid or expired. Request a new one.",
-      fallback: "Sign-in failed. Request a new link.",
+      AccessDenied: "Your access was removed. Ask an admin for a new invite.",
+      fallback: "Sign-in failed. Try again.",
     } as Record<string, string>,
-    checkInbox: "Check your inbox",
-    linkNote: "The link works once and expires in an hour.",
     email: "Work email",
-    sending: "Sending…",
-    send: "Email me a sign-in link",
+    password: "Password",
+    signIn: "Sign in",
+    signingIn: "Signing in…",
+    wrong: "Wrong email or password.",
     invalidEmail: "Enter a valid email address.",
-    tooMany: "Too many sign-in emails. Wait a minute and try again.",
-    sendFailed: "Couldn't send the email. Try again.",
-    sent: (email: string) => `If ${email} has access, a sign-in link is on its way.`,
+    tooMany: "Too many attempts. Wait a minute and try again.",
   },
 
   due: {
@@ -394,7 +391,6 @@ export const en = {
       "tag.edit": "Edit tag",
       "tag.delete": "Delete tag",
       "profile.rename": "Change own name",
-      "access.add": "Give access",
       "access.remove": "Remove access",
       "invite.create": "Create invite link",
       "invite.revoke": "Revoke invite link",
@@ -512,14 +508,20 @@ export const en = {
 
   invite: {
     title: "Join Qazbot Kanban",
-    subtitle: "You've been invited. Enter your email and we'll send you a sign-in link.",
-    join: "Send my sign-in link",
+    subtitle: "You've been invited. Create your account to get started.",
+    name: "Your name",
+    join: "Create account",
+    creating: "Creating account…",
+    passwordRule: "At least 8 characters.",
+    nameRequired: "Enter your name.",
+    taken: "This email already has an account. Sign in instead.",
+    failed: "Couldn't create the account. Try again.",
     invalid: "This invite link is invalid, expired or already used. Ask an admin for a new one.",
     expired: "This invite was just used up or expired. Ask an admin for a new one.",
     toLogin: "Already have access? Sign in",
     // Admin panel
     panel: "Invite links",
-    panelHint: "Anyone with a link can add their email to the access list until it expires or is used up.",
+    panelHint: "Invite links are the only way to join. Anyone with a link can create an account until it expires or is used up.",
     create: "Create link",
     singleUse: "Single use",
     unlimited: "Unlimited uses",
@@ -535,10 +537,8 @@ export const en = {
 
   admin: {
     title: "Access",
-    description: "Only these emails can sign in. People appear as assignees after their first sign-in.",
+    description: "People who joined through an invite link. Removing someone signs them out for good.",
     domain: (d: string) => `Anyone with an @${d} email can also sign in.`,
-    emailAria: "Email to allow",
-    give: "Give access",
     people: "People with access",
     notSignedIn: "Hasn't signed in yet",
     adminBadge: "Admin",

@@ -42,6 +42,14 @@ export async function consumeInvite(token: string) {
   return rows.length > 0;
 }
 
+/** Give back a use taken by consumeInvite when the registration it was for didn't go through. */
+export async function refundInvite(token: string) {
+  await db
+    .update(invites)
+    .set({ uses: sql`greatest(${invites.uses} - 1, 0)` })
+    .where(eq(invites.tokenHash, hash(token)));
+}
+
 /** Invites admins still need to see: usable ones, newest first. */
 export async function loadActiveInvites() {
   return db.select().from(invites).where(usable()).orderBy(desc(invites.createdAt));

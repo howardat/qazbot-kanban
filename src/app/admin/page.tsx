@@ -2,11 +2,10 @@ import { asc } from "drizzle-orm";
 import { ShieldCheck, UserMinus } from "lucide-react";
 import { db } from "@/db";
 import { allowedEmails, profiles } from "@/db/schema";
-import { addAllowedEmail, removeAllowedEmail } from "@/app/actions";
+import { removeAllowedEmail } from "@/app/actions";
 import { Avatar, PageHeader, Panel } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { InviteManager } from "@/components/InviteManager";
 import { RobotManager } from "@/components/RobotManager";
 import { getT } from "@/lib/i18n/server";
@@ -43,17 +42,6 @@ export default async function AdminPage() {
         }
       />
       <div className="max-w-3xl space-y-4 px-4 py-5 md:px-6">
-        <form action={addAllowedEmail} className="flex gap-2 rounded-lg border bg-card p-1.5 pl-3 shadow-xs">
-          <Input
-            name="email"
-            type="email"
-            required
-            placeholder="teammate@company.com"
-            aria-label={t.admin.emailAria}
-            className="border-0 shadow-none focus-visible:ring-0"
-          />
-          <Button className="shrink-0">{t.admin.give}</Button>
-        </form>
         <Panel icon={<ShieldCheck />} title={t.admin.people} action={<span className="text-xs tabular-nums">{emails.length}</span>}>
           <ul className="divide-y">
             {emails.map(({ email }) => {

@@ -1,63 +1,63 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { allowedEmails } from "@/db/schema";
-import { isEmailAllowed, normalizeEmail } from "@/lib/access";
-import { consumeInvite } from "@/lib/invites";
+import { isEmailAllowed, normalizeEmail, upsertProfile } from "@/lib/access";
 import { getT } from "@/lib/i18n/server";
+import { consumeInvite, refundInvite } from "@/lib/invites";
 import { createClient } from "@/lib/supabase/server";
 
-/** Where the sign-in email's link should land, on whichever domain this request came in on. */
-async function confirmUrl() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}/auth/confirm`;
-}
+// Accounts are invite-only and use email + password; nothing is ever emailed. An invite link is the
+// only way to register (see register); after that people sign in with signIn.
 
-export type MagicLinkState = { status: "idle" | "sent" | "error"; message?: string };
+export type AuthState = { error?: string };
 
-export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): Promise<MagicLinkState> {
+const email = z.string().trim().email();
+const password = z.string().min(8).max(72);
+
+export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const t = await getT();
-  const parsed = z.string().trim().email().safeParse(formData.get("email"));
-  if (!parsed.success) return { status: "error", message: t.login.invalidEmail };
-  const email = parsed.data.toLowerCase();
-
-  // Only send to allowed emails, but answer the same either way so the form doesn't reveal the allowlist.
-  if (await isEmailAllowed(email)) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: await confirmUrl() } });
-    if (error) {
-      return {
-        status: "error",
-        message: error.status === 429 ? t.login.tooMany : t.login.sendFailed,
-      };
-    }
+  const parsed = z.object({ email, password: z.string().min(1) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: t.login.wrong };
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(parsed.data.email), password: parsed.data.password });
+  if (error || !data.user?.email) return { error: error?.status === 429 ? t.login.tooMany : t.login.wrong };
+  // Access can be revoked after registering: removed from the list means no way back in.
+  if (!(await isEmailAllowed(data.user.email))) {
+    await supabase.auth.signOut();
+    return { error: t.login.errors.AccessDenied };
   }
-  return { status: "sent", message: t.login.sent(email) };
+  await upsertProfile({ id: data.user.id, email: data.user.email, name: null, image: null });
+  redirect("/");
 }
 
 /**
- * Register through an invite link: use up one use of the invite, put the email on the allowlist and
- * send the usual magic link. An email that already has access doesn't use up the invite.
+ * Register through an invite link: use up one use of the invite, put the email on the access list,
+ * create the account and sign in. A failed sign-up gives the invite use back.
  */
-export async function acceptInvite(token: string, _prev: MagicLinkState, formData: FormData): Promise<MagicLinkState> {
+export async function register(token: string, _prev: AuthState, formData: FormData): Promise<AuthState> {
   const t = await getT();
-  const parsed = z.string().trim().email().safeParse(formData.get("email"));
-  if (!parsed.success) return { status: "error", message: t.login.invalidEmail };
-  const email = normalizeEmail(parsed.data);
-
-  if (!(await isEmailAllowed(email))) {
-    if (!(await consumeInvite(token))) return { status: "error", message: t.invite.expired };
-    await db.insert(allowedEmails).values({ email }).onConflictDoNothing();
+  const parsed = z
+    .object({ name: z.string().trim().min(1).max(80), email, password })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    const field = parsed.error.issues[0]?.path[0];
+    return { error: field === "password" ? t.invite.passwordRule : field === "name" ? t.invite.nameRequired : t.login.invalidEmail };
   }
+  const address = normalizeEmail(parsed.data.email);
+  if (!(await consumeInvite(token))) return { error: t.invite.expired };
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: await confirmUrl() } });
-  if (error) return { status: "error", message: error.status === 429 ? t.login.tooMany : t.login.sendFailed };
-  return { status: "sent", message: t.login.sent(email) };
+  const { data, error } = await supabase.auth.signUp({ email: address, password: parsed.data.password, options: { data: { name: parsed.data.name } } });
+  if (error || !data.user || !data.session) {
+    await refundInvite(token);
+    return { error: error?.code === "user_already_exists" ? t.invite.taken : t.invite.failed };
+  }
+  await db.insert(allowedEmails).values({ email: address }).onConflictDoNothing();
+  await upsertProfile({ id: data.user.id, email: address, name: parsed.data.name, image: null });
+  redirect("/");
 }
 
 export async function signOut() {
