@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
@@ -8,6 +9,14 @@ import { isEmailAllowed, normalizeEmail } from "@/lib/access";
 import { consumeInvite } from "@/lib/invites";
 import { getT } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
+
+/** Where the sign-in email's link should land, on whichever domain this request came in on. */
+async function confirmUrl() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}/auth/confirm`;
+}
 
 export type MagicLinkState = { status: "idle" | "sent" | "error"; message?: string };
 
@@ -20,7 +29,7 @@ export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): 
   // Only send to allowed emails, but answer the same either way so the form doesn't reveal the allowlist.
   if (await isEmailAllowed(email)) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: await confirmUrl() } });
     if (error) {
       return {
         status: "error",
@@ -46,7 +55,7 @@ export async function acceptInvite(token: string, _prev: MagicLinkState, formDat
     await db.insert(allowedEmails).values({ email }).onConflictDoNothing();
   }
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: await confirmUrl() } });
   if (error) return { status: "error", message: error.status === 429 ? t.login.tooMany : t.login.sendFailed };
   return { status: "sent", message: t.login.sent(email) };
 }

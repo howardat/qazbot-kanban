@@ -3,15 +3,20 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isEmailAllowed, upsertProfile } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 
-// Magic link lands here with ?token_hash=&type=. Verify it, then enforce the allowlist.
+// Magic links land here, verified one of two ways, then the allowlist is enforced:
+// - ?token_hash=&type= from our custom email template (local dev, or with custom SMTP);
+// - ?code= after Supabase's own /verify, which the default hosted email template links to.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  if (!tokenHash || !type) return NextResponse.redirect(`${origin}/login?error=LinkInvalid`);
+  const code = searchParams.get("code");
+  if (!code && (!tokenHash || !type)) return NextResponse.redirect(`${origin}/login?error=LinkInvalid`);
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+  const { data, error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ type: type!, token_hash: tokenHash! });
   const user = data.user;
   if (error || !user?.email) return NextResponse.redirect(`${origin}/login?error=LinkInvalid`);
 
