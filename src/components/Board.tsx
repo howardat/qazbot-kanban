@@ -331,7 +331,7 @@ export function Board({
         <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
       </div>
 
-      <div className="flex-1 overflow-x-auto bg-muted/40 px-4 py-4 md:px-6">
+      <div className="flex-1 overflow-x-auto px-4 py-4 md:px-6">
         <DndContext
           id={dndId}
           sensors={sensors}
@@ -344,7 +344,7 @@ export function Board({
             setCols(initial);
           }}
         >
-          <div className="flex h-full items-start gap-4 pt-0.5">
+          <div className="flex h-full items-start gap-3">
             <SortableContext items={visibleCols.map((c) => colKey(c.id))} strategy={horizontalListSortingStrategy}>
               {visibleCols.map((col) => (
                 <Column
@@ -465,7 +465,7 @@ function Column({
       <section
         ref={setNodeRef}
         style={{ transform: CSS.Translate.toString(transform), transition }}
-        className={cn("flex max-h-full w-11 shrink-0 flex-col", isDragging && "opacity-50")}
+        className={cn("flex max-h-full w-11 shrink-0 flex-col rounded-xl bg-muted/70 p-1 dark:bg-black/20", isDragging && "opacity-50")}
       >
         <button
           type="button"
@@ -486,10 +486,10 @@ function Column({
     <section
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn("flex max-h-full w-[350px] shrink-0 flex-col", isDragging && "opacity-50")}
+      className={cn("flex max-h-full w-[350px] shrink-0 flex-col rounded-xl bg-muted/70 px-2 pb-2 dark:bg-black/20", isDragging && "opacity-50")}
     >
       {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph. */}
-      <header className="group/col flex shrink-0 items-center gap-1 py-1.5">
+      <header className="group/col flex shrink-0 items-center gap-1 px-1 py-2">
         <Tooltip>
           <TooltipTrigger asChild>
             <span {...attributes} {...listeners} aria-label={t.column.drag} className="grid size-5 cursor-grab place-items-center rounded-sm hover:bg-accent">
@@ -723,7 +723,7 @@ function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean;
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-1 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.04] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="mt-1 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Plus className="size-3.5" /> {t.column.newCard}
       </button>
@@ -767,7 +767,7 @@ function AddColumn({ boardId }: { boardId: string }) {
   const [pending, startTransition] = useTransition();
   return (
     <form
-      className="w-[350px] shrink-0 pt-1.5"
+      className="w-[350px] shrink-0"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
@@ -783,7 +783,7 @@ function AddColumn({ boardId }: { boardId: string }) {
         disabled={pending}
         placeholder={t.board.addColumn}
         aria-label={t.board.newColumnAria}
-        className="h-9 border-dashed bg-transparent shadow-none"
+        className="h-11 rounded-xl border-dashed bg-transparent shadow-none"
       />
     </form>
   );
