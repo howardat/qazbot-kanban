@@ -36,6 +36,8 @@ export const profiles = pgTable("profile", {
   name: text("name"),
   image: text("image"),
   role: roleEnum("role").notNull().default("member"),
+  // Index into the preset avatars (components/office/look AVATARS); null means one derived from the id.
+  avatar: integer("avatar"),
   // Personal OpenRouter key for this person's assistant requests, encrypted (lib/secrets); the hint
   // is its last characters, so the UI can say which key is set without ever decrypting it.
   openrouterKeyEnc: text("openrouter_key_enc"),

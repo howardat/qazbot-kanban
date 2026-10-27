@@ -2,7 +2,14 @@ import type { Priority } from "@/lib/priority";
 import type { Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 
-export type Member = { id: string; name: string | null; email: string; image: string | null };
+export type Member = {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  /** Chosen preset avatar for the office figure and icon; null or missing means automatic. */
+  avatar?: number | null;
+};
 export type Tag = { id: string; boardId: string; name: string; color: TagColor };
 
 export type CardData = {

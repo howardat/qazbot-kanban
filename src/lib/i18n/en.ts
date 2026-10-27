@@ -404,6 +404,7 @@ export const en = {
       "tag.edit": "Edit tag",
       "tag.delete": "Delete tag",
       "profile.rename": "Change own name",
+      "profile.avatar": "Pick an avatar",
       "access.remove": "Remove access",
       "invite.create": "Create invite link",
       "invite.revoke": "Revoke invite link",
@@ -551,6 +552,10 @@ export const en = {
   settings: {
     title: "Settings",
     description: "Your personal settings. Nobody else sees them.",
+    avatarTitle: "Your avatar",
+    avatarHint: "How you look in the office and next to your name.",
+    automatic: "Automatic",
+    avatarN: (n: number) => `Avatar ${n}`,
     keyTitle: "Your OpenRouter key",
     keyHint:
       "Add your own OpenRouter key and your assistant requests are billed to your OpenRouter account instead of the team's. Only you use it, it doesn't count against the team budget, and it's stored encrypted.",

@@ -5,11 +5,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { AVATARS } from "@/components/office/look";
 import { track } from "@/lib/activity";
 import { isValidOpenRouterKey } from "@/lib/ai/keys";
 import { getT } from "@/lib/i18n/server";
 import { encrypt, secretsConfigured } from "@/lib/secrets";
 import { requireUser } from "@/lib/session";
+
+const AVATAR_COUNT = AVATARS.length;
 
 export type KeyState = { error?: string; saved?: boolean };
 
@@ -34,4 +37,13 @@ export async function removePersonalKey() {
   const user = await requireUser();
   await db.update(profiles).set({ openrouterKeyEnc: null, openrouterKeyHint: null }).where(eq(profiles.id, user.id));
   revalidatePath("/settings");
+}
+
+/** Pick one of the preset avatars (index into AVATARS), or null to go back to the automatic one. */
+export async function setAvatar(index: number | null) {
+  const user = await requireUser();
+  const avatar = z.number().int().min(0).max(AVATAR_COUNT - 1).nullable().parse(index);
+  await db.update(profiles).set({ avatar }).where(eq(profiles.id, user.id));
+  await track(user.id, "profile.avatar");
+  revalidatePath("/", "layout");
 }

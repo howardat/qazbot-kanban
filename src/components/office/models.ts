@@ -26,7 +26,7 @@ export type Person = {
 };
 
 /** A person sitting (feet forward under a desk) or standing, dressed in their look. */
-export function person(kit: Kit, id: string, { skin, hair, pants, shirt }: Look, seated: boolean): Person {
+export function person(kit: Kit, id: string, { skin, hair, pants, shirt, style, extra, cap }: Look, seated: boolean): Person {
   const root = new THREE.Group();
   const hip = seated ? 0.55 : 0.92;
 
@@ -46,8 +46,7 @@ export function person(kit: Kit, id: string, { skin, hair, pants, shirt }: Look,
 
   const head = joint(root, [0, hip + 0.78, 0.03]);
   kit.box(skin, [0.3, 0.32, 0.3], [0, 0, 0], head);
-  kit.box(hair, [0.33, 0.1, 0.33], [0, 0.18, 0.01], head);
-  kit.box(hair, [0.33, 0.24, 0.08], [0, 0.06, 0.15], head);
+  hairAndExtras(kit, head, { hair, style, extra, cap });
 
   const arm = (side: number) => {
     const shoulder = joint(root, [side * 0.29, hip + 0.55, 0.04]);
@@ -64,6 +63,39 @@ export function person(kit: Kit, id: string, { skin, hair, pants, shirt }: Look,
     l.elbow.rotation.x = r.elbow.rotation.x = Math.PI / 2 - 0.2;
   }
   return { root, head, armL: l.shoulder, armR: r.shoulder, elbowL: l.elbow, elbowR: r.elbow, seed: hash(id, 3) % 1000 };
+}
+
+/** Hair in its style, plus glasses, headphones, a beard or a cap, on a head facing -z. */
+function hairAndExtras(kit: Kit, head: THREE.Group, { hair, style, extra, cap }: Pick<Look, "hair" | "style" | "extra" | "cap">) {
+  const b = (color: string, size: number[], pos: number[]) => kit.box(color, size, pos, head);
+  if (extra !== "cap") {
+    if (style === "short" || style === "bun") b(hair, [0.33, 0.1, 0.33], [0, 0.18, 0.01]);
+    if (style === "short" || style === "bun") b(hair, [0.33, 0.24, 0.08], [0, 0.06, 0.15]);
+    if (style === "bun") b(hair, [0.14, 0.12, 0.14], [0, 0.28, 0.09]);
+    if (style === "buzz") b(hair, [0.31, 0.05, 0.31], [0, 0.17, 0.005]);
+    if (style === "buzz") b(hair, [0.31, 0.18, 0.03], [0, 0.07, 0.155]);
+    if (style === "long") {
+      b(hair, [0.33, 0.1, 0.33], [0, 0.18, 0.01]);
+      b(hair, [0.34, 0.44, 0.09], [0, -0.04, 0.15]);
+      for (const x of [-0.165, 0.165]) b(hair, [0.04, 0.32, 0.26], [x, 0.0, 0.04]);
+    }
+    if (style === "curly") {
+      b(hair, [0.38, 0.16, 0.38], [0, 0.2, 0.02]);
+      b(hair, [0.38, 0.26, 0.1], [0, 0.04, 0.16]);
+    }
+    if (style === "bald") for (const x of [-0.155, 0.155]) b(hair, [0.03, 0.08, 0.2], [x, 0.0, 0.03]);
+  } else {
+    // A cap over the hair, brim forward.
+    b(hair, [0.32, 0.16, 0.06], [0, 0.04, 0.15]);
+    b(cap, [0.34, 0.1, 0.34], [0, 0.19, 0.01]);
+    b(cap, [0.3, 0.03, 0.14], [0, 0.15, -0.2]);
+  }
+  if (extra === "glasses") b("#1a1a1a", [0.3, 0.05, 0.02], [0, 0.02, -0.16]);
+  if (extra === "headphones") {
+    b("#26292c", [0.36, 0.04, 0.06], [0, 0.21, 0]);
+    for (const x of [-0.17, 0.17]) b("#26292c", [0.05, 0.13, 0.12], [x, 0.0, 0]);
+  }
+  if (extra === "beard") b(hair, [0.26, 0.12, 0.05], [0, -0.11, -0.15]);
 }
 
 export type PersonMode = "typing" | "idle" | "lounge" | "vr";

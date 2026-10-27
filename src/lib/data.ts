@@ -6,7 +6,7 @@ import type { CardRow, Member, Tag } from "@/lib/types";
 
 export async function loadMembers(): Promise<Member[]> {
   return db
-    .select({ id: profiles.id, name: profiles.name, email: profiles.email, image: profiles.image })
+    .select({ id: profiles.id, name: profiles.name, email: profiles.email, image: profiles.image, avatar: profiles.avatar })
     .from(profiles)
     .orderBy(asc(profiles.name), asc(profiles.email));
 }
@@ -101,13 +101,13 @@ export async function loadLatestUpdates(limit = 8): Promise<LatestUpdate[]> {
     .limit(limit);
   if (rows.length === 0) return [];
   const people = await db
-    .select({ cardId: cardAssignees.cardId, id: profiles.id, name: profiles.name, email: profiles.email, image: profiles.image })
+    .select({ cardId: cardAssignees.cardId, id: profiles.id, name: profiles.name, email: profiles.email, image: profiles.image, avatar: profiles.avatar })
     .from(cardAssignees)
     .innerJoin(profiles, eq(profiles.id, cardAssignees.profileId))
     .where(inArray(cardAssignees.cardId, rows.map((r) => r.cardId)));
   return rows.map((r) => ({
     ...r,
     at: r.at.toISOString(),
-    assignees: people.filter((p) => p.cardId === r.cardId).map((p) => ({ id: p.id, name: p.name, email: p.email, image: p.image })),
+    assignees: people.filter((p) => p.cardId === r.cardId).map((p) => ({ id: p.id, name: p.name, email: p.email, image: p.image, avatar: p.avatar })),
   }));
 }

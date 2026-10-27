@@ -78,6 +78,13 @@
       "when": 1793100659097,
       "tag": "0010_cuddly_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793100912904,
+      "tag": "0011_normal_human_cannonball",
+      "breakpoints": true
     }
   ]
 }
