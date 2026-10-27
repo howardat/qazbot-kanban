@@ -50,12 +50,10 @@ jobs:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
       - run: npm install --global vercel@65.4.0
-      - name: Pull production settings and env
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      # Build on Vercel, not here: the production variables are "Sensitive", which Vercel never hands
+      # back (vercel pull gets a "[SENSITIVE]" placeholder), so only its own build can read them.
+      - name: Build and deploy on Vercel
+        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Smoke test
         run: |
