@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
-import { CalendarPlus, Check, Flag, Minus, UserPlus, X } from "lucide-react";
+import { CalendarPlus, Check, Flag, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarStack, DueBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
+import { TagPicker } from "@/components/TagSelect";
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TAG_DOT } from "@/lib/colors";
 import type { ISODate } from "@/lib/dates";
 import { PRIORITIES } from "@/lib/priority";
-import { displayName, type CardData, type Member } from "@/lib/types";
+import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority">>;
+export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority" | "tagIds">>;
 
 const toDate = (iso: string) => new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
 const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -28,7 +30,7 @@ const hidden = "order-1";
 const chip = "cursor-pointer rounded-sm outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
- * Quick buttons on a board card for deadline, priority and assignees. Each opens a small picker and
+ * Quick buttons on a board card for deadline, priority, labels and assignees. Each opens a small picker and
  * saves right away through onPatch. Lives inside the draggable card, so its pointer and key events
  * don't start a drag or open the card.
  */
@@ -39,6 +41,8 @@ export function CardQuickProps({
   done,
   show,
   onPatch,
+  tags,
+  onCreateTag,
   children,
 }: {
   card: CardData;
@@ -46,9 +50,13 @@ export function CardQuickProps({
   today: ISODate;
   done: boolean;
   /** Which properties the board's Display menu shows. */
-  show: { priority: boolean; dates: boolean; assignees: boolean };
+  show: { priority: boolean; dates: boolean; assignees: boolean; tags?: boolean };
   onPatch: (patch: QuickPatch) => void;
-  /** Read-only chips (tags) placed after the dates. */
+  /** The board's labels; when given (and shown), the labels chip opens a picker over them. */
+  tags?: Tag[];
+  /** Create a label from what was typed in the picker and put it on this card. */
+  onCreateTag?: (name: string) => void;
+  /** The card's label chips, placed after the dates (the labels picker's trigger when `tags` is given). */
   children?: React.ReactNode;
 }) {
   const t = useT();
@@ -144,7 +152,34 @@ export function CardQuickProps({
       </Popover>
       )}
 
-      {children}
+      {/* Labels */}
+      {tags && show.tags ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            {card.tagIds.length > 0 ? (
+              <button type="button" className={chip} aria-label={t.editor.tags}>
+                {children}
+              </button>
+            ) : (
+              <button type="button" className={cn(ghost, hidden)} aria-label={t.editor.tags} title={t.editor.tags}>
+                <TagIcon className="size-3" />
+              </button>
+            )}
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-60 p-1" onClick={stop}>
+            <TagPicker
+              autoFocus
+              options={tags.map((tag) => ({ id: tag.id, name: tag.name, dotClassName: TAG_DOT[tag.color] }))}
+              selected={card.tagIds}
+              onToggle={(id) => onPatch({ tagIds: card.tagIds.includes(id) ? card.tagIds.filter((x) => x !== id) : [...card.tagIds, id] })}
+              onCreate={onCreateTag}
+              labels={{ search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+            />
+          </PopoverContent>
+        </Popover>
+      ) : (
+        children
+      )}
 
       {/* Assignees */}
       {show.assignees && (

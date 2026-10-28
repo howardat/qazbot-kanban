@@ -41,6 +41,7 @@ import {
 import {
   addCard,
   addColumn,
+  createTag,
   deleteBoard,
   deleteCard,
   deleteColumn,
@@ -83,6 +84,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { addDays, type ISODate } from "@/lib/dates";
+import { TAG_COLORS } from "@/lib/tag-colors";
 import type { CardData, Member, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +122,9 @@ type Ctx = {
   moveTo: (cardId: string, columnId: string) => void;
   remove: (cardId: string) => void;
   patch: (cardId: string, patch: QuickPatch) => void;
+  /** The board's labels, including ones just made from a card. */
+  tags: Tag[];
+  createLabel: (card: CardData, name: string) => void;
 };
 
 // Collapsed columns are a per-viewer preference, remembered per board in this browser only.
@@ -196,9 +201,12 @@ export function Board({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  // Labels made from a card's picker show at once, before the refreshed board brings them in.
+  const [madeTags, setMadeTags] = useState<Tag[]>([]);
+  const allTags = useMemo(() => [...tags, ...madeTags.filter((m) => !tags.some((x) => x.id === m.id))], [tags, madeTags]);
   const maps = useMemo(
-    () => ({ memberById: new Map(members.map((m) => [m.id, m])), tagById: new Map(tags.map((t) => [t.id, t])) }),
-    [members, tags],
+    () => ({ memberById: new Map(members.map((m) => [m.id, m])), tagById: new Map(allTags.map((t) => [t.id, t])) }),
+    [members, allTags],
   );
 
   // Card menu actions: update the board right away, then save.
@@ -226,6 +234,18 @@ export function Board({
       }
     });
   }
+  /** A label typed into a card's picker: create it with the next palette colour and put it on the card. */
+  function createLabel(card: CardData, name: string) {
+    startTransition(async () => {
+      try {
+        const tag = await createTag(board.id, { name, color: TAG_COLORS[allTags.length % TAG_COLORS.length] });
+        setMadeTags((list) => [...list, tag]);
+        patch(card.id, { tagIds: [...card.tagIds, tag.id] });
+      } catch {
+        toast.error(t.quick.saveFailed);
+      }
+    });
+  }
   function remove(cardId: string) {
     setCols((prev) => prev.map((c) => ({ ...c, cards: c.cards.filter((x) => x.id !== cardId) })));
     startTransition(() => deleteCard(cardId));
@@ -238,6 +258,8 @@ export function Board({
     columns: cols.map(({ id, name, isDone }) => ({ id, name, isDone })),
     editingId: editing?.id ?? null,
     display,
+    tags: allTags,
+    createLabel,
     open: setEditing,
     moveTo,
     remove,
@@ -389,7 +411,7 @@ export function Board({
       </div>
       )}
 
-      {editing && <CardEditor card={editing} members={members} boardTags={tags} onClose={() => setEditing(null)} />}
+      {editing && <CardEditor card={editing} members={members} boardTags={allTags} onClose={() => setEditing(null)} />}
     </main>
   );
 }
@@ -744,7 +766,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
           )}
         </div>
       ) : (
-        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)}>
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(card, name)}>
           {tagChips}
         </CardQuickProps>
       )}
@@ -759,7 +781,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
  */
 function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => void) {
   // The same defaults the server gives a new card: due tomorrow, assigned to whoever adds it.
-  const fresh = (): QuickPatch & Required<QuickPatch> => ({ priority: null, dueDate: addDays(ctx.today, 1), assigneeIds: [ctx.currentUserId] });
+  const fresh = (): Required<Pick<CardData, "priority" | "dueDate" | "assigneeIds">> => ({ priority: null, dueDate: addDays(ctx.today, 1), assigneeIds: [ctx.currentUserId] });
   const [title, setTitle] = useState("");
   const [props, setProps] = useState(fresh);
   const [pending, startTransition] = useTransition();
@@ -808,7 +830,8 @@ function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => v
   return {
     draft,
     pending,
-    onPatch: (p: QuickPatch) => setProps((prev) => ({ ...prev, ...p })),
+    // The draft has no labels chip, so only priority, deadline and people come through here.
+    onPatch: (p: Omit<QuickPatch, "tagIds">) => setProps((prev) => ({ ...prev, ...p })),
     // On the draft's wrapper: focus moving to its own chips, or into their menus and pickers (portalled),
     // still counts as being on the draft.
     draftProps: {
@@ -990,7 +1013,7 @@ function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean 
         {show.description && card.description && <span className="hidden truncate text-xs text-muted-foreground lg:inline">{card.description}</span>}
       </span>
       <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
-        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)}>
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(card, name)}>
           <LabelChips tags={cardTags} />
         </CardQuickProps>
         <CardMenu card={card} ctx={ctx} className="static" />
