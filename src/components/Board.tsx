@@ -638,6 +638,9 @@ function SortableCard({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boo
 function CardMenu({ card, ctx, className }: { card: CardData; ctx: Ctx; className?: string }) {
   const t = useT();
   const [confirming, setConfirming] = useState(false);
+  // Opening the card from here must not hand focus back to the ⋯ button as the menu closes: that focus
+  // lands outside the side panel, which reads it as a click away and closes again at once.
+  const opening = useRef(false);
   // The menu lives inside the draggable card (and React events bubble out of its portal), so keep
   // its clicks and key presses from opening the card or starting a drag.
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
@@ -657,8 +660,20 @@ function CardMenu({ card, ctx, className }: { card: CardData; ctx: Ctx; classNam
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onSelect={() => ctx.open(card)}>
+        <DropdownMenuContent
+          align="end"
+          className="w-52"
+          onCloseAutoFocus={(e) => {
+            if (opening.current) e.preventDefault();
+            opening.current = false;
+          }}
+        >
+          <DropdownMenuItem
+            onSelect={() => {
+              opening.current = true;
+              ctx.open(card);
+            }}
+          >
             <SquarePen /> {t.card.open}
           </DropdownMenuItem>
           <DropdownMenuSub>
@@ -714,7 +729,7 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
       </h3>
       {show.description && card.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
       {overlay ? (
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-3">
           {show.priority && card.priority && (
             <span className="grid size-5 place-items-center rounded-sm border border-border-strong">
               <PriorityIcon priority={card.priority} className="size-3" />

@@ -53,13 +53,19 @@ export function CardQuickProps({
 }) {
   const t = useT();
   const [dateOpen, setDateOpen] = useState(false);
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  // Keep the chips' own clicks (and their portaled menus') from opening or dragging the card; a click on
+  // the empty part of the row still falls through to the card.
+  const stop = (e: React.SyntheticEvent) => {
+    const target = e.target as Element;
+    const control = target.closest("button, a, input, [role=button]");
+    if (!e.currentTarget.contains(target) || (control && e.currentTarget.contains(control))) e.stopPropagation();
+  };
   const people = card.assigneeIds.map((id) => members.find((m) => m.id === id)).filter((m): m is Member => !!m);
   const toggle = (id: string) =>
     onPatch({ assigneeIds: card.assigneeIds.includes(id) ? card.assigneeIds.filter((x) => x !== id) : [...card.assigneeIds, id] });
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-2" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
+    <div className="flex flex-wrap items-center gap-2 pt-3" onPointerDown={stop} onClick={stop} onKeyDown={stop}>
       {/* Priority */}
       {show.priority && (
       <DropdownMenu>
