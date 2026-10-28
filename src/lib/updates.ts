@@ -15,6 +15,69 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-28-expenses",
+    date: "2026-10-28",
+    title: { en: "Expenses, a new timeline and quicker labels", ru: "Расходы, новый таймлайн и быстрые метки" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Expenses: record spending with invoices, filter by period and category, and export a report in Russian.",
+          ru: "Расходы: записывайте траты со счетами, отбирайте по периоду и категории и выгружайте отчёт на русском.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Updates: a dot in the sidebar when something new ships, with every past update kept here.",
+          ru: "Обновления: точка в меню, когда выходит что-то новое, а прошлые обновления остаются здесь.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Add or create labels right on a board card, from the new label chip next to its date and priority.",
+          ru: "Метки можно добавить или создать прямо на карточке — через новую кнопку рядом со сроком и приоритетом.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "The timeline is rebuilt as a Plane-style gantt chart.",
+          ru: "Таймлайн переделан в диаграмму Ганта в стиле Plane.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Labels are picked the same way everywhere: search, tick several, or type a new one.",
+          ru: "Метки везде выбираются одинаково: поиск, несколько сразу или новая прямо из поиска.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "New cards can get a deadline, priority and people while you type the title.",
+          ru: "Новой карточке можно сразу задать срок, приоритет и исполнителей, пока пишете название.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "Opening a card from its ⋯ menu no longer closes the side panel straight away.",
+          ru: "Карточка, открытая через меню ⋯, больше не закрывается сразу.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "Clicking the empty part of a card's property row opens the card.",
+          ru: "Клик по пустому месту в строке свойств карточки теперь открывает её.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-28-plane",
     date: "2026-10-28",
     title: { en: "A cleaner look, labels and talk mode", ru: "Новый вид, метки и голосовой режим" },
@@ -45,13 +108,6 @@ export const RELEASES: Release[] = [
         text: {
           en: "Talk to the assistant out loud with live speech recognition.",
           ru: "С ассистентом можно говорить голосом, речь распознаётся на лету.",
-        },
-      },
-      {
-        kind: "new",
-        text: {
-          en: "Updates: a dot in the sidebar when something ships, with every past update kept here.",
-          ru: "Обновления: точка в меню, когда выходит что-то новое, а прошлые остаются здесь.",
         },
       },
     ],
