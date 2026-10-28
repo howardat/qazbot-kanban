@@ -4,11 +4,21 @@
 // date and category filters, sortable columns, Add record and Export; donuts split the spend by category and
 // vendor.
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, Tag } from "lucide-react";
 import { Panel } from "@/components/atoms";
+import { FilterChips, FiltersTrigger, flip } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
+import { TagPicker } from "@/components/TagSelect";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AddRecordDialog } from "./AddRecordDialog";
 import { CategoryPill, ExpenseSheet } from "./ExpenseSheet";
@@ -37,7 +47,8 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   // Table filters + sort. `custom` is a day-level date range that overrides the month range when set.
-  const [cat, setCat] = useState("");
+  // Category filter, as on the board: any of the picked categories matches.
+  const [cats, setCats] = useState<string[]>([]);
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
   const vendors = useMemo(() => vendorsOf(expenses), [expenses]);
@@ -66,18 +77,19 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
     const value = (e: Expense, k: SortKey): string | number =>
       k === "amount" ? e.amount : k === "invoice" ? e.invoices.length : k === "date" ? e.date : e[k].toLowerCase();
     return inPeriod
-      .filter((e) => !cat || e.category === cat)
+      .filter((e) => !cats.length || cats.includes(e.category))
       .sort((a, b) => {
         const x = value(a, sort.key), y = value(b, sort.key);
         return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || b.date.localeCompare(a.date);
       });
-  }, [inPeriod, cat, sort]);
+  }, [inPeriod, cats, sort]);
 
   const qOf = !custom && range[1] - range[0] === 2 && range[0] % 3 === 0 ? range[0] / 3 + 1 : null;
   const rangeLabel = (a: number, b: number) =>
     a === 0 && b === 11 ? tx.yearOf(year) : a === b ? t.fmt.month(ym(a)) : a % 3 === 0 && b - a === 2 ? tx.quarter(a / 3 + 1, year) : `${monthShort(a)}–${monthShort(b)} ${year}`;
   const label = custom ? `${custom.from.split("-").reverse().join(".")} – ${custom.to.split("-").reverse().join(".")}` : rangeLabel(range[0], range[1]);
-  const reportTitle = [label, cat].filter(Boolean).join(" · ");
+  const catsLabel = cats.join(", ");
+  const reportTitle = [label, catsLabel].filter(Boolean).join(" · ");
 
   const pickRange = (r: [number, number]) => (setRange(r), setCustom(null));
   const clickMonth = (i: number, shift: boolean) => (setRange(([a]) => (shift ? [Math.min(a, i), Math.max(a, i)] : [i, i])), setCustom(null));
@@ -169,17 +181,28 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
                 <input type="date" value={custom.to} min={custom.from} onChange={(e) => e.target.value && setCustom({ ...custom, to: e.target.value })} className={select} />
               </span>
             )}
-            <select value={cat} aria-label={tx.category} onChange={(e) => setCat(e.target.value)} className={select}>
-              <option value="">{tx.allCategories}</option>
-              {categories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            {cat && (
-              <Button variant="ghost" size="sm" onClick={() => setCat("")}>
-                <X /> {tx.clear}
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <FiltersTrigger count={cats.length} className="h-9" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Tag /> {tx.category}
+                    {cats.length > 0 && <span className="ml-auto rounded-sm bg-primary/10 px-1 text-[11px] text-primary tabular-nums">{cats.length}</span>}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-60 p-1">
+                    <TagPicker
+                      autoFocus
+                      options={categories.map((c) => ({ id: c, name: c, color: catColor(c, categories) }))}
+                      selected={cats}
+                      onToggle={(c) => setCats((x) => flip(x, c))}
+                      labels={{ search: tx.findCategory, add: tx.addCategory, empty: tx.noCategories }}
+                    />
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="outline" onClick={() => setAdding(true)}>
                 <Plus /> {tx.addRecord}
@@ -206,9 +229,28 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
               </div>
             </div>
           </div>
+          {cats.length > 0 && (
+            <FilterChips
+              onClear={() => setCats([])}
+              groups={[
+                {
+                  label: tx.category,
+                  items: cats.map((c) => ({
+                    key: c,
+                    node: (
+                      <>
+                        <span className="size-2 shrink-0 rounded-full" style={{ background: catColor(c, categories) }} aria-hidden /> {c}
+                      </>
+                    ),
+                    remove: () => setCats((x) => flip(x, c)),
+                  })),
+                },
+              ]}
+            />
+          )}
           <Panel
             icon={<Receipt />}
-            title={cat ? tx.countOf(rows.length, inPeriod.length) : tx.count(rows.length)}
+            title={cats.length ? tx.countOf(rows.length, inPeriod.length) : tx.count(rows.length)}
             action={<span className="font-semibold text-foreground tabular-nums">{kzt(sum(rows))}</span>}
           >
             <div className="overflow-x-auto">
@@ -251,7 +293,7 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
                   {rows.length === 0 && (
                     <tr>
                       <td colSpan={COLUMNS.length} className="py-10 text-center text-muted-foreground">
-                        {cat ? tx.emptyCategory(cat, label) : tx.empty(label)}
+                        {cats.length ? tx.emptyCategory(catsLabel, label) : tx.empty(label)}
                       </td>
                     </tr>
                   )}
@@ -262,12 +304,12 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
         </div>
 
         <aside className="space-y-4">
-          <Donut title={tx.byCategory} rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
-          <Donut title={cat ? tx.byVendorIn(cat) : tx.byVendor} rows={rows} keyOf={(e) => e.vendor} order={vendorOrder} />
+          <Donut title={tx.byCategory} rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cats} onPick={(c) => setCats((x) => flip(x, c))} />
+          <Donut title={cats.length ? tx.byVendorIn(catsLabel) : tx.byVendor} rows={rows} keyOf={(e) => e.vendor} order={vendorOrder} />
         </aside>
       </div>
 
-      <AddRecordDialog open={adding} onOpenChange={setAdding} onAdd={store.add} vendors={vendors} categories={categories} defaultCategory={cat || categories[0]} />
+      <AddRecordDialog open={adding} onOpenChange={setAdding} onAdd={store.add} vendors={vendors} categories={categories} defaultCategory={cats[0] ?? categories[0]} />
 
       <ExpenseSheet
         expense={expenses.find((e) => e.id === openId)}
@@ -294,9 +336,9 @@ function Donut({
   rows,
   keyOf,
   order,
-  active = "",
+  active = [],
   onPick,
-}: { title: string; rows: Expense[]; keyOf: (e: Expense) => string; order: string[]; active?: string; onPick?: (k: string) => void }) {
+}: { title: string; rows: Expense[]; keyOf: (e: Expense) => string; order: string[]; active?: string[]; onPick?: (k: string) => void }) {
   const tx = useT().expenses;
   const [hover, setHover] = useState<string | null>(null);
   const total = sum(rows);
@@ -320,7 +362,7 @@ function Donut({
     const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R), [x2, y2] = pt(a1, r), [x3, y3] = pt(a0, r);
     return { ...s, d: `M${x0} ${y0}A${R} ${R} 0 ${large} 1 ${x1} ${y1}L${x2} ${y2}A${r} ${r} 0 ${large} 0 ${x3} ${y3}Z` };
   });
-  const focus = slices.find((s) => s.c === (hover ?? active));
+  const focus = slices.find((s) => s.c === (hover ?? (active.length === 1 ? active[0] : undefined)));
   const pct = (v: number) => `${Math.round((v / total) * 100)}%`;
 
   return (
@@ -371,7 +413,7 @@ function Donut({
                   onClick={() => pick(s.c)}
                   onMouseEnter={() => setHover(s.c)}
                   onMouseLeave={() => setHover(null)}
-                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-muted", active === s.c && "bg-muted font-medium")}
+                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-muted", active.includes(s.c) && "bg-muted font-medium")}
                 >
                   <span className="size-2.5 shrink-0 rounded-full" style={{ background: color(s.c) }} />
                   <span className="flex-1 truncate">{name(s.c)}</span>
