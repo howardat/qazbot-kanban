@@ -243,6 +243,8 @@ export const en = {
     preview: "Preview",
     properties: "Properties",
     addTags: "Add labels",
+    searchTags: "Search labels",
+    addTag: (name: string) => `Add "${name}" to labels`,
     assignees: "Assignees",
     noAssignees: "Unassigned",
     assigneeCount: (n: number) => `${n} people`,

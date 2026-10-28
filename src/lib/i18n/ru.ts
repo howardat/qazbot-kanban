@@ -247,6 +247,8 @@ export const ru: Dict = {
     preview: "Предпросмотр",
     properties: "Свойства",
     addTags: "Добавить метки",
+    searchTags: "Найти метку",
+    addTag: (name: string) => `Добавить «${name}» в метки`,
     assignees: "Исполнители",
     noAssignees: "Не назначено",
     assigneeCount: (n: number) => `${n} ${p(n, "человек", "человека", "человек")}`,

@@ -2,24 +2,22 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Plus, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
-import { Avatar, AvatarStack, TagBadge } from "@/components/atoms";
+import { Avatar, AvatarStack } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { DatePicker } from "@/components/DatePicker";
 import { useT } from "@/components/I18nProvider";
-import { ColorPicker } from "@/components/TagManager";
+import { TagSelect } from "@/components/TagSelect";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
 import { PRIORITIES, type Priority } from "@/lib/priority";
 import { PROJECTS, type Project } from "@/lib/projects";
-import type { TagColor } from "@/lib/tag-colors";
+import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 const NONE = "none";
 // Borderless select trigger for a property row, like Plane's "select-ghost".
@@ -66,8 +64,6 @@ export function CardEditor({
   const [project, setProject] = useState<Project | null>(card.project);
   const [priority, setPriority] = useState<Priority | null>(card.priority);
   const [tags, setTags] = useState<Tag[]>(boardTags);
-  const [newTag, setNewTag] = useState("");
-  const [newTagColor, setNewTagColor] = useState<TagColor>("sky");
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -75,7 +71,6 @@ export function CardEditor({
     set(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
   const datesInvalid = !!startDate && !!dueDate && startDate > dueDate;
   const assignees = members.filter((m) => assigneeIds.includes(m.id));
-  const chosenTags = tags.filter((tag) => tagIds.includes(tag.id));
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -100,20 +95,13 @@ export function CardEditor({
     });
   }
 
-  function addTag() {
-    const n = newTag.trim();
-    if (!n) return;
-    const existing = tags.find((tag) => tag.name.toLowerCase() === n.toLowerCase());
-    if (existing) {
-      if (!tagIds.includes(existing.id)) setTagIds([...tagIds, existing.id]);
-      setNewTag("");
-      return;
-    }
+  // A label typed into the picker that the board doesn't have yet: create it with the next palette colour
+  // (recolour it in the label manager) and put it on this card.
+  function addTag(name: string) {
     startTransition(async () => {
-      const tag = await createTag(card.boardId, { name: n, color: newTagColor });
+      const tag = await createTag(card.boardId, { name, color: TAG_COLORS[tags.length % TAG_COLORS.length] });
       setTags((list) => [...list, tag]);
       setTagIds((ids) => [...ids, tag.id]);
-      setNewTag("");
     });
   }
 
@@ -270,64 +258,15 @@ export function CardEditor({
                 {datesInvalid && <p className="pl-34 text-xs text-destructive">{t.editor.datesInvalid}</p>}
 
                 <Property icon={TagIcon} label={t.editor.tags}>
-                  {chosenTags.map((tag) => (
-                    <TagBadge key={tag.id} tag={tag} size="md" />
-                  ))}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={t.editor.tags}
-                        className={cn(
-                          "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-                          chosenTags.length > 0 && "w-8 justify-center px-0",
-                        )}
-                      >
-                        <Plus className="size-4" />
-                        {chosenTags.length === 0 && t.editor.addTags}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-64">
-                      <div className="max-h-56 overflow-y-auto">
-                        {tags.map((tag) => (
-                          <DropdownMenuItem
-                            key={tag.id}
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              toggle(tagIds, setTagIds, tag.id);
-                            }}
-                          >
-                            <span className={cn("size-2 shrink-0 rounded-full", TAG_DOT[tag.color])} aria-hidden />
-                            <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                            {tagIds.includes(tag.id) && <Check className="text-brand" />}
-                          </DropdownMenuItem>
-                        ))}
-                        {tags.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">{t.editor.noTags}</p>}
-                      </div>
-                      <DropdownMenuSeparator />
-                      {/* New label inline: name, colour, add */}
-                      <div className="flex items-center gap-1.5 p-1" onKeyDown={(e) => e.stopPropagation()}>
-                        <Input
-                          value={newTag}
-                          onChange={(e) => setNewTag(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              addTag();
-                            }
-                          }}
-                          maxLength={40}
-                          placeholder={t.editor.newTag}
-                          className="h-8 min-w-0 flex-1"
-                          aria-label={t.editor.newTagAria}
-                        />
-                        <ColorPicker value={newTagColor} onChange={setNewTagColor} />
-                        <Button type="button" size="icon-sm" variant="outline" onClick={addTag} disabled={!newTag.trim() || pending} aria-label={t.common.add}>
-                          <Plus />
-                        </Button>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <TagSelect
+                    multiple
+                    options={tags.map((tag) => ({ id: tag.id, name: tag.name, dotClassName: TAG_DOT[tag.color] }))}
+                    selected={tagIds}
+                    onToggle={(id) => toggle(tagIds, setTagIds, id)}
+                    onCreate={addTag}
+                    labels={{ placeholder: t.editor.addTags, search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+                    className="w-auto max-w-full border-transparent bg-transparent hover:bg-accent [&>svg:last-child]:hidden"
+                  />
                 </Property>
               </div>
             </div>
