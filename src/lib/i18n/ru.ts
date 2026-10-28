@@ -18,6 +18,7 @@ export const ru: Dict = {
 
   common: {
     cancel: "Отмена",
+    nothingFound: "Ничего не найдено",
     keep: "Оставить",
     delete: "Удалить",
     add: "Добавить",

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, X } from "lucide-react";
-import { Avatar, TagBadge } from "@/components/atoms";
+import { ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, Tag as TagIcon, X } from "lucide-react";
+import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +11,13 @@ import {
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TagPicker } from "@/components/TagSelect";
+import { TAG_DOT } from "@/lib/colors";
 import { PRIORITIES, PRIORITY_STYLE, type Priority } from "@/lib/priority";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -84,12 +89,22 @@ export function FiltersMenu({
         {tags.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">{b.tag}</DropdownMenuLabel>
-            {tags.map((tag) => (
-              <DropdownMenuCheckboxItem key={tag.id} checked={value.tags.includes(tag.id)} onSelect={keepOpen} onCheckedChange={() => onChange({ ...value, tags: flip(value.tags, tag.id) })}>
-                <TagBadge tag={tag} />
-              </DropdownMenuCheckboxItem>
-            ))}
+            {/* Labels: the same searchable picker as on cards and expenses */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <TagIcon /> {b.tag}
+                {value.tags.length > 0 && <span className="ml-auto rounded-sm bg-primary/10 px-1 text-[11px] text-primary tabular-nums">{value.tags.length}</span>}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-60 p-1">
+                <TagPicker
+                  autoFocus
+                  options={tags.map((tag) => ({ id: tag.id, name: tag.name, dotClassName: TAG_DOT[tag.color] }))}
+                  selected={value.tags}
+                  onToggle={(id) => onChange({ ...value, tags: flip(value.tags, id) })}
+                  labels={{ search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </>
         )}
       </DropdownMenuContent>

@@ -15,6 +15,7 @@ export const en = {
 
   common: {
     cancel: "Cancel",
+    nothingFound: "Nothing found",
     keep: "Keep",
     delete: "Delete",
     add: "Add",
