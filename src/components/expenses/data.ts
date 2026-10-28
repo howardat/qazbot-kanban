@@ -2,52 +2,45 @@
 import { printReport as openReport } from "./report";
 
 export type Invoice = { name: string; url: string };
-export type Currency = "KZT" | "USD";
 export type Expense = {
   id: string;
   date: string; // YYYY-MM-DD
   vendor: string;
   description: string;
   category: string;
-  amount: number; // in `currency`; USD may have cents
-  currency: Currency;
-  /** USD only: National Bank KZT-per-USD rate on `date`. Undefined while it's being fetched, null if there's none. */
-  rate?: number | null;
+  amount: number; // KZT
   invoices: Invoice[];
 };
-
-/** Last-resort USD→KZT rate, used only when the National Bank feed can't be reached at all. */
-export const DEFAULT_USD_KZT = 480;
 
 export const CATEGORIES = ["Hardware", "Software", "Travel", "Office", "Marketing", "Services"] as const;
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const seed: [string, string, string, string, number, Currency, boolean][] = [
-  ["2026-01-09", "Kaspi Magazin", "Jetson Orin dev kit", "Hardware", 1_250_000, "KZT", true],
-  ["2026-01-15", "OpenRouter", "LLM credits", "Software", 200, "USD", true],
-  ["2026-01-28", "Air Astana", "Flight to Shanghai (AgiBot)", "Travel", 410_000, "KZT", true],
-  ["2026-02-03", "Technodom", "Monitors x2", "Office", 360_000, "KZT", false],
-  ["2026-02-11", "Vercel", "Pro plan", "Software", 20, "USD", true],
-  ["2026-02-20", "Instagram Ads", "Expo campaign", "Marketing", 150_000, "KZT", false],
-  ["2026-03-05", "Sulpak", "Router + switches", "Hardware", 185_000, "KZT", true],
-  ["2026-03-18", "Hilton Astana", "Hotel, client demo", "Travel", 210_000, "KZT", true],
-  ["2026-03-29", "Supabase", "Team plan", "Software", 25, "USD", true],
-  ["2026-04-07", "AgiBot", "X2 Ultra spare actuators", "Hardware", 6_040, "USD", true],
-  ["2026-04-19", "Coworking Hub", "Desk rent April", "Office", 120_000, "KZT", true],
-  ["2026-05-02", "Soniox", "STT usage", "Software", 93.4, "USD", false],
-  ["2026-05-14", "PrintPro", "Expo banners", "Marketing", 88_000, "KZT", true],
-  ["2026-05-27", "Yandex Go", "Taxi, robot transport", "Travel", 32_000, "KZT", false],
-  ["2026-06-10", "Coworking Hub", "Desk rent June", "Office", 120_000, "KZT", true],
-  ["2026-06-22", "Legal Partners", "Contract review", "Services", 300_000, "KZT", true],
-  ["2026-07-08", "Kaspi Magazin", "Batteries", "Hardware", 76_000, "KZT", true],
-  ["2026-07-30", "OpenRouter", "LLM credits", "Software", 230, "USD", true],
-  ["2026-08-12", "Air Astana", "Almaty ↔ Astana", "Travel", 95_000, "KZT", false],
-  ["2026-08-25", "Figma", "Seats", "Software", 75, "USD", true],
-  ["2026-09-04", "Technodom", "Laptop", "Hardware", 890_000, "KZT", true],
-  ["2026-09-21", "Accountant LLP", "Q3 bookkeeping", "Services", 180_000, "KZT", false],
-  ["2026-10-03", "Coworking Hub", "Desk rent October", "Office", 120_000, "KZT", true],
-  ["2026-10-16", "Meta Ads", "Hotel reception launch", "Marketing", 460, "USD", false],
-  ["2026-10-24", "OpenRouter", "LLM credits", "Software", 220, "USD", true],
+const seed: [string, string, string, string, number, boolean][] = [
+  ["2026-01-09", "Kaspi Magazin", "Jetson Orin dev kit", "Hardware", 1_250_000, true],
+  ["2026-01-15", "OpenRouter", "LLM credits", "Software", 98_000, true],
+  ["2026-01-28", "Air Astana", "Flight to Shanghai (AgiBot)", "Travel", 410_000, true],
+  ["2026-02-03", "Technodom", "Monitors x2", "Office", 360_000, false],
+  ["2026-02-11", "Vercel", "Pro plan", "Software", 24_000, true],
+  ["2026-02-20", "Instagram Ads", "Expo campaign", "Marketing", 150_000, false],
+  ["2026-03-05", "Sulpak", "Router + switches", "Hardware", 185_000, true],
+  ["2026-03-18", "Hilton Astana", "Hotel, client demo", "Travel", 210_000, true],
+  ["2026-03-29", "Supabase", "Team plan", "Software", 12_500, true],
+  ["2026-04-07", "AgiBot", "X2 Ultra spare actuators", "Hardware", 2_900_000, true],
+  ["2026-04-19", "Coworking Hub", "Desk rent April", "Office", 120_000, true],
+  ["2026-05-02", "Soniox", "STT usage", "Software", 45_000, false],
+  ["2026-05-14", "PrintPro", "Expo banners", "Marketing", 88_000, true],
+  ["2026-05-27", "Yandex Go", "Taxi, robot transport", "Travel", 32_000, false],
+  ["2026-06-10", "Coworking Hub", "Desk rent June", "Office", 120_000, true],
+  ["2026-06-22", "Legal Partners", "Contract review", "Services", 300_000, true],
+  ["2026-07-08", "Kaspi Magazin", "Batteries", "Hardware", 76_000, true],
+  ["2026-07-30", "OpenRouter", "LLM credits", "Software", 110_000, true],
+  ["2026-08-12", "Air Astana", "Almaty ↔ Astana", "Travel", 95_000, false],
+  ["2026-08-25", "Figma", "Seats", "Software", 36_000, true],
+  ["2026-09-04", "Technodom", "Laptop", "Hardware", 890_000, true],
+  ["2026-09-21", "Accountant LLP", "Q3 bookkeeping", "Services", 180_000, false],
+  ["2026-10-03", "Coworking Hub", "Desk rent October", "Office", 120_000, true],
+  ["2026-10-16", "Meta Ads", "Hotel reception launch", "Marketing", 220_000, false],
+  ["2026-10-24", "OpenRouter", "LLM credits", "Software", 105_000, true],
 ];
 
 // A placeholder invoice so seeded rows have something to open.
@@ -56,14 +49,13 @@ const sampleInvoice = (vendor: string, date: string): Invoice => ({
   url: `data:text/plain;charset=utf-8,${encodeURIComponent(`Sample invoice\n${vendor}\n${date}`)}`,
 });
 
-export const SEED_EXPENSES: Expense[] = seed.map(([date, vendor, description, category, amount, currency, hasInvoice], i) => ({
+export const SEED_EXPENSES: Expense[] = seed.map(([date, vendor, description, category, amount, hasInvoice], i) => ({
   id: `e${i + 1}`,
   date,
   vendor,
   description,
   category,
   amount,
-  currency,
   invoices: hasInvoice ? [sampleInvoice(vendor, date)] : [],
 }));
 
@@ -91,44 +83,20 @@ export const CAT_VARS_CSS = `:root{${CAT_LIGHT.map((c, i) => `--cat-${i + 1}:${c
 let n = 1000;
 export const newId = () => `e${++n}`;
 
-/**
- * An expense's value in tenge; totals, charts and reports all add up in KZT. Dollars convert at the National Bank
- * rate for the expense's own date; `fallback` (today's rate) covers one that's still loading or has no rate.
- */
-export const toKzt = (e: Pick<Expense, "amount" | "currency" | "rate">, fallback: number) => (e.currency === "USD" ? e.amount * (e.rate ?? fallback) : e.amount);
-export const sumKzt = (rows: Expense[], fallback: number) => rows.reduce((s, r) => s + toKzt(r, fallback), 0);
-export const fmtRate = (r: number) => r.toFixed(2);
-
+export const sum = (rows: Expense[]) => rows.reduce((s, r) => s + r.amount, 0);
 export const kzt = (v: number) => `${new Intl.NumberFormat("ru-RU").format(Math.round(v))} ₸`;
-export const usd = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
-/** An amount in its own currency: "1 250 000 ₸" or "$1,250.00". */
-export const money = (v: number, c: Currency) => (c === "USD" ? usd(v) : kzt(v));
-export const CURRENCY_SIGN: Record<Currency, string> = { KZT: "₸", USD: "$" };
-/** Parses typed amount text: digits for ₸, digits plus up to two decimals for $ (commas are thousands separators). */
-export function parseAmount(text: string, c: Currency) {
-  if (c === "KZT") return text.replace(/\D/g, "");
-  const [int = "", ...rest] = text.replace(/[^\d.]/g, "").split(".");
-  return rest.length ? `${int}.${rest.join("").slice(0, 2)}` : int;
-}
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export const filesToInvoices = (files: FileList | File[]) =>
   Array.from(files).map((f) => ({ name: f.name, url: URL.createObjectURL(f) }));
 
-/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact; each row keeps its own currency, the rate used and KZT. */
-export function exportCsv(rows: Expense[], title: string, fallback: number) {
+/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact. */
+export function exportCsv(rows: Expense[], title: string) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const lines = [
-    ["Date", "Vendor", "Description", "Category", "Amount", "Currency", "USD→KZT rate (National Bank)", "Amount (KZT)", "Invoices"].map(esc).join(";"),
-    ...rows.map((r) =>
-      [
-        r.date, r.vendor, r.description, r.category, r.amount, r.currency,
-        r.currency === "USD" ? fmtRate(r.rate ?? fallback) : "",
-        Math.round(toKzt(r, fallback)),
-        r.invoices.map((i) => i.name).join(", "),
-      ].map(esc).join(";"),
-    ),
-    ["", "", "", "Total", "", "", "", Math.round(sumKzt(rows, fallback)), ""].map(esc).join(";"),
+    ["Date", "Vendor", "Description", "Category", "Amount (KZT)", "Invoices"].map(esc).join(";"),
+    ...rows.map((r) => [r.date, r.vendor, r.description, r.category, r.amount, r.invoices.map((i) => i.name).join(", ")].map(esc).join(";")),
+    ["", "", "", "Total", sum(rows), ""].map(esc).join(";"),
   ];
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -137,15 +105,9 @@ export function exportCsv(rows: Expense[], title: string, fallback: number) {
   a.click();
 }
 
-/** Printable A4 report (see report.ts), totals in KZT. Category colours follow the page's slot order. */
-export function printReport(rows: Expense[], title: string, fallback: number, categories?: string[]) {
-  const reportRows = rows.map((r) => ({
-    ...r,
-    amount: toKzt(r, fallback),
-    original: r.currency === "USD" ? `${usd(r.amount)} × ${fmtRate(r.rate ?? fallback)}` : undefined,
-  }));
-  const rateNote = rows.some((r) => r.currency === "USD") ? "USD at the National Bank rate on each expense's date" : undefined;
-  openReport(reportRows, title, { categories: categories ?? categoriesOf(rows), rateNote });
+/** Printable A4 report (see report.ts). Category colours follow the page's slot order. */
+export function printReport(rows: Expense[], title: string, categories?: string[]) {
+  openReport(rows, title, { categories: categories ?? categoriesOf(rows) });
 }
 
 /** What the views get from the page's in-memory store. */

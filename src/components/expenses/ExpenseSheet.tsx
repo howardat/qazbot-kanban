@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { cn } from "@/lib/utils";
 import { AmountField } from "./AmountField";
 import { CategorySelect } from "./CategorySelect";
-import { catColor, fmtRate, kzt, money, toKzt, type Expense, type ExpenseStore } from "./data";
+import { catColor, kzt, type Expense, type ExpenseStore } from "./data";
 
 /** A category tag: Plane-style grey pill with the category's palette colour as its dot. */
 export function CategoryPill({ name, categories }: { name: string; categories: string[] }) {
@@ -92,11 +92,10 @@ export function ExpenseSheet({
   onClose,
   vendors,
   categories,
-  rate,
   update,
   attach,
   remove,
-}: { expense: Expense | undefined; onClose: () => void; vendors: string[]; categories: string[]; rate: number } & Pick<ExpenseStore, "update" | "attach" | "remove">) {
+}: { expense: Expense | undefined; onClose: () => void; vendors: string[]; categories: string[] } & Pick<ExpenseStore, "update" | "attach" | "remove">) {
   const file = useRef<HTMLInputElement>(null);
   const e = expense;
   return (
@@ -107,14 +106,11 @@ export function ExpenseSheet({
             <SheetHeader className="border-b">
               <SheetTitle>{e.vendor || "New expense"}</SheetTitle>
               <SheetDescription>
-                {e.date} · {money(e.amount, e.currency)}
-                {e.currency === "USD" &&
-                  ` ≈ ${kzt(toKzt(e, rate))} (${e.rate ? `National Bank ${fmtRate(e.rate)} on ${e.date}` : e.rate === undefined ? "fetching rate…" : "no rate for this date, today's used"})`}{" "}
-                · changes save as you type
+                {e.date} · {kzt(e.amount)} · changes save as you type
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">
-              <AmountField key={e.id} amount={e.amount} currency={e.currency} onChange={(amount, currency) => update(e.id, { amount, currency })} />
+              <AmountField amount={e.amount} onChange={(amount) => update(e.id, { amount })} />
               <div className="space-y-1">
                 <span className="text-muted-foreground">Vendor</span>
                 <ComboInput value={e.vendor} onChange={(v) => update(e.id, { vendor: v })} options={vendors} noun="vendor" inputClassName="h-9 px-3" />

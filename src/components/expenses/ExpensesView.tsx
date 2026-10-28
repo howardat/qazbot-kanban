@@ -2,8 +2,8 @@
 
 // The expenses page: a 12-month bar strip (with Q1–Q4 chips and the year) picks the period; the table below has
 // date and category filters, sortable columns, Add record and Export; donuts split the spend by category and
-// vendor. Expenses are entered in ₸ or $; dollars add up in ₸ at the National Bank rate on each expense's date.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// vendor.
+import { useCallback, useMemo, useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, X } from "lucide-react";
 import { Panel } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import { AddRecordDialog } from "./AddRecordDialog";
 import { CategoryPill, ExpenseSheet } from "./ExpenseSheet";
 import {
-  CAT_VARS_CSS, CATEGORIES, catColor, categoriesOf, DEFAULT_USD_KZT, exportCsv, filesToInvoices, fmtRate, kzt, money, MONTHS, newId, printReport,
-  sumKzt, todayISO, toKzt, vendorsOf,
+  CAT_VARS_CSS, CATEGORIES, catColor, categoriesOf, exportCsv, filesToInvoices, kzt, MONTHS, newId, printReport, SEED_EXPENSES, sum,
+  todayISO, vendorsOf,
   type Expense,
 } from "./data";
 
@@ -27,48 +27,14 @@ const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: "amount", label: "Amount", className: "w-36 text-right" },
 ];
 
-export function ExpensesView({ initial, todayRate }: { initial: Expense[]; todayRate: number | null }) {
-  const [expenses, setExpenses] = useState<Expense[]>(initial);
-  // Dollars without a rate of their own (still loading, or a date the National Bank has none for) use today's.
-  const rate = todayRate ?? DEFAULT_USD_KZT;
-  const latest = useRef(expenses);
-  useEffect(() => {
-    latest.current = expenses;
-  }, [expenses]);
-
-  // National Bank rate for a dollar expense's date, stored on the expense unless its date moved on meanwhile.
-  const ratesByDate = useRef(new Map<string, number>());
-  const fetchRate = useCallback(async (id: string, date: string) => {
-    let r: number | null = ratesByDate.current.get(date) ?? null;
-    if (r === null) {
-      const res = await fetch(`/api/fx?date=${date}`).then((x) => (x.ok ? x.json() : { rate: null }), () => ({ rate: null }));
-      r = typeof res.rate === "number" ? res.rate : null;
-      if (r !== null) ratesByDate.current.set(date, r);
-    }
-    setExpenses((xs) => xs.map((x) => (x.id === id && x.date === date && x.currency === "USD" ? { ...x, rate: r } : x)));
+export function ExpensesView() {
+  const [expenses, setExpenses] = useState<Expense[]>(SEED_EXPENSES);
+  const add = useCallback((e: Omit<Expense, "id">) => {
+    const id = newId();
+    setExpenses((xs) => [...xs, { ...e, id }]);
+    return id;
   }, []);
-
-  const add = useCallback(
-    (e: Omit<Expense, "id">) => {
-      const id = newId();
-      setExpenses((xs) => [...xs, { ...e, id, rate: undefined }]);
-      if (e.currency === "USD") void fetchRate(id, e.date);
-      return id;
-    },
-    [fetchRate],
-  );
-  const update = useCallback(
-    (id: string, patch: Partial<Expense>) => {
-      const before = latest.current.find((x) => x.id === id);
-      if (!before) return;
-      const next = { ...before, ...patch };
-      // Re-read the rate when a dollar expense gets a new date, or an expense switches to dollars.
-      const refetch = next.currency === "USD" && (next.date !== before.date || before.currency !== "USD");
-      setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch, ...(refetch && { rate: undefined }) } : x)));
-      if (refetch) void fetchRate(id, next.date);
-    },
-    [fetchRate],
-  );
+  const update = useCallback((id: string, patch: Partial<Expense>) => setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x))), []);
   const remove = useCallback((id: string) => setExpenses((xs) => xs.filter((x) => x.id !== id)), []);
   const attach = useCallback((id: string, files: FileList | File[]) => {
     const inv = filesToInvoices(files);
@@ -88,12 +54,12 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
   const categories = useMemo(() => categoriesOf(expenses), [expenses]);
   // Vendor colour slots: ranked by all-time spend, not by the current filter, so colours hold while filtering.
   const vendorOrder = useMemo(() => {
-    const spend = (v: string) => sumKzt(expenses.filter((e) => e.vendor === v), rate);
+    const spend = (v: string) => sum(expenses.filter((e) => e.vendor === v));
     return [...vendors].sort((a, b) => spend(b) - spend(a));
-  }, [vendors, expenses, rate]);
+  }, [vendors, expenses]);
 
   const inYear = useMemo(() => expenses.filter((e) => Number(e.date.slice(0, 4)) === year), [expenses, year]);
-  const monthly = MONTHS.map((_, i) => sumKzt(inYear.filter((e) => Number(e.date.slice(5, 7)) - 1 === i), rate));
+  const monthly = MONTHS.map((_, i) => sum(inYear.filter((e) => Number(e.date.slice(5, 7)) - 1 === i)));
   const max = Math.max(1, ...monthly);
   // Everything in the chosen period: the category donut shows this, the table narrows it further.
   const inPeriod = useMemo(
@@ -105,14 +71,14 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
   );
   const rows = useMemo(() => {
     const value = (e: Expense, k: SortKey): string | number =>
-      k === "amount" ? toKzt(e, rate) : k === "invoice" ? e.invoices.length : k === "date" ? e.date : e[k].toLowerCase();
+      k === "amount" ? e.amount : k === "invoice" ? e.invoices.length : k === "date" ? e.date : e[k].toLowerCase();
     return inPeriod
       .filter((e) => !cat || e.category === cat)
       .sort((a, b) => {
         const x = value(a, sort.key), y = value(b, sort.key);
         return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || b.date.localeCompare(a.date);
       });
-  }, [inPeriod, cat, sort, rate]);
+  }, [inPeriod, cat, sort]);
 
   const qOf = !custom && range[1] - range[0] === 2 && range[0] % 3 === 0 ? range[0] / 3 + 1 : null;
   const rangeLabel = (a: number, b: number) => (a === 0 && b === 11 ? `Year ${year}` : a === b ? `${MONTHS[a]} ${year}` : a % 3 === 0 && b - a === 2 ? `Q${a / 3 + 1} ${year}` : `${MONTHS[a]}–${MONTHS[b]} ${year}`);
@@ -146,10 +112,6 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
       <style>{CAT_VARS_CSS}</style>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold">Expenses · {label}</h1>
-        <span className="text-xs text-muted-foreground">
-          $ → ₸ at the National Bank rate on each expense&apos;s date
-          {todayRate ? ` · today 1 $ = ${fmtRate(todayRate)} ₸` : ` · rates unavailable, using 1 $ = ${DEFAULT_USD_KZT} ₸`}
-        </span>
       </div>
 
       <section className="rounded-lg border bg-card p-3 shadow-xs">
@@ -195,7 +157,7 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
           className="min-w-0 self-start"
           icon={<Receipt />}
           title={cat ? `${rows.length} of ${inPeriod.length} expenses` : `${rows.length} expenses`}
-          action={<span className="font-semibold text-foreground tabular-nums">{kzt(sumKzt(rows, rate))}</span>}
+          action={<span className="font-semibold text-foreground tabular-nums">{kzt(sum(rows))}</span>}
         >
           {/* Table toolbar: filters on the left, actions on the right */}
           <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
@@ -231,7 +193,7 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
                 <Plus /> Add record
               </Button>
               <div className="flex">
-                <Button className="rounded-r-none" onClick={() => exportCsv(rows, reportTitle, rate)}>
+                <Button className="rounded-r-none" onClick={() => exportCsv(rows, reportTitle)}>
                   <FileSpreadsheet /> Export report
                 </Button>
                 <DropdownMenu>
@@ -241,10 +203,10 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => exportCsv(rows, reportTitle, rate)}>
+                    <DropdownMenuItem onClick={() => exportCsv(rows, reportTitle)}>
                       <FileSpreadsheet /> Excel (.csv)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => printReport(rows, reportTitle, rate, categories)}>
+                    <DropdownMenuItem onClick={() => printReport(rows, reportTitle, categories)}>
                       <FileDown /> PDF
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -286,14 +248,7 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
                         </span>
                       )}
                     </td>
-                    <td className="text-right tabular-nums">
-                      <div className="font-medium">{money(r.amount, r.currency)}</div>
-                      {r.currency === "USD" && (
-                        <div className="text-xs text-muted-foreground" title={r.rate ? `National Bank rate on ${r.date}` : "No rate for this date yet; today's rate is used"}>
-                          ≈ {kzt(toKzt(r, rate))} · {r.rate === undefined ? "rate…" : r.rate === null ? "today's rate" : `@ ${fmtRate(r.rate)}`}
-                        </div>
-                      )}
-                    </td>
+                    <td className="text-right font-medium tabular-nums">{kzt(r.amount)}</td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
@@ -309,8 +264,8 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
         </Panel>
 
         <aside className="space-y-4">
-          <Donut title="By category" rows={inPeriod} rate={rate} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
-          <Donut title={cat ? `By vendor · ${cat}` : "By vendor"} rows={rows} rate={rate} keyOf={(e) => e.vendor} order={vendorOrder} />
+          <Donut title="By category" rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
+          <Donut title={cat ? `By vendor · ${cat}` : "By vendor"} rows={rows} keyOf={(e) => e.vendor} order={vendorOrder} />
         </aside>
       </div>
 
@@ -321,7 +276,6 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
         onClose={() => setOpenId(null)}
         vendors={vendors}
         categories={categories}
-        rate={rate}
         update={update}
         attach={attach}
         remove={remove}
@@ -331,24 +285,23 @@ export function ExpensesView({ initial, todayRate }: { initial: Expense[]; today
 }
 
 /**
- * Spend split by some key (category, vendor) as a donut, in ₸. Hover a slice for its share; with `onPick`,
+ * Spend split by some key (category, vendor) as a donut. Hover a slice for its share; with `onPick`,
  * clicking a slice or legend row filters the table. Colour comes from the key's slot in `order`; past 8 slots
  * the extras fold into one "Other" slice.
  */
 function Donut({
   title,
   rows,
-  rate,
   keyOf,
   order,
   active = "",
   onPick,
-}: { title: string; rows: Expense[]; rate: number; keyOf: (e: Expense) => string; order: string[]; active?: string; onPick?: (k: string) => void }) {
+}: { title: string; rows: Expense[]; keyOf: (e: Expense) => string; order: string[]; active?: string; onPick?: (k: string) => void }) {
   const [hover, setHover] = useState<string | null>(null);
-  const total = sumKzt(rows, rate);
-  const byKey = order.map((c) => ({ c, v: sumKzt(rows.filter((r) => keyOf(r) === c), rate) })).filter((x) => x.v);
+  const total = sum(rows);
+  const byKey = order.map((c) => ({ c, v: sum(rows.filter((r) => keyOf(r) === c)) })).filter((x) => x.v);
   const main = byKey.filter((x) => order.indexOf(x.c) < 8);
-  const otherV = sumKzt(rows.filter((r) => order.indexOf(keyOf(r)) >= 8 || order.indexOf(keyOf(r)) < 0), rate);
+  const otherV = sum(rows.filter((r) => order.indexOf(keyOf(r)) >= 8 || order.indexOf(keyOf(r)) < 0));
   const slices = [...main.sort((a, b) => b.v - a.v), ...(otherV ? [{ c: "Other", v: otherV }] : [])];
   const color = (c: string) => (c === "Other" ? "var(--cat-other)" : catColor(c, order));
   const pick = (c: string) => onPick && c !== "Other" && onPick(c);

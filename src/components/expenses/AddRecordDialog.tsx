@@ -1,6 +1,6 @@
 "use client";
 
-// "Add record" modal: the whole expense in one form, in ₸ or $, with the invoice upload.
+// "Add record" modal: the whole expense in one form, with the invoice upload.
 import { useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { CategorySelect } from "./CategorySelect";
 import { AmountField } from "./AmountField";
 import { ComboInput } from "./ExpenseSheet";
-import { filesToInvoices, todayISO, type Currency, type Expense, type Invoice } from "./data";
+import { filesToInvoices, todayISO, type Expense, type Invoice } from "./data";
 
 const field = "h-9 w-full rounded-md border bg-card px-3 text-sm outline-none transition-shadow focus:border-ring focus:ring-3 focus:ring-ring/20";
 const label = "text-xs font-medium text-muted-foreground";
@@ -47,7 +47,6 @@ function Form({
   defaultCategory,
 }: { onAdd: (e: Omit<Expense, "id">) => void; onCancel: () => void; vendors: string[]; categories: string[]; defaultCategory: string }) {
   const [amount, setAmount] = useState(0);
-  const [currency, setCurrency] = useState<Currency>("KZT");
   const [vendor, setVendor] = useState("");
   const [date, setDate] = useState(todayISO());
   const [category, setCategory] = useState(defaultCategory);
@@ -57,7 +56,7 @@ function Form({
   const file = useRef<HTMLInputElement>(null);
   const addFiles = (files: FileList | File[]) => setInvoices((xs) => [...xs, ...filesToInvoices(files)]);
   const valid = !!vendor.trim() && amount > 0 && !!category.trim();
-  const submit = () => valid && onAdd({ amount, currency, vendor: vendor.trim(), date, category: category.trim(), description: description.trim(), invoices });
+  const submit = () => valid && onAdd({ amount, vendor: vendor.trim(), date, category: category.trim(), description: description.trim(), invoices });
 
   return (
     <form onSubmit={(e) => (e.preventDefault(), submit())}>
@@ -74,8 +73,8 @@ function Form({
           submit();
         }}
       >
-        {/* The amount is the headline: big, with its currency switch. */}
-        <AmountField autoFocus amount={amount} currency={currency} onChange={(a, c) => (setAmount(a), setCurrency(c))} />
+        {/* The amount is the headline: big, right next to its currency. */}
+        <AmountField autoFocus amount={amount} onChange={setAmount} />
         <div className="grid grid-cols-[1fr_10rem] gap-3">
           <div className="space-y-1.5">
             <span className={label}>Vendor</span>
