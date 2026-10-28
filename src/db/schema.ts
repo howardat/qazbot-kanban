@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   date,
   index,
@@ -279,3 +280,39 @@ export const invites = pgTable("invite", {
   revokedAt: timestamp("revoked_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();
+
+// ---------- Expenses ----------
+// Company expenses in whole tenge. Category is free text: the starter set plus any the team adds.
+
+export const expenses = pgTable(
+  "expense",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date").notNull(),
+    vendor: text("vendor").notNull(),
+    description: text("description").notNull().default(""),
+    category: text("category").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("expense_date_idx").on(t.date)],
+).enableRLS();
+
+// Invoice files of an expense. The file lives in the private "invoices" Storage bucket under `path`.
+export const expenseInvoices = pgTable(
+  "expense_invoice",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    expenseId: uuid("expense_id")
+      .notNull()
+      .references(() => expenses.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    path: text("path").notNull().unique(),
+    size: integer("size").notNull(),
+    contentType: text("content_type").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("expense_invoice_expense_idx").on(t.expenseId)],
+).enableRLS();

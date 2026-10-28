@@ -1,12 +1,14 @@
 "use client";
 
 // The amount input: a big tenge number, grouped as you type. Used by the add modal and the side peek.
+import { useT } from "@/components/I18nProvider";
 import { kzt } from "./data";
 
 export function AmountField({ amount, onChange, autoFocus }: { amount: number; onChange: (amount: number) => void; autoFocus?: boolean }) {
+  const tx = useT().expenses;
   return (
     <label className="block rounded-lg border bg-muted/40 px-4 pt-3 pb-2 transition-shadow focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
-      <span className="text-xs font-medium text-muted-foreground">Amount</span>
+      <span className="text-xs font-medium text-muted-foreground">{tx.amount}</span>
       <span className="flex items-baseline gap-2">
         <input
           autoFocus={autoFocus}

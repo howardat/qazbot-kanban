@@ -48,6 +48,9 @@ export const FEATURES = [
   "mcp.call",
   "mcp.tokenCreate",
   "language.change",
+  "expenses.view",
+  "expense.create",
+  "expense.delete",
 ] as const;
 
 export type Feature = (typeof FEATURES)[number];

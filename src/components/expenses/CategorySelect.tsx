@@ -5,6 +5,7 @@
 // `+ Add "query" to categories` row creates the category from what was typed (Enter does the same).
 import { useState } from "react";
 import { Check, ChevronDown, Plus, Search, Tag } from "lucide-react";
+import { useT } from "@/components/I18nProvider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { catColor } from "./data";
@@ -20,6 +21,7 @@ export function CategorySelect({
   categories: string[];
   className?: string;
 }) {
+  const tx = useT().expenses;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hi, setHi] = useState(0);
@@ -47,7 +49,7 @@ export function CategorySelect({
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Tag className="size-3.5" /> Category
+              <Tag className="size-3.5" /> {tx.category}
             </span>
           )}
           <ChevronDown className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
@@ -67,7 +69,7 @@ export function CategorySelect({
             else if (canCreate) pick(query.trim());
             else if (matches[hi]) pick(matches[hi]);
           }}
-          placeholder="Search or create a category"
+          placeholder={tx.searchCategories}
           className="h-9 w-full bg-transparent text-sm text-foreground outline-none"
         />
         </label>
@@ -91,12 +93,12 @@ export function CategorySelect({
               <button type="button" onClick={() => pick(query.trim())} className="flex w-full items-center gap-2 rounded-sm bg-accent px-2 py-1.5 text-left text-sm text-muted-foreground">
                 <Plus className="size-3.5 shrink-0" />
                 <span className="truncate">
-                  Add “{query.trim()}” to categories
+                  {tx.addCategory(query.trim())}
                 </span>
               </button>
             </li>
           )}
-          {!q && matches.length === 0 && <li className="px-2 py-1.5 text-xs text-muted-foreground">No categories yet. Type to create one.</li>}
+          {!q && matches.length === 0 && <li className="px-2 py-1.5 text-xs text-muted-foreground">{tx.noCategories}</li>}
         </ul>
       </PopoverContent>
     </Popover>

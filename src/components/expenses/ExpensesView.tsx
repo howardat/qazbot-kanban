@@ -3,43 +3,33 @@
 // The expenses page: a 12-month bar strip (with Q1–Q4 chips and the year) picks the period; the table below has
 // date and category filters, sortable columns, Add record and Export; donuts split the spend by category and
 // vendor.
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, X } from "lucide-react";
 import { Panel } from "@/components/atoms";
+import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AddRecordDialog } from "./AddRecordDialog";
 import { CategoryPill, ExpenseSheet } from "./ExpenseSheet";
-import {
-  CAT_VARS_CSS, CATEGORIES, catColor, categoriesOf, exportCsv, filesToInvoices, kzt, MONTHS, newId, printReport, SEED_EXPENSES, sum,
-  todayISO, vendorsOf,
-  type Expense,
-} from "./data";
+import { CAT_VARS_CSS, catColor, categoriesOf, exportCsv, kzt, printReport, sum, todayISO, vendorsOf, type Expense } from "./data";
+import { useExpenses } from "./useExpenses";
 
 type SortKey = "date" | "vendor" | "description" | "category" | "invoice" | "amount";
-const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
-  { key: "date", label: "Date", className: "w-24" },
-  { key: "vendor", label: "Vendor" },
-  { key: "description", label: "Description", className: "hidden md:table-cell" },
-  { key: "category", label: "Category" },
-  { key: "invoice", label: "Invoice", className: "w-20" },
-  { key: "amount", label: "Amount", className: "w-36 text-right" },
+const COLUMNS: { key: SortKey; className?: string }[] = [
+  { key: "date", className: "w-24" },
+  { key: "vendor" },
+  { key: "description", className: "hidden md:table-cell" },
+  { key: "category" },
+  { key: "invoice", className: "w-20" },
+  { key: "amount", className: "w-36 text-right" },
 ];
 
-export function ExpensesView() {
-  const [expenses, setExpenses] = useState<Expense[]>(SEED_EXPENSES);
-  const add = useCallback((e: Omit<Expense, "id">) => {
-    const id = newId();
-    setExpenses((xs) => [...xs, { ...e, id }]);
-    return id;
-  }, []);
-  const update = useCallback((id: string, patch: Partial<Expense>) => setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x))), []);
-  const remove = useCallback((id: string) => setExpenses((xs) => xs.filter((x) => x.id !== id)), []);
-  const attach = useCallback((id: string, files: FileList | File[]) => {
-    const inv = filesToInvoices(files);
-    setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, invoices: [...x.invoices, ...inv] } : x)));
-  }, []);
+export function ExpensesView({ initial }: { initial: Expense[] }) {
+  const t = useT();
+  const tx = t.expenses;
+  const store = useExpenses(initial, { saveFailed: tx.saveFailed, uploadFailed: tx.uploadFailed });
+  const { expenses } = store;
 
   const [year, setYear] = useState(Number(todayISO().slice(0, 4)));
   const thisMonth = Number(todayISO().slice(5, 7)) - 1;
@@ -51,7 +41,7 @@ export function ExpensesView() {
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
   const vendors = useMemo(() => vendorsOf(expenses), [expenses]);
-  const categories = useMemo(() => categoriesOf(expenses), [expenses]);
+  const categories = useMemo(() => categoriesOf(expenses, tx.starterCategories), [expenses, tx.starterCategories]);
   // Vendor colour slots: ranked by all-time spend, not by the current filter, so colours hold while filtering.
   const vendorOrder = useMemo(() => {
     const spend = (v: string) => sum(expenses.filter((e) => e.vendor === v));
@@ -59,7 +49,10 @@ export function ExpensesView() {
   }, [vendors, expenses]);
 
   const inYear = useMemo(() => expenses.filter((e) => Number(e.date.slice(0, 4)) === year), [expenses, year]);
-  const monthly = MONTHS.map((_, i) => sum(inYear.filter((e) => Number(e.date.slice(5, 7)) - 1 === i)));
+  // Month i (0–11) of the chosen year as YYYY-MM; names come from the viewer's language.
+  const ym = (i: number) => `${year}-${String(i + 1).padStart(2, "0")}`;
+  const monthShort = (i: number) => t.fmt.monthShort(`${ym(i)}-01`);
+  const monthly = Array.from({ length: 12 }, (_, i) => sum(inYear.filter((e) => Number(e.date.slice(5, 7)) - 1 === i)));
   const max = Math.max(1, ...monthly);
   // Everything in the chosen period: the category donut shows this, the table narrows it further.
   const inPeriod = useMemo(
@@ -81,7 +74,8 @@ export function ExpensesView() {
   }, [inPeriod, cat, sort]);
 
   const qOf = !custom && range[1] - range[0] === 2 && range[0] % 3 === 0 ? range[0] / 3 + 1 : null;
-  const rangeLabel = (a: number, b: number) => (a === 0 && b === 11 ? `Year ${year}` : a === b ? `${MONTHS[a]} ${year}` : a % 3 === 0 && b - a === 2 ? `Q${a / 3 + 1} ${year}` : `${MONTHS[a]}–${MONTHS[b]} ${year}`);
+  const rangeLabel = (a: number, b: number) =>
+    a === 0 && b === 11 ? tx.yearOf(year) : a === b ? t.fmt.month(ym(a)) : a % 3 === 0 && b - a === 2 ? tx.quarter(a / 3 + 1, year) : `${monthShort(a)}–${monthShort(b)} ${year}`;
   const label = custom ? `${custom.from.split("-").reverse().join(".")} – ${custom.to.split("-").reverse().join(".")}` : rangeLabel(range[0], range[1]);
   const reportTitle = [label, cat].filter(Boolean).join(" · ");
 
@@ -89,9 +83,9 @@ export function ExpensesView() {
   const clickMonth = (i: number, shift: boolean) => (setRange(([a]) => (shift ? [Math.min(a, i), Math.max(a, i)] : [i, i])), setCustom(null));
   // Date filter options: whole year, quarters, months, plus the current strip selection if it's an odd range.
   const presets: [string, [number, number]][] = [
-    [`Year ${year}`, [0, 11]],
-    ...[0, 1, 2, 3].map((qi): [string, [number, number]] => [`Q${qi + 1} ${year}`, [qi * 3, qi * 3 + 2]]),
-    ...MONTHS.map((m, i): [string, [number, number]] => [`${m} ${year}`, [i, i]]),
+    [tx.yearOf(year), [0, 11]],
+    ...[0, 1, 2, 3].map((qi): [string, [number, number]] => [tx.quarter(qi + 1, year), [qi * 3, qi * 3 + 2]]),
+    ...Array.from({ length: 12 }, (_, i): [string, [number, number]] => [t.fmt.month(ym(i)), [i, i]]),
   ];
   const rangeKey = `${range[0]}-${range[1]}`;
   const onDateFilter = (v: string) => {
@@ -101,17 +95,20 @@ export function ExpensesView() {
   };
   const monthOn = (i: number) => {
     if (!custom) return i >= range[0] && i <= range[1];
-    const m = `${year}-${String(i + 1).padStart(2, "0")}`;
-    return m >= custom.from.slice(0, 7) && m <= custom.to.slice(0, 7);
+    return ym(i) >= custom.from.slice(0, 7) && ym(i) <= custom.to.slice(0, 7);
   };
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === "amount" || key === "date" ? -1 : 1 }));
   const select = "h-8 rounded-md border bg-card px-2 text-sm";
+  const exportExcel = () => exportCsv(rows, reportTitle, tx.cols, tx.total);
+  const exportPdf = () => printReport(rows, reportTitle, categories, { lang: t.locale, ...tx.report, cols: tx.cols });
 
   return (
     <div className="space-y-4 p-4 md:p-6">
       <style>{CAT_VARS_CSS}</style>
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold">Expenses · {label}</h1>
+        <h1 className="mr-auto text-xl font-semibold">
+          {tx.title} · {label}
+        </h1>
       </div>
 
       <section className="rounded-lg border bg-card p-3 shadow-xs">
@@ -123,18 +120,18 @@ export function ExpensesView() {
               onClick={() => pickRange([(qn - 1) * 3, (qn - 1) * 3 + 2])}
               className={cn("h-7 rounded-full border px-3 text-muted-foreground hover:bg-muted", qOf === qn && "border-foreground bg-foreground text-background hover:bg-foreground")}
             >
-              Q{qn}
+              {tx.quarterShort(qn)}
             </button>
           ))}
           <button type="button" onClick={() => pickRange([0, 11])} className={cn("h-7 rounded-full border px-3 text-muted-foreground hover:bg-muted", !custom && range[0] === 0 && range[1] === 11 && "border-foreground bg-foreground text-background hover:bg-foreground")}>
-            Year
+            {tx.year}
           </button>
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="ml-1 h-7 rounded-full border bg-card px-2.5 text-sm" aria-label="Year">
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="ml-1 h-7 rounded-full border bg-card px-2.5 text-sm" aria-label={tx.year}>
             {[2025, 2026, 2027].map((y) => (
               <option key={y}>{y}</option>
             ))}
           </select>
-          <span className="ml-auto text-xs text-muted-foreground">Click a month · shift-click for a range</span>
+          <span className="ml-auto text-xs text-muted-foreground">{tx.monthHint}</span>
         </div>
         <div className="grid grid-cols-12 items-end gap-1.5">
           {monthly.map((v, i) => {
@@ -145,7 +142,7 @@ export function ExpensesView() {
                 <div className="flex h-24 w-full items-end rounded-sm bg-muted/50">
                   <div className={cn("w-full rounded-t-[4px] transition-colors", on ? "bg-sky-500" : "bg-zinc-300 group-hover:bg-zinc-400 dark:bg-zinc-700")} style={{ height: `${(v / max) * 100}%`, minHeight: v ? 3 : 0 }} />
                 </div>
-                <span className={cn("text-xs", on ? "font-medium text-foreground" : "text-muted-foreground")}>{MONTHS[i]}</span>
+                <span className={cn("text-xs", on ? "font-medium text-foreground" : "text-muted-foreground")}>{monthShort(i)}</span>
               </button>
             );
           })}
@@ -156,14 +153,14 @@ export function ExpensesView() {
         <div className="min-w-0 space-y-3">
           {/* Toolbar above the table: filters on the left, actions on the right */}
           <div className="flex flex-wrap items-center gap-2">
-            <select value={custom ? "custom" : rangeKey} onChange={(e) => onDateFilter(e.target.value)} className={select} aria-label="Date">
+            <select value={custom ? "custom" : rangeKey} onChange={(e) => onDateFilter(e.target.value)} className={select} aria-label={tx.dateFilter}>
               {!presets.some(([, r]) => `${r[0]}-${r[1]}` === rangeKey) && <option value={rangeKey}>{rangeLabel(range[0], range[1])}</option>}
               {presets.map(([l, r]) => (
                 <option key={l} value={`${r[0]}-${r[1]}`}>
                   {l}
                 </option>
               ))}
-              <option value="custom">Custom range…</option>
+              <option value="custom">{tx.customRange}</option>
             </select>
             {custom && (
               <span className="flex items-center gap-1 text-sm">
@@ -172,37 +169,37 @@ export function ExpensesView() {
                 <input type="date" value={custom.to} min={custom.from} onChange={(e) => e.target.value && setCustom({ ...custom, to: e.target.value })} className={select} />
               </span>
             )}
-            <select value={cat} aria-label="Category" onChange={(e) => setCat(e.target.value)} className={select}>
-              <option value="">All categories</option>
+            <select value={cat} aria-label={tx.category} onChange={(e) => setCat(e.target.value)} className={select}>
+              <option value="">{tx.allCategories}</option>
               {categories.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
             {cat && (
               <Button variant="ghost" size="sm" onClick={() => setCat("")}>
-                <X /> Clear
+                <X /> {tx.clear}
               </Button>
             )}
             <div className="ml-auto flex items-center gap-2">
               <Button variant="outline" onClick={() => setAdding(true)}>
-                <Plus /> Add record
+                <Plus /> {tx.addRecord}
               </Button>
               <div className="flex">
-                <Button className="rounded-r-none" onClick={() => exportCsv(rows, reportTitle)}>
-                  <FileSpreadsheet /> Export report
+                <Button className="rounded-r-none" onClick={exportExcel}>
+                  <FileSpreadsheet /> {tx.exportReport}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="rounded-l-none border-l border-white/20 px-2" aria-label="More export formats">
+                    <Button className="rounded-l-none border-l border-white/20 px-2" aria-label={tx.moreFormats}>
                       <ChevronDown />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => exportCsv(rows, reportTitle)}>
-                      <FileSpreadsheet /> Excel (.csv)
+                    <DropdownMenuItem onClick={exportExcel}>
+                      <FileSpreadsheet /> {tx.excel}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => printReport(rows, reportTitle, categories)}>
-                      <FileDown /> PDF
+                    <DropdownMenuItem onClick={exportPdf}>
+                      <FileDown /> {tx.pdf}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -211,7 +208,7 @@ export function ExpensesView() {
           </div>
           <Panel
             icon={<Receipt />}
-            title={cat ? `${rows.length} of ${inPeriod.length} expenses` : `${rows.length} expenses`}
+            title={cat ? tx.countOf(rows.length, inPeriod.length) : tx.count(rows.length)}
             action={<span className="font-semibold text-foreground tabular-nums">{kzt(sum(rows))}</span>}
           >
             <div className="overflow-x-auto">
@@ -221,7 +218,7 @@ export function ExpensesView() {
                     {COLUMNS.map((c) => (
                       <th key={c.key} className={cn("h-8 px-4 font-medium", c.className)}>
                         <button type="button" onClick={() => toggleSort(c.key)} className={cn("inline-flex items-center gap-1 hover:text-foreground", sort.key === c.key && "text-foreground")}>
-                          {c.label}
+                          {tx.cols[c.key]}
                           {sort.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                         </button>
                       </th>
@@ -244,7 +241,7 @@ export function ExpensesView() {
                           </a>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                            <AlertTriangle className="size-3.5" /> none
+                            <AlertTriangle className="size-3.5" /> {tx.none}
                           </span>
                         )}
                       </td>
@@ -254,7 +251,7 @@ export function ExpensesView() {
                   {rows.length === 0 && (
                     <tr>
                       <td colSpan={COLUMNS.length} className="py-10 text-center text-muted-foreground">
-                        {cat ? `No ${cat} expenses in ${label}.` : `No expenses in ${label}.`}
+                        {cat ? tx.emptyCategory(cat, label) : tx.empty(label)}
                       </td>
                     </tr>
                   )}
@@ -265,21 +262,23 @@ export function ExpensesView() {
         </div>
 
         <aside className="space-y-4">
-          <Donut title="By category" rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
-          <Donut title={cat ? `By vendor · ${cat}` : "By vendor"} rows={rows} keyOf={(e) => e.vendor} order={vendorOrder} />
+          <Donut title={tx.byCategory} rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
+          <Donut title={cat ? tx.byVendorIn(cat) : tx.byVendor} rows={rows} keyOf={(e) => e.vendor} order={vendorOrder} />
         </aside>
       </div>
 
-      <AddRecordDialog open={adding} onOpenChange={setAdding} onAdd={add} vendors={vendors} categories={categories} defaultCategory={cat || CATEGORIES[0]} />
+      <AddRecordDialog open={adding} onOpenChange={setAdding} onAdd={store.add} vendors={vendors} categories={categories} defaultCategory={cat || categories[0]} />
 
       <ExpenseSheet
         expense={expenses.find((e) => e.id === openId)}
         onClose={() => setOpenId(null)}
         vendors={vendors}
         categories={categories}
-        update={update}
-        attach={attach}
-        remove={remove}
+        uploading={openId ? (store.uploading[openId] ?? 0) > 0 : false}
+        update={store.update}
+        attach={store.attach}
+        detach={store.detach}
+        remove={store.remove}
       />
     </div>
   );
@@ -298,14 +297,17 @@ function Donut({
   active = "",
   onPick,
 }: { title: string; rows: Expense[]; keyOf: (e: Expense) => string; order: string[]; active?: string; onPick?: (k: string) => void }) {
+  const tx = useT().expenses;
   const [hover, setHover] = useState<string | null>(null);
   const total = sum(rows);
   const byKey = order.map((c) => ({ c, v: sum(rows.filter((r) => keyOf(r) === c)) })).filter((x) => x.v);
   const main = byKey.filter((x) => order.indexOf(x.c) < 8);
   const otherV = sum(rows.filter((r) => order.indexOf(keyOf(r)) >= 8 || order.indexOf(keyOf(r)) < 0));
-  const slices = [...main.sort((a, b) => b.v - a.v), ...(otherV ? [{ c: "Other", v: otherV }] : [])];
-  const color = (c: string) => (c === "Other" ? "var(--cat-other)" : catColor(c, order));
-  const pick = (c: string) => onPick && c !== "Other" && onPick(c);
+  const OTHER = "\u0000other"; // can't clash with a real name
+  const slices = [...main.sort((a, b) => b.v - a.v), ...(otherV ? [{ c: OTHER, v: otherV }] : [])];
+  const color = (c: string) => (c === OTHER ? "var(--cat-other)" : catColor(c, order));
+  const pick = (c: string) => onPick && c !== OTHER && onPick(c);
+  const name = (c: string) => (c === OTHER ? tx.other : c);
 
   const R = 84, r = 56, C = 96;
   const pt = (a: number, rad: number) => [C + rad * Math.sin(a), C - rad * Math.cos(a)];
@@ -324,7 +326,7 @@ function Donut({
   return (
     <Panel title={title} bodyClassName="p-4">
       {total === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">Nothing in this period.</div>
+        <div className="py-8 text-center text-sm text-muted-foreground">{tx.nothingInPeriod}</div>
       ) : (
         <>
           <svg viewBox="0 0 192 192" className="mx-auto block w-48" role="img" aria-label={`${title}, total ${kzt(total)}`}>
@@ -344,12 +346,12 @@ function Donut({
                   onClick={() => pick(a.c)}
                   className={cn("transition-opacity", onPick && "cursor-pointer")}
                 >
-                  <title>{`${a.c}: ${kzt(a.v)} (${pct(a.v)})`}</title>
+                  <title>{`${name(a.c)}: ${kzt(a.v)} (${pct(a.v)})`}</title>
                 </path>
               ))
             )}
             <text x={C} y={C - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
-              {focus ? focus.c : "Total"}
+              {focus ? name(focus.c) : tx.total}
             </text>
             <text x={C} y={C + 10} textAnchor="middle" className="fill-foreground text-[13px] font-semibold tabular-nums">
               {kzt(focus ? focus.v : total)}
@@ -372,7 +374,7 @@ function Donut({
                   className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-muted", active === s.c && "bg-muted font-medium")}
                 >
                   <span className="size-2.5 shrink-0 rounded-full" style={{ background: color(s.c) }} />
-                  <span className="flex-1 truncate">{s.c}</span>
+                  <span className="flex-1 truncate">{name(s.c)}</span>
                   <span className="text-muted-foreground tabular-nums">{kzt(s.v)}</span>
                   <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">{pct(s.v)}</span>
                 </button>
