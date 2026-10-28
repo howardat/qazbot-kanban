@@ -18,9 +18,11 @@ export function CategorySelect({
   className?: string;
 }) {
   const tx = useT().expenses;
+  // A just-created category isn't in `categories` until a saved expense uses it; list it anyway so it shows as picked.
+  const all = value && !categories.includes(value) ? [...categories, value] : categories;
   return (
     <TagSelect
-      options={categories.map((c) => ({ id: c, name: c, color: catColor(c, categories) }))}
+      options={all.map((c) => ({ id: c, name: c, color: catColor(c, all) }))}
       selected={value ? [value] : []}
       onToggle={onChange}
       onCreate={onChange}
