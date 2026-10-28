@@ -82,8 +82,7 @@ export function AppSidebar({ boards, counts, user, isAdmin }: { boards: Board[];
             { title: t.nav.home, url: "/", icon: <House />, isActive: pathname === "/" },
             { title: t.nav.calendar, url: "/calendar", icon: <CalendarDays />, isActive: on("/calendar") },
             { title: t.nav.timeline, url: "/timeline", icon: <ChartGantt />, isActive: on("/timeline") },
-            // PROTOTYPE: points at the throwaway expenses route, on the variant picked so far.
-            { title: t.nav.expenses, url: "/prototype/expenses?variant=C", icon: <Receipt />, isActive: on("/prototype/expenses") },
+            { title: t.nav.expenses, url: "/expenses", icon: <Receipt />, isActive: on("/expenses") },
             {
               title: t.nav.workers,
               icon: <Users />,

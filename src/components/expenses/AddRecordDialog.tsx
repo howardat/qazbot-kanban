@@ -1,14 +1,15 @@
 "use client";
 
-// PROTOTYPE — "Add record" modal for Variant C: the whole expense in one form, invoice drop zone included.
+// "Add record" modal: the whole expense in one form, in ₸ or $, with the invoice upload.
 import { useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CategorySelect } from "./CategorySelect";
+import { AmountField } from "./AmountField";
 import { ComboInput } from "./ExpenseSheet";
-import { filesToInvoices, todayISO, type Expense, type Invoice } from "./mock";
+import { filesToInvoices, todayISO, type Currency, type Expense, type Invoice } from "./data";
 
 const field = "h-9 w-full rounded-md border bg-card px-3 text-sm outline-none transition-shadow focus:border-ring focus:ring-3 focus:ring-ring/20";
 const label = "text-xs font-medium text-muted-foreground";
@@ -20,7 +21,6 @@ export function AddRecordDialog({
   vendors,
   categories,
   defaultCategory,
-  preview,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -28,20 +28,16 @@ export function AddRecordDialog({
   vendors: string[];
   categories: string[];
   defaultCategory: string;
-  /** Design-review only: prefill the form and/or open the category picker (see modal-preview). */
-  preview?: Preview;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-lg">
         {/* Remount per open so the form starts empty each time. */}
-        {open && <Form onAdd={(e) => (onAdd(e), onOpenChange(false))} onCancel={() => onOpenChange(false)} vendors={vendors} categories={categories} defaultCategory={defaultCategory} preview={preview} />}
+        {open && <Form onAdd={(e) => (onAdd(e), onOpenChange(false))} onCancel={() => onOpenChange(false)} vendors={vendors} categories={categories} defaultCategory={defaultCategory} />}
       </DialogContent>
     </Dialog>
   );
 }
-
-export type Preview = { fill?: Partial<Omit<Expense, "id">>; categoryOpen?: boolean; categoryQuery?: string };
 
 function Form({
   onAdd,
@@ -49,20 +45,19 @@ function Form({
   vendors,
   categories,
   defaultCategory,
-  preview,
-}: { onAdd: (e: Omit<Expense, "id">) => void; onCancel: () => void; vendors: string[]; categories: string[]; defaultCategory: string; preview?: Preview }) {
-  const f = preview?.fill;
-  const [amount, setAmount] = useState(f?.amount ? String(f.amount) : "");
-  const [vendor, setVendor] = useState(f?.vendor ?? "");
-  const [date, setDate] = useState(f?.date ?? todayISO());
-  const [category, setCategory] = useState(f?.category ?? defaultCategory);
-  const [description, setDescription] = useState(f?.description ?? "");
-  const [invoices, setInvoices] = useState<Invoice[]>(f?.invoices ?? []);
+}: { onAdd: (e: Omit<Expense, "id">) => void; onCancel: () => void; vendors: string[]; categories: string[]; defaultCategory: string }) {
+  const [amount, setAmount] = useState(0);
+  const [currency, setCurrency] = useState<Currency>("KZT");
+  const [vendor, setVendor] = useState("");
+  const [date, setDate] = useState(todayISO());
+  const [category, setCategory] = useState(defaultCategory);
+  const [description, setDescription] = useState("");
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [over, setOver] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const addFiles = (files: FileList | File[]) => setInvoices((xs) => [...xs, ...filesToInvoices(files)]);
-  const valid = !!vendor.trim() && !!Number(amount) && !!category.trim();
-  const submit = () => valid && onAdd({ amount: Number(amount), vendor: vendor.trim(), date, category: category.trim(), description: description.trim(), invoices });
+  const valid = !!vendor.trim() && amount > 0 && !!category.trim();
+  const submit = () => valid && onAdd({ amount, currency, vendor: vendor.trim(), date, category: category.trim(), description: description.trim(), invoices });
 
   return (
     <form onSubmit={(e) => (e.preventDefault(), submit())}>
@@ -79,21 +74,8 @@ function Form({
           submit();
         }}
       >
-        {/* The amount is the headline: big, right next to its currency. */}
-        <label className="block rounded-lg border bg-muted/40 px-4 pt-3 pb-2 transition-shadow focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
-          <span className={label}>Amount</span>
-          <span className="flex items-baseline gap-2">
-            <input
-              autoFocus
-              inputMode="numeric"
-              value={amount ? new Intl.NumberFormat("ru-RU").format(Number(amount)) : ""}
-              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
-              placeholder="0"
-              className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight tabular-nums outline-none placeholder:text-muted-foreground/50"
-            />
-            <span className="text-xl font-medium text-muted-foreground">₸</span>
-          </span>
-        </label>
+        {/* The amount is the headline: big, with its currency switch. */}
+        <AmountField autoFocus amount={amount} currency={currency} onChange={(a, c) => (setAmount(a), setCurrency(c))} />
         <div className="grid grid-cols-[1fr_10rem] gap-3">
           <div className="space-y-1.5">
             <span className={label}>Vendor</span>
@@ -106,7 +88,7 @@ function Form({
         </div>
         <div className="space-y-1.5">
           <span className={label}>Category</span>
-          <CategorySelect value={category} onChange={setCategory} categories={categories} className="h-9" defaultOpen={preview?.categoryOpen} defaultQuery={preview?.categoryQuery} />
+          <CategorySelect value={category} onChange={setCategory} categories={categories} className="h-9" />
         </div>
         <label className="block space-y-1.5">
           <span className={label}>

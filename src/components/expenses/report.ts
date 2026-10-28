@@ -1,7 +1,8 @@
-// PROTOTYPE — the printable expense report (A4). Pure HTML builder with no imports so it can be rendered
-// outside the app too; the page opens it in a new window and the user saves it as PDF.
+// The printable expense report (A4). Pure HTML builder with no imports so it can be rendered outside the app
+// too; the page opens it in a new window and the user saves it as PDF.
 
-type Row = { date: string; vendor: string; description: string; category: string; amount: number; invoices: { name: string }[] };
+/** `amount` is in KZT; `original` is the amount as entered when that wasn't KZT (e.g. "$200.00"). */
+type Row = { date: string; vendor: string; description: string; category: string; amount: number; original?: string; invoices: { name: string }[] };
 
 const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
 const OTHER = "#a3a39c";
@@ -29,7 +30,7 @@ function donut(slices: { v: number; color: string }[], sum: number) {
   return `<svg viewBox="0 0 120 120" width="120" height="120">${paths.join("")}</svg>`;
 }
 
-export function reportHtml(input: Row[], title: string, opts: { categories?: string[]; preparedBy?: string; generatedAt?: Date } = {}) {
+export function reportHtml(input: Row[], title: string, opts: { categories?: string[]; preparedBy?: string; generatedAt?: Date; rateNote?: string } = {}) {
   const rows = [...input].sort((a, b) => a.date.localeCompare(b.date));
   const order = opts.categories ?? [...new Set(rows.map((r) => r.category))];
   const colorOf = (c: string) => (order.indexOf(c) >= 0 && order.indexOf(c) < 8 ? PALETTE[order.indexOf(c)] : OTHER);
@@ -105,6 +106,7 @@ table { width: 100%; border-collapse: collapse; }
 .detail tr.month td { background: #f7f7f5; font-weight: 600; padding-top: 7px; padding-bottom: 7px; border-bottom: 1px solid #e4e4e0; }
 .detail tr.month td.n { color: #1d1d1b; }
 .detail td.desc { color: #4a4a46; }
+.orig { font-size: 7.5pt; color: #8a8a85; }
 .detail td.date { color: #6b6b66; white-space: nowrap; }
 .inv-ok { color: #1b7d4f; font-weight: 500; white-space: nowrap; }
 .inv-miss { color: #b25e00; font-weight: 500; white-space: nowrap; }
@@ -127,6 +129,7 @@ table { width: 100%; border-collapse: collapse; }
     <div>Generated <b>${generated.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</b></div>
     ${opts.preparedBy ? `<div>Prepared by <b>${esc(opts.preparedBy)}</b></div>` : ""}
     <div>Currency <b>KZT (₸)</b></div>
+    ${opts.rateNote ? `<div>Rate <b>${esc(opts.rateNote)}</b></div>` : ""}
   </div>
 </header>
 
@@ -170,7 +173,7 @@ ${rows.length === 0 ? `<div class="empty" style="margin-top:24px">No expenses in
         ${rs.map((r) => `<tr><td class="date">${fmtDate(r.date)}</td><td>${esc(r.vendor)}</td><td class="desc">${esc(r.description)}</td>
           <td><span class="dot" style="background:${colorOf(r.category)}"></span>${esc(r.category)}</td>
           <td>${r.invoices.length ? `<span class="inv-ok">✓ ${r.invoices.length > 1 ? r.invoices.length : "Attached"}</span>` : `<span class="inv-miss">Missing</span>`}</td>
-          <td class="n">${money(r.amount)}</td></tr>`).join("")}`).join("")}
+          <td class="n">${money(r.amount)}${r.original ? `<div class="orig">${esc(r.original)}</div>` : ""}</td></tr>`).join("")}`).join("")}
     </tbody>
     <tfoot><tr><td colspan="5">Total · ${rows.length} expenses</td><td class="n">${money(sum)}</td></tr></tfoot>
   </table>
@@ -182,7 +185,7 @@ ${rows.length === 0 ? `<div class="empty" style="margin-top:24px">No expenses in
 }
 
 /** Opens the report in a new window and prints it once the font has loaded. */
-export function printReport(rows: Row[], title: string, opts?: { categories?: string[]; preparedBy?: string }) {
+export function printReport(rows: Row[], title: string, opts?: { categories?: string[]; preparedBy?: string; rateNote?: string }) {
   const w = window.open("", "_blank");
   if (!w) return;
   const autoPrint = `<script>addEventListener("load", () => document.fonts.ready.then(() => print()))</script>`;

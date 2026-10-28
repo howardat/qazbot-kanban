@@ -1,31 +1,27 @@
 "use client";
 
-// PROTOTYPE — category picker modelled on Plane's LabelSelect (packages/blocks/src/property-select/label-select):
+// Category picker modelled on Plane's LabelSelect (packages/blocks/src/property-select/label-select):
 // a pill trigger opens a popover with a search box; typing filters the categories; when nothing matches, a
 // `+ Add "query" to categories` row creates the category from what was typed (Enter does the same).
 import { useState } from "react";
 import { Check, ChevronDown, Plus, Search, Tag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { catColor } from "./mock";
+import { catColor } from "./data";
 
 export function CategorySelect({
   value,
   onChange,
   categories,
   className,
-  defaultOpen = false,
-  defaultQuery = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   categories: string[];
   className?: string;
-  defaultOpen?: boolean;
-  defaultQuery?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [query, setQuery] = useState(defaultQuery);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [hi, setHi] = useState(0);
   const q = query.trim().toLowerCase();
   const matches = categories.filter((c) => !q || c.toLowerCase().includes(q));
