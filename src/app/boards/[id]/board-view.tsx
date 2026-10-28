@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { boards, columns } from "@/db/schema";
 import { Board, type ColumnData } from "@/components/Board";
+import { canDeleteBoard } from "@/lib/board-ops";
 import { loadCards, loadMembers, loadTags } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { track } from "@/lib/activity";
@@ -41,7 +42,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
       tags={tags}
       today={todayISO()}
       currentUserId={user.id}
-      canDelete={user.role === "admin" || board.createdBy === user.id}
+      canDelete={canDeleteBoard(user, board.createdBy)}
       layout={layout}
     />
   );

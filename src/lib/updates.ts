@@ -17,8 +17,15 @@ export const RELEASES: Release[] = [
   {
     id: "2026-10-28-expense-fixes",
     date: "2026-10-28",
-    title: { en: "Expenses fixes", ru: "Исправления в расходах" },
+    title: { en: "Expenses fixes and safer boards", ru: "Исправления в расходах и защита досок" },
     changes: [
+      {
+        kind: "improved",
+        text: {
+          en: "Only the person who created a board can delete it.",
+          ru: "Удалить доску теперь может только тот, кто её создал.",
+        },
+      },
       {
         kind: "fixed",
         text: {
