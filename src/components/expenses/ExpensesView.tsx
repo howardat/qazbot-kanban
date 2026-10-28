@@ -153,14 +153,9 @@ export function ExpensesView() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <Panel
-          className="min-w-0 self-start"
-          icon={<Receipt />}
-          title={cat ? `${rows.length} of ${inPeriod.length} expenses` : `${rows.length} expenses`}
-          action={<span className="font-semibold text-foreground tabular-nums">{kzt(sum(rows))}</span>}
-        >
-          {/* Table toolbar: filters on the left, actions on the right */}
-          <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+        <div className="min-w-0 space-y-3">
+          {/* Toolbar above the table: filters on the left, actions on the right */}
+          <div className="flex flex-wrap items-center gap-2">
             <select value={custom ? "custom" : rangeKey} onChange={(e) => onDateFilter(e.target.value)} className={select} aria-label="Date">
               {!presets.some(([, r]) => `${r[0]}-${r[1]}` === rangeKey) && <option value={rangeKey}>{rangeLabel(range[0], range[1])}</option>}
               {presets.map(([l, r]) => (
@@ -214,54 +209,60 @@ export function ExpensesView() {
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                <tr>
-                  {COLUMNS.map((c) => (
-                    <th key={c.key} className={cn("h-8 px-4 font-medium", c.className)}>
-                      <button type="button" onClick={() => toggleSort(c.key)} className={cn("inline-flex items-center gap-1 hover:text-foreground", sort.key === c.key && "text-foreground")}>
-                        {c.label}
-                        {sort.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {rows.map((r) => (
-                  <tr key={r.id} onClick={() => setOpenId(r.id)} className="cursor-pointer hover:bg-muted/40 [&>td]:px-4 [&>td]:py-2">
-                    <td className="text-muted-foreground tabular-nums">{r.date.slice(5)}</td>
-                    <td className="font-medium">{r.vendor}</td>
-                    <td className="hidden max-w-72 truncate text-muted-foreground md:table-cell">{r.description}</td>
-                    <td>
-                      <CategoryPill name={r.category} categories={categories} />
-                    </td>
-                    <td>
-                      {r.invoices[0] ? (
-                        <a href={r.invoices[0].url} target="_blank" rel="noreferrer" title={r.invoices[0].name} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                          <Paperclip className="size-3.5" /> {r.invoices.length}
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                          <AlertTriangle className="size-3.5" /> none
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-right font-medium tabular-nums">{kzt(r.amount)}</td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
+          <Panel
+            icon={<Receipt />}
+            title={cat ? `${rows.length} of ${inPeriod.length} expenses` : `${rows.length} expenses`}
+            action={<span className="font-semibold text-foreground tabular-nums">{kzt(sum(rows))}</span>}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
-                    <td colSpan={COLUMNS.length} className="py-10 text-center text-muted-foreground">
-                      {cat ? `No ${cat} expenses in ${label}.` : `No expenses in ${label}.`}
-                    </td>
+                    {COLUMNS.map((c) => (
+                      <th key={c.key} className={cn("h-8 px-4 font-medium", c.className)}>
+                        <button type="button" onClick={() => toggleSort(c.key)} className={cn("inline-flex items-center gap-1 hover:text-foreground", sort.key === c.key && "text-foreground")}>
+                          {c.label}
+                          {sort.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+                        </button>
+                      </th>
+                    ))}
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
+                </thead>
+                <tbody className="divide-y">
+                  {rows.map((r) => (
+                    <tr key={r.id} onClick={() => setOpenId(r.id)} className="cursor-pointer hover:bg-muted/40 [&>td]:px-4 [&>td]:py-2">
+                      <td className="text-muted-foreground tabular-nums">{r.date.slice(5)}</td>
+                      <td className="font-medium">{r.vendor}</td>
+                      <td className="hidden max-w-72 truncate text-muted-foreground md:table-cell">{r.description}</td>
+                      <td>
+                        <CategoryPill name={r.category} categories={categories} />
+                      </td>
+                      <td>
+                        {r.invoices[0] ? (
+                          <a href={r.invoices[0].url} target="_blank" rel="noreferrer" title={r.invoices[0].name} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                            <Paperclip className="size-3.5" /> {r.invoices.length}
+                          </a>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                            <AlertTriangle className="size-3.5" /> none
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-right font-medium tabular-nums">{kzt(r.amount)}</td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td colSpan={COLUMNS.length} className="py-10 text-center text-muted-foreground">
+                        {cat ? `No ${cat} expenses in ${label}.` : `No expenses in ${label}.`}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
 
         <aside className="space-y-4">
           <Donut title="By category" rows={inPeriod} keyOf={(e) => e.category} order={categories} active={cat} onPick={(c) => setCat((x) => (x === c ? "" : c))} />
