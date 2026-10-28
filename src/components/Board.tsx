@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   closestCorners,
@@ -82,7 +82,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { ISODate } from "@/lib/dates";
+import { addDays, type ISODate } from "@/lib/dates";
 import type { CardData, Member, Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +112,7 @@ type Ctx = {
   memberById: Map<string, Member>;
   tagById: Map<string, Tag>;
   today: ISODate;
+  currentUserId: string;
   columns: { id: string; name: string; isDone: boolean }[];
   editingId: string | null;
   display: Display;
@@ -233,6 +234,7 @@ export function Board({
   const ctx: Ctx = {
     ...maps,
     today,
+    currentUserId,
     columns: cols.map(({ id, name, isDone }) => ({ id, name, isDone })),
     editingId: editing?.id ?? null,
     display,
@@ -598,14 +600,14 @@ function Column({
         </DropdownMenu>
         </span>
       </header>
-      <div className="-mx-0.5 flex min-h-[120px] flex-col gap-2 overflow-y-auto p-0.5">
+      <div className="-mx-0.5 flex min-h-2 flex-col gap-2 overflow-y-auto p-0.5">
         <SortableContext items={column.cards.map((c) => cardKey(c.id))} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} />
           ))}
         </SortableContext>
+        <AddCard column={column} ctx={ctx} open={adding} setOpen={setAdding} />
       </div>
-      <AddCard columnId={column.id} open={adding} setOpen={setAdding} />
     </section>
   );
 }
@@ -735,51 +737,135 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
   );
 }
 
-/** Plane's quick add: a "+ New card" row under the column; it opens a card-shaped field, Enter adds and stays open. */
-function AddCard({ columnId, open, setOpen }: { columnId: string; open: boolean; setOpen: (open: boolean) => void }) {
-  const t = useT();
+/**
+ * Quick-add rules shared by the board and list layouts. The draft is a card like any other (title plus
+ * the same priority, deadline and people chips) that only exists here until it has a title. Enter saves
+ * and starts a fresh draft, moving focus away saves it (a blank draft is just dropped), Esc discards.
+ */
+function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => void) {
+  // The same defaults the server gives a new card: due tomorrow, assigned to whoever adds it.
+  const fresh = (): QuickPatch & Required<QuickPatch> => ({ priority: null, dueDate: addDays(ctx.today, 1), assigneeIds: [ctx.currentUserId] });
   const [title, setTitle] = useState("");
+  const [props, setProps] = useState(fresh);
   const [pending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const saving = useRef(false);
+  const discarded = useRef(false);
+
+  const close = () => {
+    setTitle("");
+    setProps(fresh());
+    setOpen(false);
+  };
+  const commit = (keepOpen: boolean) => {
+    const text = title.trim();
+    if (!text) {
+      if (!keepOpen) close();
+      return;
+    }
+    if (saving.current) return;
+    saving.current = true;
+    startTransition(async () => {
+      try {
+        await addCard(column.id, text, undefined, props);
+      } finally {
+        saving.current = false;
+      }
+      if (!keepOpen) return close();
+      setTitle("");
+      setProps(fresh());
+      inputRef.current?.focus();
+    });
+  };
+
+  const draft: CardData = {
+    id: "draft",
+    boardId: "",
+    columnId: column.id,
+    title,
+    description: "",
+    startDate: null,
+    tagIds: [],
+    project: null,
+    ...props,
+  };
+
+  return {
+    draft,
+    pending,
+    onPatch: (p: QuickPatch) => setProps((prev) => ({ ...prev, ...p })),
+    // On the draft's wrapper: focus moving to its own chips, or into their menus and pickers (portalled),
+    // still counts as being on the draft.
+    draftProps: {
+      onFocus: () => (discarded.current = false),
+      // Clicking a chip keeps focus in the title (Safari doesn't focus buttons on click, so the blur
+      // below would otherwise see focus leave the draft).
+      onMouseDown: (e: React.MouseEvent<HTMLElement>) => {
+        if (e.currentTarget.contains(e.target as Node) && e.target !== inputRef.current) e.preventDefault();
+      },
+      onBlur: (e: React.FocusEvent<HTMLElement>) => {
+        const next = e.relatedTarget;
+        if (next && (e.currentTarget.contains(next) || next.closest("[data-radix-popper-content-wrapper]"))) return;
+        if (!discarded.current) commit(false);
+      },
+    },
+    inputProps: {
+      ref: inputRef,
+      autoFocus: true,
+      value: title,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value),
+      onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit(true);
+        }
+        if (e.key === "Escape") {
+          discarded.current = true;
+          close();
+        }
+      },
+      // Read-only (not disabled) while saving, so the field keeps focus and doesn't fire a stray blur.
+      readOnly: pending,
+      maxLength: 200,
+    },
+  };
+}
+
+/** Plane's quick add: a "+ New card" row after the cards; it opens a blank draft card that saves only with a title. */
+function AddCard({ column, ctx, open, setOpen }: { column: ColumnData; ctx: Ctx; open: boolean; setOpen: (open: boolean) => void }) {
+  const t = useT();
+  const { draft, pending, onPatch, draftProps, inputProps } = useQuickAdd(column, ctx, setOpen);
+  const draftRef = useRef<HTMLDivElement>(null);
+  // The header's "+" opens the draft at the bottom of the column; bring it into view.
+  useEffect(() => {
+    if (open) draftRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open]);
 
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-1 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground outline-none hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Plus className="size-3.5" /> {t.column.newCard}
       </button>
     );
   }
-  const submit = () => {
-    if (!title.trim() || pending) return;
-    startTransition(async () => {
-      await addCard(columnId, title);
-      setTitle("");
-    });
-  };
+  // The same shell and chips as CardView, with the title as a field.
   return (
-    <div className="m-0.5 mt-1 overflow-hidden rounded-lg border bg-card shadow-sm">
+    <div
+      ref={draftRef}
+      {...draftProps}
+      className={cn("shrink-0 rounded-lg border border-primary bg-card p-3 text-[13px] shadow-xs ring-1 ring-primary", pending && "opacity-70")}
+    >
       <input
-        autoFocus
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            submit();
-          }
-          if (e.key === "Escape") setOpen(false);
-        }}
-        onBlur={() => !title.trim() && setOpen(false)}
-        maxLength={200}
-        disabled={pending}
+        {...inputProps}
         placeholder={t.column.addPlaceholder}
         aria-label={t.column.addCard}
-        className="w-full bg-transparent px-3 py-3 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
+        className="w-full bg-transparent text-[14px] leading-5 font-medium outline-none placeholder:text-muted-foreground"
       />
-      <div className="bg-muted/35 px-3 py-2 text-[11px] text-muted-foreground italic">{t.column.addHint}</div>
+      <CardQuickProps card={draft} members={[...ctx.memberById.values()]} today={ctx.today} done={column.isDone} show={ctx.display} onPatch={onPatch} />
     </div>
   );
 }
@@ -861,7 +947,7 @@ function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnDat
               <ListRow key={card.id} card={card} ctx={ctx} done={column.isDone} />
             ))}
           </ul>
-          <ListQuickAdd columnId={column.id} open={adding} setOpen={setAdding} />
+          <ListQuickAdd column={column} ctx={ctx} open={adding} setOpen={setAdding} />
         </>
       )}
     </section>
@@ -898,11 +984,10 @@ function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean 
   );
 }
 
-/** Plane's list quick add: a "+ New card" row; Enter adds and keeps the field open. */
-function ListQuickAdd({ columnId, open, setOpen }: { columnId: string; open: boolean; setOpen: (open: boolean) => void }) {
+/** Plane's list quick add: a "+ New card" row that opens a draft row with the same chips as the others. */
+function ListQuickAdd({ column, ctx, open, setOpen }: { column: ColumnData; ctx: Ctx; open: boolean; setOpen: (open: boolean) => void }) {
   const t = useT();
-  const [title, setTitle] = useState("");
-  const [pending, startTransition] = useTransition();
+  const { draft, pending, onPatch, draftProps, inputProps } = useQuickAdd(column, ctx, setOpen);
   if (!open)
     return (
       <button
@@ -914,29 +999,19 @@ function ListQuickAdd({ columnId, open, setOpen }: { columnId: string; open: boo
       </button>
     );
   return (
-    <div className="flex items-center gap-3 border-b bg-card py-1 pr-4 pl-4 shadow-sm md:pl-6">
+    <div
+      {...draftProps}
+      className={cn("flex min-h-11 flex-col gap-2 border-b bg-card py-1.5 pr-4 pl-4 text-[13px] shadow-sm md:flex-row md:items-center md:pl-6", pending && "opacity-70")}
+    >
       <input
-        autoFocus
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && title.trim() && !pending) {
-            e.preventDefault();
-            startTransition(async () => {
-              await addCard(columnId, title);
-              setTitle("");
-            });
-          }
-          if (e.key === "Escape") setOpen(false);
-        }}
-        onBlur={() => !title.trim() && setOpen(false)}
-        maxLength={200}
-        disabled={pending}
+        {...inputProps}
         placeholder={t.column.addPlaceholder}
         aria-label={t.column.addCard}
-        className="min-w-0 flex-1 bg-transparent py-2 text-[13px] font-medium outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 bg-transparent py-1 font-medium outline-none placeholder:text-muted-foreground"
       />
-      <span className="hidden shrink-0 text-[11px] text-muted-foreground italic sm:inline">{t.column.addHint}</span>
+      <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
+        <CardQuickProps card={draft} members={[...ctx.memberById.values()]} today={ctx.today} done={column.isDone} show={ctx.display} onPatch={onPatch} />
+      </span>
     </div>
   );
 }

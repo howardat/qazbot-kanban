@@ -216,7 +216,6 @@ export const en = {
     deleteColumn: "Delete column",
     addPlaceholder: "What needs doing?",
     newCard: "New card",
-    addHint: "Press Enter to add another card, Esc to close",
   },
 
   card: {
@@ -333,6 +332,7 @@ export const en = {
     barAria: (title: string, start: ISODate, end: ISODate) => `${title}, ${fmt.day(start)} to ${fmt.day(end)}`,
     scheduleOn: (day: ISODate) => `Schedule on ${fmt.day(day)}`,
     scheduleAria: (title: string, day: ISODate) => `Schedule ${title} on ${fmt.day(day)}`,
+    dragRow: "Open, or drag to reorder or move to another column",
   },
 
   assistant: {

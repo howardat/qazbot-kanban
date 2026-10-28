@@ -2,7 +2,7 @@ import "server-only";
 import { asc, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { boards, cardAssignees, cards, cardTags, columns, profiles, tags } from "@/db/schema";
-import type { CardRow, Member, Tag } from "@/lib/types";
+import type { CardRow, Member, Tag, TimelineColumn } from "@/lib/types";
 
 export async function loadMembers(): Promise<Member[]> {
   return db
@@ -68,6 +68,16 @@ export async function loadCards(boardId?: string): Promise<CardRow[]> {
 
 export async function loadBoards() {
   return db.select({ id: boards.id, name: boards.name }).from(boards).orderBy(asc(boards.createdAt));
+}
+
+/** Columns in board order (oldest board first), then left to right: the timeline's groups. */
+export async function loadColumns(boardId?: string): Promise<TimelineColumn[]> {
+  const base = db
+    .select({ id: columns.id, boardId: columns.boardId, boardName: boards.name, name: columns.name, isDone: columns.isDone, isInProgress: columns.isInProgress })
+    .from(columns)
+    .innerJoin(boards, eq(boards.id, columns.boardId))
+    .orderBy(asc(boards.createdAt), asc(columns.position));
+  return boardId ? base.where(eq(columns.boardId, boardId)) : base;
 }
 
 /** Open (not done) cards per board, for the counts beside boards in the sidebar. */

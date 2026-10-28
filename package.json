@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,7 +13,8 @@
     "db:seed-demo": "node --env-file=.env.local scripts/seed-demo.mjs",
     "typecheck": "tsc --noEmit",
     "supabase:start": "supabase start",
-    "supabase:stop": "supabase stop"
+    "supabase:stop": "supabase stop",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -50,11 +51,16 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "0.180.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/browser-playwright": "5.0.5",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
+    "playwright": "1.64.1",
     "supabase": "^2.121.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.5",
+    "vitest-browser-react": "^2.3.0"
   }
 }

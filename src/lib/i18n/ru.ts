@@ -219,7 +219,6 @@ export const ru: Dict = {
     confirmDelete: (n) => `Нажмите ещё раз, чтобы удалить ${n} ${p(n, "карточку", "карточки", "карточек")}`,
     deleteColumn: "Удалить колонку",
     newCard: "Новая карточка",
-    addHint: "Enter — добавить ещё, Esc — закрыть",
     addPlaceholder: "Что нужно сделать?",
   },
 
@@ -338,6 +337,7 @@ export const ru: Dict = {
     barAria: (title, start, end) => `${title}, ${fmt.day(start)} — ${fmt.day(end)}`,
     scheduleOn: (day) => `Запланировать на ${fmt.day(day)}`,
     scheduleAria: (title, day) => `Запланировать «${title}» на ${fmt.day(day)}`,
+    dragRow: "Открыть, или перетащить, чтобы изменить порядок или колонку",
   },
 
   assistant: {
