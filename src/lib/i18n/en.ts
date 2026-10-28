@@ -61,6 +61,7 @@ export const en = {
     all: "All updates",
     latest: "Latest",
     unreadAria: "Updates, something new",
+    feedback: "Report a bug or suggest",
     kind: { new: "New", improved: "Improved", fixed: "Fixed" },
   },
 
