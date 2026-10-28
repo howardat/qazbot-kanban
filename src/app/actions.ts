@@ -131,11 +131,17 @@ export async function moveColumn(columnId: string, toIndex: number) {
 
 // ---------- Cards ----------
 
-/** Quick add from a column, a calendar day or a timeline row; `dates` pre-fills the schedule. */
-export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }) {
+type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority">>;
+
+/**
+ * Quick add from a column, a calendar day or a timeline row; `dates` pre-fills the schedule and
+ * `fields` carries what was picked on the board's draft card (deadline, priority, people).
+ */
+export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }, fields?: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.add");
-  await addCardOp(user, columnId, title, dates);
+  const cardId = await addCardOp(user, columnId, title, dates);
+  if (fields) await patchCardOp(cardId, fields);
   refreshAll();
 }
 
@@ -210,7 +216,7 @@ export async function moveCard(cardId: string, toColumnId: string, toIndex: numb
 }
 
 /** Board card quick buttons: change only the deadline, assignees or priority. */
-export async function quickUpdateCard(cardId: string, patch: Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority">>) {
+export async function quickUpdateCard(cardId: string, patch: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.quickEdit");
   await patchCardOp(cardId, patch);

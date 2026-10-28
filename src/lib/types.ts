@@ -26,6 +26,9 @@ export type CardData = {
   priority: Priority | null;
 };
 
+/** A kanban column as the timeline groups cards by it. */
+export type TimelineColumn = { id: string; boardId: string; boardName: string; name: string; isDone: boolean; isInProgress: boolean };
+
 /** Card plus where it lives, for cross-board views (dashboard, calendar, timeline). */
 export type CardRow = CardData & {
   boardName: string;
