@@ -1,4 +1,4 @@
-// Demo data for local development: teammates, boards, tags and cards dated around today.
+// Demo data for local development: teammates, boards, tags, cards and expenses dated around today.
 //
 //   pnpm db:seed-demo
 //
@@ -116,12 +116,43 @@ const BOARDS = [
   },
 ];
 
+// Demo expenses in tenge, by days before today, so the expenses page has several months of data.
+// [daysAgo, vendor, description, category, amount, by]
+const EXPENSES = [
+  [290, "Kaspi Magazin", "Jetson Orin dev kit", "Hardware", 1_250_000, "arman"],
+  [284, "OpenRouter", "LLM credits", "Software", 98_000, "daniyar"],
+  [271, "Air Astana", "Flight to Shanghai (AgiBot)", "Travel", 410_000, "aigerim"],
+  [265, "Technodom", "Monitors x2", "Office", 360_000, "madina"],
+  [257, "Vercel", "Pro plan", "Software", 24_000, "daniyar"],
+  [248, "Instagram Ads", "Expo campaign", "Marketing", 150_000, "madina"],
+  [235, "Sulpak", "Router + switches", "Hardware", 185_000, "arman"],
+  [222, "Hilton Astana", "Hotel, client demo", "Travel", 210_000, "aigerim"],
+  [211, "Supabase", "Team plan", "Software", 12_500, "daniyar"],
+  [202, "AgiBot", "X2 Ultra spare actuators", "Hardware", 2_900_000, "arman"],
+  [190, "Coworking Hub", "Desk rent", "Office", 120_000, "madina"],
+  [177, "Soniox", "STT usage", "Software", 45_000, "daniyar"],
+  [165, "PrintPro", "Expo banners", "Marketing", 88_000, "madina"],
+  [152, "Yandex Go", "Taxi, robot transport", "Travel", 32_000, "arman"],
+  [140, "Coworking Hub", "Desk rent", "Office", 120_000, "madina"],
+  [128, "Legal Partners", "Contract review", "Services", 300_000, "aigerim"],
+  [112, "Kaspi Magazin", "Batteries", "Hardware", 76_000, "arman"],
+  [90, "OpenRouter", "LLM credits", "Software", 110_000, "daniyar"],
+  [77, "Air Astana", "Almaty ↔ Astana", "Travel", 95_000, "aigerim"],
+  [64, "Figma", "Seats", "Software", 36_000, "daniyar"],
+  [54, "Technodom", "Laptop", "Hardware", 890_000, "arman"],
+  [37, "Accountant LLP", "Q3 bookkeeping", "Services", 180_000, "aigerim"],
+  [25, "Coworking Hub", "Desk rent", "Office", 120_000, "madina"],
+  [12, "Meta Ads", "Hotel reception launch", "Marketing", 220_000, "madina"],
+  [4, "OpenRouter", "LLM credits", "Software", 105_000, "daniyar"],
+];
+
 const ids = await sql.begin(async (tx) => {
   // Remove the previous demo run. Boards they created cascade to columns, cards and tags.
   const old = await tx`select id from auth.users where email like ${"%@" + DOMAIN}`;
   if (old.length) {
     const oldIds = old.map((r) => r.id);
     await tx`delete from board where created_by in ${tx(oldIds)}`;
+    await tx`delete from expense where created_by in ${tx(oldIds)}`;
     await tx`delete from auth.users where id in ${tx(oldIds)}`;
   }
 
@@ -169,11 +200,16 @@ const ids = await sql.begin(async (tx) => {
       cardCount++;
     }
   }
-  return { people: PEOPLE.length, boards: BOARDS.length, cards: cardCount, me: !!me };
+  for (const [ago, vendor, description, category, amount, by] of EXPENSES) {
+    await tx`
+      insert into expense (date, vendor, description, category, amount, created_by)
+      values (${day(-ago)}, ${vendor}, ${description}, ${category}, ${amount}, ${people[by]})`;
+  }
+  return { people: PEOPLE.length, boards: BOARDS.length, cards: cardCount, expenses: EXPENSES.length, me: !!me };
 });
 
 console.log(
-  `Seeded ${ids.people} demo teammates, ${ids.boards} boards and ${ids.cards} cards around ${today}.` +
+  `Seeded ${ids.people} demo teammates, ${ids.boards} boards, ${ids.cards} cards and ${ids.expenses} expenses around ${today}.` +
     (ids.me ? " Some cards are assigned to you." : " No real user yet, so nothing is assigned to you."),
 );
 await sql.end();

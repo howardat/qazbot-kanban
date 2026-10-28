@@ -1,7 +1,7 @@
 import "server-only";
 import { inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { boards, cards, columns, profiles } from "@/db/schema";
+import { boards, cards, columns, expenses, profiles } from "@/db/schema";
 import type { Dict } from "@/lib/i18n";
 
 type Args = Record<string, unknown>;
@@ -12,14 +12,19 @@ export async function describeCall(name: string, args: Args, t: Dict): Promise<s
   const ids = (keys: string[]) => keys.map((k) => args[k]).filter((v): v is string => typeof v === "string");
   const people = Array.isArray(args.assigneeIds) ? (args.assigneeIds as string[]) : [];
 
-  const [cardRows, colRows, boardRows, personRows] = await Promise.all([
+  const [cardRows, colRows, boardRows, personRows, expenseRows] = await Promise.all([
     ids(["cardId"]).length ? db.select({ id: cards.id, title: cards.title }).from(cards).where(inArray(cards.id, ids(["cardId"]))) : [],
     ids(["columnId"]).length
       ? db.select({ id: columns.id, name: columns.name, boardId: columns.boardId }).from(columns).where(inArray(columns.id, ids(["columnId"])))
       : [],
     db.select({ id: boards.id, name: boards.name }).from(boards),
     people.length ? db.select({ id: profiles.id, name: profiles.name, email: profiles.email }).from(profiles).where(inArray(profiles.id, people)) : [],
+    ids(["expenseId"]).length
+      ? db.select({ vendor: expenses.vendor, amount: expenses.amount, date: expenses.date }).from(expenses).where(inArray(expenses.id, ids(["expenseId"])))
+      : [],
   ]);
+  const kzt = (n: unknown) => `${new Intl.NumberFormat(t.locale === "ru" ? "ru-RU" : "en-GB").format(Number(n) || 0)} ₸`;
+  const expense = expenseRows[0] ? `${expenseRows[0].vendor}, ${kzt(expenseRows[0].amount)}, ${t.fmt.day(expenseRows[0].date)}` : "?";
   const card = cardRows[0]?.title ?? "?";
   const col = colRows[0];
   const boardName = (bid: unknown) => boardRows.find((b) => b.id === bid)?.name ?? "?";
@@ -66,6 +71,25 @@ export async function describeCall(name: string, args: Args, t: Dict): Promise<s
       return a.addColumn(String(args.name ?? ""), boardName(args.boardId));
     case "create_tag":
       return a.createTag(String(args.name ?? ""), boardName(args.boardId));
+    case "list_expenses":
+      return a.listExpenses;
+    case "expense_summary":
+      return a.expenseSummary;
+    case "add_expense":
+      return a.addExpense(`${args.vendor ?? "?"}, ${kzt(args.amountKzt)}, ${day(args.date)} · ${args.category ?? ""}`);
+    case "update_expense": {
+      const e = t.expenses;
+      const changes = [
+        "vendor" in args ? `${e.vendor.toLowerCase()} → “${args.vendor}”` : null,
+        "amountKzt" in args ? `${e.amount.toLowerCase()} → ${kzt(args.amountKzt)}` : null,
+        "date" in args ? `${e.date.toLowerCase()} → ${day(args.date)}` : null,
+        "category" in args ? `${e.category.toLowerCase()} → ${args.category}` : null,
+        "description" in args ? e.description.toLowerCase() : null,
+      ].filter(Boolean);
+      return a.updateExpense(expense, changes.join("; "));
+    }
+    case "delete_expense":
+      return a.deleteExpense(expense);
     default:
       return name;
   }

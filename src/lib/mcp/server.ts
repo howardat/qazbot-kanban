@@ -15,11 +15,12 @@ import {
   type Actor,
 } from "@/lib/board-ops";
 import { loadCards, loadMembers } from "@/lib/data";
+import { createExpenseOp, deleteExpenseOp, loadExpenses, updateExpenseOp } from "@/lib/expenses";
 import { PRIORITIES } from "@/lib/priority";
 import { PROJECTS } from "@/lib/projects";
 import type { CardRow } from "@/lib/types";
 
-// Kanban tools over MCP. The same server backs the in-app assistant (in-memory transport) and the
+// Kanban and expense tools over MCP. The same server backs the in-app assistant (in-memory transport) and the
 // external /api/mcp endpoint (personal access tokens). Tools run with the caller's permissions.
 // Read tools carry readOnlyHint; the assistant runs those freely and asks the user before any other.
 
@@ -348,6 +349,133 @@ export function createMcpServer(ctx: McpContext) {
       const tag = await createTagOp(a.boardId, { name: a.name, color: a.color });
       ctx.onChange();
       return ok({ tag: tag.id });
+    }),
+  );
+
+  // ---------- Expenses ----------
+
+  const expenseFilter = {
+    from: date.optional().describe("First day to include, YYYY-MM-DD."),
+    to: date.optional().describe("Last day to include, YYYY-MM-DD."),
+    category: z.string().max(60).optional().describe("Only this category (case-insensitive)."),
+    vendor: z.string().max(200).optional().describe("Only this vendor (case-insensitive)."),
+  };
+
+  server.registerTool(
+    "list_expenses",
+    {
+      title: "List expenses",
+      description:
+        "Company expenses, oldest first, optionally filtered by date range, category or vendor. Amounts are whole KZT. `invoices` is how many invoice files are attached (0 means the invoice is missing).",
+      inputSchema: expenseFilter,
+      annotations: READ,
+    },
+    safe(async (f) => {
+      const rows = await loadExpenses(f);
+      return ok({
+        count: rows.length,
+        totalKzt: rows.reduce((s, r) => s + r.amount, 0),
+        expenses: rows.map((r) => ({
+          id: r.id,
+          date: r.date,
+          vendor: r.vendor,
+          ...(r.description ? { description: r.description.slice(0, 300) } : {}),
+          category: r.category,
+          amountKzt: r.amount,
+          invoices: r.invoices.length,
+        })),
+      });
+    }),
+  );
+
+  server.registerTool(
+    "expense_summary",
+    {
+      title: "Expense summary",
+      description: "Totals for a period in KZT: overall, by category, by month, the top vendors, and how many expenses lack an invoice.",
+      inputSchema: { from: expenseFilter.from, to: expenseFilter.to },
+      annotations: READ,
+    },
+    safe(async (f) => {
+      const rows = await loadExpenses(f);
+      const group = (key: (r: (typeof rows)[number]) => string) => {
+        const m = new Map<string, { amountKzt: number; count: number }>();
+        for (const r of rows) {
+          const g = m.get(key(r)) ?? { amountKzt: 0, count: 0 };
+          g.amountKzt += r.amount;
+          g.count += 1;
+          m.set(key(r), g);
+        }
+        return [...m].map(([k, v]) => ({ key: k, ...v }));
+      };
+      const missing = rows.filter((r) => !r.invoices.length);
+      return ok({
+        count: rows.length,
+        totalKzt: rows.reduce((s, r) => s + r.amount, 0),
+        byCategory: group((r) => r.category).sort((a, b) => b.amountKzt - a.amountKzt).map(({ key, ...v }) => ({ category: key, ...v })),
+        byMonth: group((r) => r.date.slice(0, 7)).sort((a, b) => a.key.localeCompare(b.key)).map(({ key, ...v }) => ({ month: key, ...v })),
+        topVendors: group((r) => r.vendor).sort((a, b) => b.amountKzt - a.amountKzt).slice(0, 10).map(({ key, ...v }) => ({ vendor: key, ...v })),
+        missingInvoices: { count: missing.length, amountKzt: missing.reduce((s, r) => s + r.amount, 0) },
+      });
+    }),
+  );
+
+  server.registerTool(
+    "add_expense",
+    {
+      title: "Add expense",
+      description:
+        "Record a company expense in whole KZT. Use an existing category when one fits (see list_expenses or expense_summary); a new name creates a new category. Invoice files can only be attached in the app.",
+      inputSchema: {
+        date,
+        vendor: z.string().min(1).max(200),
+        amountKzt: z.number().int().positive(),
+        category: z.string().min(1).max(60),
+        description: z.string().max(5000).optional(),
+      },
+      annotations: WRITE,
+    },
+    safe(async (a) => {
+      const expenseId = await createExpenseOp(ctx.actor, { date: a.date, vendor: a.vendor, amount: a.amountKzt, category: a.category, description: a.description ?? "" });
+      ctx.onChange();
+      return ok({ created: expenseId });
+    }),
+  );
+
+  server.registerTool(
+    "update_expense",
+    {
+      title: "Update expense",
+      description: "Change some fields of an expense; anything left out stays the same.",
+      inputSchema: {
+        expenseId: uuid,
+        date: date.optional(),
+        vendor: z.string().min(1).max(200).optional(),
+        amountKzt: z.number().int().positive().optional(),
+        category: z.string().min(1).max(60).optional(),
+        description: z.string().max(5000).optional(),
+      },
+      annotations: WRITE,
+    },
+    safe(async ({ expenseId, amountKzt, ...rest }) => {
+      if (!(await updateExpenseOp(expenseId, { ...rest, ...(amountKzt !== undefined ? { amount: amountKzt } : {}) }))) return fail("Expense not found.");
+      ctx.onChange();
+      return ok({ updated: expenseId });
+    }),
+  );
+
+  server.registerTool(
+    "delete_expense",
+    {
+      title: "Delete expense",
+      description: "Delete an expense and its invoice files for everyone. This can't be undone.",
+      inputSchema: { expenseId: uuid },
+      annotations: DESTRUCTIVE,
+    },
+    safe(async ({ expenseId }) => {
+      if (!(await deleteExpenseOp(expenseId))) return fail("Expense not found.");
+      ctx.onChange();
+      return ok({ deleted: expenseId });
     }),
   );
 
