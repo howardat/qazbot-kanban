@@ -15,6 +15,20 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-28-feedback",
+    date: "2026-10-28",
+    title: { en: "Report bugs and ideas", ru: "Сообщайте об ошибках и идеях" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Found a bug or have an idea? Use the new button under Updates in the sidebar to tell us.",
+          ru: "Нашли ошибку или есть идея? Расскажите нам через новую кнопку под «Обновлениями» в меню.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-28-expense-fixes",
     date: "2026-10-28",
     title: { en: "Expenses fixes and safer boards", ru: "Исправления в расходах и защита досок" },

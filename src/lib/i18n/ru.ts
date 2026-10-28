@@ -64,6 +64,7 @@ export const ru: Dict = {
     all: "Все обновления",
     latest: "Последнее",
     unreadAria: "Обновления, есть новое",
+    feedback: "Сообщить об ошибке или идее",
     kind: { new: "Новое", improved: "Улучшено", fixed: "Исправлено" },
   },
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Megaphone } from "lucide-react";
+import { Megaphone, MessageSquareWarning } from "lucide-react";
 import { markUpdatesSeen } from "@/app/updates-actions";
 import { useT } from "@/components/I18nProvider";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,8 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui
 import { isLocale } from "@/lib/i18n";
 import { LATEST_RELEASE, RELEASES, type ChangeKind } from "@/lib/updates";
 import { cn } from "@/lib/utils";
+
+const ISSUES_URL = "https://github.com/howardat/qazbot-kanban/issues/new";
 
 const KIND_TONE: Record<ChangeKind, string> = {
   new: "bg-primary/10 text-primary",
@@ -19,7 +21,7 @@ const KIND_TONE: Record<ChangeKind, string> = {
 /**
  * Updates, just above the user card: a violet dot while there is a release this person hasn't opened.
  * Opening it shows a changelog, releases on the left and the picked one's changes on the right, and
- * marks everything read.
+ * marks everything read. Under it, a link to the GitHub issues page for bug reports and suggestions.
  */
 export function NavUpdates({ seen }: { seen: string | null }) {
   const t = useT();
@@ -51,6 +53,14 @@ export function NavUpdates({ seen }: { seen: string | null }) {
           </span>
           <span>{t.updates.title}</span>
           {unread && <span aria-hidden className="ml-auto size-2 rounded-full bg-primary" />}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={t.updates.feedback}>
+          <a href={ISSUES_URL} target="_blank" rel="noreferrer">
+            <MessageSquareWarning />
+            <span>{t.updates.feedback}</span>
+          </a>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <Dialog open={open} onOpenChange={onOpenChange}>
