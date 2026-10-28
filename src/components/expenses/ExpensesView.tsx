@@ -5,7 +5,7 @@
 // vendor.
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, Tag } from "lucide-react";
-import { Panel } from "@/components/atoms";
+import { Avatar, Panel } from "@/components/atoms";
 import { FilterChips, FiltersTrigger, flip } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
 import { TagPicker } from "@/components/TagSelect";
@@ -19,26 +19,30 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { displayName, type Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AddRecordDialog } from "./AddRecordDialog";
 import { CategoryPill, ExpenseSheet } from "./ExpenseSheet";
 import { CAT_VARS_CSS, catColor, categoriesOf, exportCsv, kzt, printReport, sum, todayISO, vendorsOf, type Expense } from "./data";
 import { useExpenses } from "./useExpenses";
 
-type SortKey = "date" | "vendor" | "description" | "category" | "invoice" | "amount";
+type SortKey = "date" | "vendor" | "description" | "category" | "createdBy" | "invoice" | "amount";
 const COLUMNS: { key: SortKey; className?: string }[] = [
   { key: "date", className: "w-24" },
   { key: "vendor" },
   { key: "description", className: "hidden md:table-cell" },
   { key: "category" },
+  { key: "createdBy", className: "hidden lg:table-cell" },
   { key: "invoice", className: "w-20" },
   { key: "amount", className: "w-36 text-right" },
 ];
 
-export function ExpensesView({ initial }: { initial: Expense[] }) {
+export function ExpensesView({ initial, members }: { initial: Expense[]; members: Member[] }) {
   const t = useT();
   const tx = t.expenses;
-  const store = useExpenses(initial, { saveFailed: tx.saveFailed, uploadFailed: tx.uploadFailed });
+  const store = useExpenses(initial, { saveFailed: tx.saveFailed, uploadFailed: tx.uploadFailed, fileTooBig: tx.fileTooBig });
+  const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const author = (e: Expense) => (e.createdBy ? memberById.get(e.createdBy) : undefined);
   const { expenses } = store;
 
   const [year, setYear] = useState(Number(todayISO().slice(0, 4)));
@@ -75,21 +79,28 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
   );
   const rows = useMemo(() => {
     const value = (e: Expense, k: SortKey): string | number =>
-      k === "amount" ? e.amount : k === "invoice" ? e.invoices.length : k === "date" ? e.date : e[k].toLowerCase();
+      k === "amount"
+        ? e.amount
+        : k === "invoice"
+          ? e.invoices.length
+          : k === "date"
+            ? e.date
+            : k === "createdBy"
+              ? (e.createdBy && memberById.has(e.createdBy) ? displayName(memberById.get(e.createdBy)!) : "").toLowerCase()
+              : e[k].toLowerCase();
     return inPeriod
       .filter((e) => !cats.length || cats.includes(e.category))
       .sort((a, b) => {
         const x = value(a, sort.key), y = value(b, sort.key);
         return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || b.date.localeCompare(a.date);
       });
-  }, [inPeriod, cats, sort]);
+  }, [inPeriod, cats, sort, memberById]);
 
   const qOf = !custom && range[1] - range[0] === 2 && range[0] % 3 === 0 ? range[0] / 3 + 1 : null;
   const rangeLabel = (a: number, b: number) =>
     a === 0 && b === 11 ? tx.yearOf(year) : a === b ? t.fmt.month(ym(a)) : a % 3 === 0 && b - a === 2 ? tx.quarter(a / 3 + 1, year) : `${monthShort(a)}–${monthShort(b)} ${year}`;
   const label = custom ? `${custom.from.split("-").reverse().join(".")} – ${custom.to.split("-").reverse().join(".")}` : rangeLabel(range[0], range[1]);
   const catsLabel = cats.join(", ");
-  const reportTitle = [label, catsLabel].filter(Boolean).join(" · ");
 
   const pickRange = (r: [number, number]) => (setRange(r), setCustom(null));
   const clickMonth = (i: number, shift: boolean) => (setRange(([a]) => (shift ? [Math.min(a, i), Math.max(a, i)] : [i, i])), setCustom(null));
@@ -111,8 +122,11 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
   };
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === "amount" || key === "date" ? -1 : 1 }));
   const select = "h-8 rounded-md border bg-card px-2 text-sm";
-  const exportExcel = () => exportCsv(rows, reportTitle, tx.cols, tx.total);
-  const exportPdf = () => printReport(rows, reportTitle, categories, { lang: t.locale, ...tx.report, cols: tx.cols });
+  // Reports always name the exact dates they cover, and come out in Russian whatever the page's language.
+  const lastDay = (m: number) => new Date(Date.UTC(year, m + 1, 0)).toISOString().slice(0, 10);
+  const period = custom ?? { from: `${ym(range[0])}-01`, to: lastDay(range[1]) };
+  const exportExcel = () => exportCsv(rows, { ...period, categories: cats });
+  const exportPdf = () => printReport(rows, { ...period, categories: cats });
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -275,6 +289,14 @@ export function ExpensesView({ initial }: { initial: Expense[] }) {
                       <td className="hidden max-w-72 truncate text-muted-foreground md:table-cell">{r.description}</td>
                       <td>
                         <CategoryPill name={r.category} categories={categories} />
+                      </td>
+                      <td className="hidden lg:table-cell">
+                        {author(r) && (
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <Avatar member={author(r)!} size={18} className="ring-0" />
+                            <span className="max-w-32 truncate">{displayName(author(r)!)}</span>
+                          </span>
+                        )}
                       </td>
                       <td>
                         {r.invoices[0] ? (

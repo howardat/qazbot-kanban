@@ -1,6 +1,6 @@
 // Expenses on the client: types matching what the server sends (src/lib/expenses.ts), and helpers for
 // categories, colours, money and exports.
-import { printReport as openReport, type ReportLabels } from "./report";
+import { printReport as openReport, reportPeriod, ruDate, type ReportScope } from "./report";
 
 export type Invoice = { id: string; name: string; url: string };
 export type Expense = {
@@ -10,9 +10,10 @@ export type Expense = {
   description: string;
   category: string;
   amount: number; // KZT
+  createdBy: string | null; // profile id of whoever added it
   invoices: Invoice[];
 };
-export type NewExpense = Omit<Expense, "id" | "invoices">;
+export type NewExpense = Omit<Expense, "id" | "invoices" | "createdBy">;
 
 const uniqSorted = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 /** Every vendor used so far, A→Z. New vendors are "saved" simply by being on an expense. */
@@ -42,23 +43,28 @@ export const todayISO = () => new Date().toISOString().slice(0, 10);
 /** Invoice links are app routes; reports and exports need them absolute so they work outside the page. */
 const absolute = (url: string) => new URL(url, window.location.origin).href;
 
-/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact. Headers follow the viewer's language. */
-export function exportCsv(rows: Expense[], title: string, cols: Record<"date" | "vendor" | "description" | "category" | "amount" | "invoice", string>, total: string) {
+/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact. Always in Russian, like the PDF report: the
+ * exact dates on top, then date, vendor, description, amount and invoice links, and the total. */
+export function exportCsv(rows: Expense[], scope: ReportScope) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
   const lines = [
-    [cols.date, cols.vendor, cols.description, cols.category, `${cols.amount} (KZT)`, cols.invoice].map(esc).join(";"),
-    ...rows.map((r) => [r.date, r.vendor, r.description, r.category, r.amount, r.invoices.map((i) => absolute(i.url)).join(" ")].map(esc).join(";")),
-    ["", "", "", total, sum(rows), ""].map(esc).join(";"),
-  ];
-  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    [`Расходы ${reportPeriod(scope)}`],
+    ...(scope.categories?.length ? [[`Категории: ${scope.categories.join(", ")}`]] : []),
+    [],
+    ["Дата", "Поставщик", "Описание", "Сумма, ₸", "Счёт"],
+    ...sorted.map((r) => [ruDate(r.date), r.vendor, r.description, r.amount, r.invoices.map((i) => absolute(i.url)).join(" ")]),
+    ["", "", "Итого", sum(sorted), ""],
+  ].map((cells) => cells.map(esc).join(";"));
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `expenses-${title.replace(/\s+/g, "-").toLowerCase()}.csv`;
+  a.download = `rashody_${scope.from}_${scope.to}.csv`;
   a.click();
 }
 
-/** Printable A4 report (see report.ts). Category colours follow the page's slot order. */
-export function printReport(rows: Expense[], title: string, categories: string[], labels: ReportLabels) {
+/** Printable A4 report in Russian (see report.ts), with invoice links made absolute. */
+export function printReport(rows: Expense[], scope: ReportScope) {
   const withLinks = rows.map((r) => ({ ...r, invoices: r.invoices.map((i) => ({ ...i, url: absolute(i.url) })) }));
-  openReport(withLinks, title, { categories, labels });
+  openReport(withLinks, scope);
 }

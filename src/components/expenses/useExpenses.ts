@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { createExpense, deleteExpense, finishInvoiceUpload, removeInvoice, startInvoiceUpload, updateExpense } from "@/app/expenses/actions";
+import { MAX_INVOICE_BYTES } from "@/lib/invoice-files";
 import type { Expense, NewExpense } from "./data";
 
 const SAVE_DELAY_MS = 500;
@@ -17,7 +18,7 @@ const savable = (p: Partial<NewExpense>) =>
     Object.entries(p).filter(([k, v]) => (k === "amount" ? Number(v) > 0 : k === "description" ? true : typeof v === "string" && v.trim() !== "")),
   ) as Partial<NewExpense>;
 
-export function useExpenses(initial: Expense[], messages: { saveFailed: string; uploadFailed: (name: string) => string }) {
+export function useExpenses(initial: Expense[], messages: { saveFailed: string; uploadFailed: (name: string) => string; fileTooBig: (name: string) => string }) {
   const [expenses, setExpenses] = useState(initial);
   const [uploading, setUploading] = useState<Record<string, number>>({});
   const queued = useRef(new Map<string, { patch: Partial<NewExpense>; timer: ReturnType<typeof setTimeout> }>());
@@ -48,6 +49,10 @@ export function useExpenses(initial: Expense[], messages: { saveFailed: string; 
   const attach = useCallback(
     async (id: string, files: FileList | File[]) => {
       for (const file of Array.from(files)) {
+        if (file.size > MAX_INVOICE_BYTES) {
+          toast.error(messages.fileTooBig(file.name));
+          continue;
+        }
         setUploading((u) => ({ ...u, [id]: (u[id] ?? 0) + 1 }));
         try {
           const meta = { name: file.name, size: file.size, contentType: file.type || "application/octet-stream" };

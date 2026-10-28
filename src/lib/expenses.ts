@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { expenseInvoices, expenses } from "@/db/schema";
 import { isoDate, type Actor } from "@/lib/board-ops";
+import { MAX_INVOICE_MB } from "@/lib/invoice-files";
 import { INVOICE_TYPES, invoiceExists, invoiceUploadToken, MAX_INVOICE_BYTES, removeInvoiceFiles } from "@/lib/storage";
 
 // Expense reads and writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
@@ -21,7 +22,17 @@ export const expensePatch = expenseInput.partial();
 export type ExpenseInput = z.input<typeof expenseInput>;
 
 export type InvoiceOut = { id: string; name: string; url: string };
-export type ExpenseOut = { id: string; date: string; vendor: string; description: string; category: string; amount: number; invoices: InvoiceOut[] };
+export type ExpenseOut = {
+  id: string;
+  date: string;
+  vendor: string;
+  description: string;
+  category: string;
+  amount: number;
+  /** Profile id of whoever added it; null for expenses whose author has since left. */
+  createdBy: string | null;
+  invoices: InvoiceOut[];
+};
 
 /** Where the app serves an invoice: checks the viewer, then redirects to a short-lived Storage link. */
 export const invoiceUrl = (id: string) => `/api/expenses/invoices/${id}`;
@@ -47,6 +58,7 @@ export async function loadExpenses(filter: ExpenseFilter = {}): Promise<ExpenseO
     description: r.description,
     category: r.category,
     amount: r.amount,
+    createdBy: r.createdBy,
     invoices: files.filter((f) => f.expenseId === r.id).map((f) => ({ id: f.id, name: f.name, url: invoiceUrl(f.id) })),
   }));
 }
@@ -73,7 +85,7 @@ export async function deleteExpenseOp(id: string) {
 
 const fileMeta = z.object({
   name: z.string().trim().min(1).max(200),
-  size: z.number().int().positive().max(MAX_INVOICE_BYTES, "Invoices can be up to 10 MB."),
+  size: z.number().int().positive().max(MAX_INVOICE_BYTES, `Invoices can be up to ${MAX_INVOICE_MB} MB.`),
   contentType: z.enum(INVOICE_TYPES as [string, ...string[]], { message: "Invoices must be PDF or images." }),
 });
 

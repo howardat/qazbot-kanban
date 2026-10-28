@@ -3,9 +3,11 @@
 // "Add record" modal: the whole expense in one form. Picked invoice files upload once the expense is saved.
 import { useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MAX_INVOICE_BYTES } from "@/lib/invoice-files";
 import { cn } from "@/lib/utils";
 import { AmountField } from "./AmountField";
 import { CategorySelect } from "./CategorySelect";
@@ -54,7 +56,12 @@ function Form({ onAdd, onDone, vendors, categories, defaultCategory }: { onAdd: 
   const [over, setOver] = useState(false);
   const [saving, setSaving] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  const addFiles = (list: FileList | File[]) => setFiles((xs) => [...xs, ...Array.from(list)]);
+  // Files over the cap are refused here, before anything is saved.
+  const addFiles = (list: FileList | File[]) => {
+    const picked = Array.from(list);
+    picked.filter((f) => f.size > MAX_INVOICE_BYTES).forEach((f) => toast.error(tx.fileTooBig(f.name)));
+    setFiles((xs) => [...xs, ...picked.filter((f) => f.size <= MAX_INVOICE_BYTES)]);
+  };
   const valid = !!vendor.trim() && amount > 0 && !!category.trim();
 
   const submit = async () => {
@@ -86,7 +93,7 @@ function Form({ onAdd, onDone, vendors, categories, defaultCategory }: { onAdd: 
         <div className="grid grid-cols-[1fr_10rem] gap-3">
           <div className="space-y-1.5">
             <span className={label}>{tx.vendor}</span>
-            <ComboInput value={vendor} onChange={setVendor} options={vendors} placeholder={tx.vendor} createLabel={tx.addVendor} inputClassName="h-9 px-3" />
+            <ComboInput value={vendor} onChange={setVendor} options={vendors} placeholder={tx.vendorPlaceholder} createLabel={tx.addVendor} inputClassName="h-9 px-3" />
           </div>
           <label className="space-y-1.5">
             <span className={label}>{tx.date}</span>

@@ -1,13 +1,13 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { INVOICE_TYPES, MAX_INVOICE_BYTES } from "@/lib/invoice-files";
 
 // Supabase Storage for expense invoices, from the server with the secret key (Storage RLS doesn't apply).
 // Callers check the signed-in user first. The bucket is private: files are only reachable through
 // short-lived signed URLs handed out by /api/expenses/invoices/[id].
 
 export const INVOICE_BUCKET = "invoices";
-export const MAX_INVOICE_BYTES = 10 * 1024 * 1024;
-export const INVOICE_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"];
+export { INVOICE_TYPES, MAX_INVOICE_BYTES } from "@/lib/invoice-files";
 
 function admin() {
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -17,11 +17,16 @@ function admin() {
 
 let bucketReady: Promise<void> | null = null;
 
-/** Creates the private invoices bucket the first time it's needed (per server process). */
+/** Creates the private invoices bucket, or brings an existing one's limits up to date, once per server process. */
 function ensureBucket(client: SupabaseClient) {
   bucketReady ??= (async () => {
-    if (!(await client.storage.getBucket(INVOICE_BUCKET)).error) return;
-    const { error } = await client.storage.createBucket(INVOICE_BUCKET, { public: false, fileSizeLimit: MAX_INVOICE_BYTES, allowedMimeTypes: INVOICE_TYPES });
+    const options = { public: false, fileSizeLimit: MAX_INVOICE_BYTES, allowedMimeTypes: INVOICE_TYPES };
+    if (!(await client.storage.getBucket(INVOICE_BUCKET)).error) {
+      const { error } = await client.storage.updateBucket(INVOICE_BUCKET, options);
+      if (error) throw error;
+      return;
+    }
+    const { error } = await client.storage.createBucket(INVOICE_BUCKET, options);
     if (error && !/exists/i.test(error.message)) throw error;
   })().catch((e) => {
     bucketReady = null;

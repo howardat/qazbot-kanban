@@ -1,111 +1,101 @@
-// The printable expense report: one table in an app-style card (Inter, app greys, category pills) with a total
-// row. Pure HTML builder with no imports; the page opens it in a new window and the user saves it as PDF.
+// The printable expense report, always in Russian: a heading with the exact dates covered, a short summary,
+// then one plain table (date, vendor, description, invoice, amount) with the total at the end. No people
+// and no category tags. Pure HTML builder with no imports; the page opens it in a new window and the user
+// saves it as PDF.
 
-type Row = { date: string; vendor: string; description: string; category: string; amount: number; invoices: { name: string; url: string }[] };
+type Row = { date: string; vendor: string; description: string; amount: number; invoices: { name: string; url: string }[] };
 
-/** Every word on the report, in the viewer's language (t.expenses.report plus the column names). */
-export type ReportLabels = {
-  lang: string;
-  title: (period: string) => string;
-  cols: { date: string; vendor: string; description: string; category: string; invoice: string; amount: string };
-  attached: string;
-  missing: string;
-  total: (n: number) => string;
-  empty: string;
-};
+/** What the report covers: the exact dates, and the categories it was narrowed to (none means all). */
+export type ReportScope = { from: string; to: string; categories?: string[] };
 
-const ENGLISH: ReportLabels = {
-  lang: "en",
-  title: (p) => `Expenses · ${p}`,
-  cols: { date: "Date", vendor: "Vendor", description: "Description", category: "Category", invoice: "Invoice", amount: "Amount" },
-  attached: "Attached",
-  missing: "Missing",
-  total: (n) => `Total · ${n} expense${n === 1 ? "" : "s"}`,
-  empty: "No expenses in this period.",
-};
-
-const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
-const OTHER = "#8a8a85";
-// App tokens (src/app/globals.css, light theme).
-const FG = "oklch(0.1689 0.0021 286.18)";
-const MUTED = "oklch(0.4176 0.0072 239.98)";
-const BORDER = "oklch(0.912 0.005 265)";
-const FILL = "oklch(0.94 0.005 265)";
-const CANVAS = "oklch(0.962 0.004 265)";
+const FG = "#1f1f23";
+const MUTED = "#5b6168";
+const BORDER = "#e3e5ea";
+const BAND = "#f6f7f9";
+const LINK = "#5b3fd1";
+const WARN = "#b45309";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const money = (v: number) => `${new Intl.NumberFormat("ru-RU").format(Math.round(v))}&nbsp;₸`;
-const fmtDate = (d: string) => `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
+/** 2026-10-01 → 01.10.2026 */
+export const ruDate = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10, m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? few : many;
+};
+export const reportPeriod = (s: ReportScope) => `с ${ruDate(s.from)} по ${ruDate(s.to)}`;
 
-/** "Attached" links to the invoice; extra invoices on the same expense follow as numbered links. */
-function invoiceCell(invoices: Row["invoices"], l: ReportLabels) {
-  if (!invoices.length) return `<span class="miss">${esc(l.missing)}</span>`;
+/** "Открыть" links to the invoice; extra invoices on the same expense follow as numbered links. */
+function invoiceCell(invoices: Row["invoices"]) {
+  if (!invoices.length) return `<span class="miss">нет</span>`;
   const link = (inv: Row["invoices"][number], label: string) => `<a href="${esc(inv.url)}" title="${esc(inv.name)}">${esc(label)}</a>`;
-  return [link(invoices[0], l.attached), ...invoices.slice(1).map((inv, i) => link(inv, String(i + 2)))].join(" · ");
+  return [link(invoices[0], "открыть"), ...invoices.slice(1).map((inv, i) => link(inv, String(i + 2)))].join(", ");
 }
 
-export function reportHtml(input: Row[], title: string, opts: { categories?: string[]; labels?: ReportLabels } = {}) {
-  const l = opts.labels ?? ENGLISH;
+export function reportHtml(input: Row[], scope: ReportScope, today = new Date().toISOString().slice(0, 10)) {
   const rows = [...input].sort((a, b) => a.date.localeCompare(b.date));
-  const order = opts.categories ?? [...new Set(rows.map((r) => r.category))];
-  const colorOf = (c: string) => (order.indexOf(c) >= 0 && order.indexOf(c) < 8 ? PALETTE[order.indexOf(c)] : OTHER);
   const total = rows.reduce((s, r) => s + r.amount, 0);
+  const missing = rows.filter((r) => !r.invoices.length).length;
+  const title = `Отчёт о расходах ${reportPeriod(scope)}`;
+  const facts = [
+    scope.categories?.length ? `Категории: <b>${esc(scope.categories.join(", "))}</b>` : "",
+    `Расходов: <b>${rows.length}</b>`,
+    `Итого: <b>${money(total)}</b>`,
+    missing ? `Без счёта: <b class="miss">${missing}</b>` : "",
+  ].filter(Boolean);
 
-  return `<!doctype html><html lang="${l.lang}"><head><meta charset="utf-8">
-<title>${esc(l.title(title))}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>${esc(title)}</title>
 <style>
 * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-@page { size: A4; margin: 16mm 14mm; }
-body { margin: 0; font: 9pt/1.4 Inter, -apple-system, "Segoe UI", sans-serif; color: ${FG}; font-feature-settings: "tnum" 1; }
-@media screen { body { max-width: 210mm; margin: 24px auto; padding: 0 14mm; } }
-h1 { font-size: 13pt; font-weight: 600; margin: 0 0 12px; }
-.card { border: 1px solid ${BORDER}; border-radius: 10px; overflow: hidden; }
+@page { size: A4; margin: 18mm 16mm; }
+body { margin: 0; font: 10.5pt/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: ${FG}; font-variant-numeric: tabular-nums; }
+@media screen { body { max-width: 210mm; margin: 32px auto; padding: 0 16mm; } }
+h1 { font-size: 16pt; font-weight: 600; margin: 0 0 4px; }
+.made { color: ${MUTED}; font-size: 9pt; margin: 0 0 16px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 24px; padding: 10px 14px; margin: 0 0 18px; background: ${BAND}; border-radius: 8px; }
+.facts b { font-weight: 600; }
 table { width: 100%; border-collapse: collapse; }
 tr { break-inside: avoid; }
-th { background: ${CANVAS}; font-size: 7.5pt; font-weight: 500; color: ${MUTED}; text-align: left; padding: 7px 10px; border-bottom: 1px solid ${BORDER}; }
-td { padding: 7px 10px; border-bottom: 1px solid ${BORDER}; vertical-align: top; }
+th { font-size: 9pt; font-weight: 600; color: ${MUTED}; text-align: left; padding: 8px 10px; border-bottom: 1.5px solid ${FG}; }
+td { padding: 9px 10px; border-bottom: 1px solid ${BORDER}; vertical-align: top; }
+tbody tr:nth-child(even) td { background: ${BAND}; }
+.date { white-space: nowrap; }
+.desc { color: ${MUTED}; }
 .n { text-align: right; white-space: nowrap; }
-.m { color: ${MUTED}; }
-.strong { font-weight: 500; }
-.pill { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 5px; background: ${FILL}; color: ${MUTED}; font-size: 7.5pt; font-weight: 500; white-space: nowrap; }
-.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-a { color: oklch(0.55 0.22 293); text-decoration: none; }
-a:hover { text-decoration: underline; }
-.miss { color: #b45309; font-weight: 500; }
+a { color: ${LINK}; text-decoration: none; }
+.miss { color: ${WARN}; }
 tfoot { display: table-row-group; } /* the total prints once, at the end */
-tfoot td { border-bottom: 0; background: ${CANVAS}; font-weight: 600; }
-.empty { padding: 32px; text-align: center; color: ${MUTED}; }
+tfoot td { border-top: 1.5px solid ${FG}; border-bottom: 0; font-weight: 600; font-size: 11.5pt; padding-top: 10px; }
+.empty { padding: 40px; text-align: center; color: ${MUTED}; border: 1px solid ${BORDER}; border-radius: 8px; }
 </style></head><body>
-<h1>${esc(l.title(title))}</h1>
-<div class="card">
+<h1>${esc(title)}</h1>
+<p class="made">Сформирован ${ruDate(today)}</p>
+<div class="facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
 ${
   rows.length === 0
-    ? `<div class="empty">${esc(l.empty)}</div>`
+    ? `<div class="empty">За этот период расходов нет.</div>`
     : `<table>
-  <thead><tr><th>${esc(l.cols.date)}</th><th>${esc(l.cols.vendor)}</th><th>${esc(l.cols.description)}</th><th>${esc(l.cols.category)}</th><th>${esc(l.cols.invoice)}</th><th class="n">${esc(l.cols.amount)}</th></tr></thead>
+  <thead><tr><th>Дата</th><th>Поставщик</th><th>Описание</th><th>Счёт</th><th class="n">Сумма</th></tr></thead>
   <tbody>
     ${rows
       .map(
-        (r) => `<tr><td class="m">${fmtDate(r.date)}</td><td class="strong">${esc(r.vendor)}</td><td class="m">${esc(r.description)}</td>
-      <td><span class="pill"><span class="dot" style="background:${colorOf(r.category)}"></span>${esc(r.category)}</span></td>
-      <td>${invoiceCell(r.invoices, l)}</td><td class="n strong">${money(r.amount)}</td></tr>`,
+        (r) =>
+          `<tr><td class="date">${ruDate(r.date)}</td><td>${esc(r.vendor)}</td><td class="desc">${esc(r.description)}</td><td>${invoiceCell(r.invoices)}</td><td class="n">${money(r.amount)}</td></tr>`,
       )
       .join("")}
   </tbody>
-  <tfoot><tr><td colspan="5">${esc(l.total(rows.length))}</td><td class="n">${money(total)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="4">Итого: ${rows.length} ${plural(rows.length, "расход", "расхода", "расходов")}</td><td class="n">${money(total)}</td></tr></tfoot>
 </table>`
 }
-</div>
 </body></html>`;
 }
 
-/** Opens the report in a new window and prints it once the font has loaded. */
-export function printReport(rows: Row[], title: string, opts?: { categories?: string[]; labels?: ReportLabels }) {
+/** Opens the report in a new window and prints it. */
+export function printReport(rows: Row[], scope: ReportScope) {
   const w = window.open("", "_blank");
   if (!w) return;
-  const autoPrint = `<script>addEventListener("load", () => document.fonts.ready.then(() => print()))</script>`;
-  w.document.write(reportHtml(rows, title, opts).replace("</body>", `${autoPrint}</body>`));
+  const autoPrint = `<script>addEventListener("load", () => print())</script>`;
+  w.document.write(reportHtml(rows, scope).replace("</body>", `${autoPrint}</body>`));
   w.document.close();
 }
