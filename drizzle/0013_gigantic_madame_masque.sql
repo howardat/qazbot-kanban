@@ -1,0 +1,1 @@
+ALTER TABLE "profile" ADD COLUMN "updates_seen" text;

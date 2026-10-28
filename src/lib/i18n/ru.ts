@@ -56,6 +56,15 @@ export const ru: Dict = {
     signOut: "Выйти",
   },
 
+  updates: {
+    title: "Обновления",
+    description: "Что нового в Qazbot Kanban.",
+    all: "Все обновления",
+    latest: "Последнее",
+    unreadAria: "Обновления, есть новое",
+    kind: { new: "Новое", improved: "Улучшено", fixed: "Исправлено" },
+  },
+
   newBoard: {
     title: "Новая доска",
     description: "В ней сразу будут колонки «К выполнению», «В работе» и «Готово». Их можно изменить позже.",

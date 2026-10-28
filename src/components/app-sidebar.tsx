@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarDays, ChartGantt, House, Search, Sparkles, Users } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { NavMain } from "@/components/nav-main";
+import { NavUpdates } from "@/components/nav-updates";
 import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import { SearchDialog } from "@/components/SearchDialog";
@@ -18,10 +19,23 @@ type Board = { id: string; name: string };
 
 /**
  * The app sidebar: shadcn's sidebar-07 block (collapses to icons) wired to Qazbot. The Qazbot wordmark and a
- * white search field on top, the main nav (Team folds open), boards as the projects list, you at the bottom.
+ * white search field on top, the main nav (Team folds open), boards as the projects list, Updates and
+ * you at the bottom.
  * ⌘K opens search, ⌘J goes to the assistant.
  */
-export function AppSidebar({ boards, counts, user, isAdmin }: { boards: Board[]; counts: Record<string, number>; user: Member; isAdmin: boolean }) {
+export function AppSidebar({
+  boards,
+  counts,
+  user,
+  isAdmin,
+  updatesSeen,
+}: {
+  boards: Board[];
+  counts: Record<string, number>;
+  user: Member;
+  isAdmin: boolean;
+  updatesSeen: string | null;
+}) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -96,6 +110,7 @@ export function AppSidebar({ boards, counts, user, isAdmin }: { boards: Board[];
         <NavProjects boards={boards} counts={counts} isActive={(id) => boardId === id} />
       </SidebarContent>
       <SidebarFooter>
+        <NavUpdates seen={updatesSeen} />
         <NavUser user={user} isAdmin={isAdmin} />
       </SidebarFooter>
       <SidebarRail />

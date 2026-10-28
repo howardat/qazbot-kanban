@@ -45,6 +45,8 @@ export const profiles = pgTable("profile", {
   // Personal Soniox key for talk mode's speech recognition, stored the same way.
   sonioxKeyEnc: text("soniox_key_enc"),
   sonioxKeyHint: text("soniox_key_hint"),
+  // Id of the newest release (lib/updates) this person has opened; anything newer shows the unread dot.
+  updatesSeen: text("updates_seen"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();
 

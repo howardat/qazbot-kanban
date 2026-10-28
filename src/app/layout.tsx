@@ -38,7 +38,7 @@ export default async function RootLayout({
               // shadcn sidebar-07 shell: the sidebar (collapses to icons), the page beside it under a slim breadcrumb header.
               <SidebarProvider defaultOpen={sidebarOpen} className="h-dvh min-h-0">
                 <Suspense>
-                  <AppSidebar boards={boards} counts={openCounts} user={{ id: user.id, name: user.name, email: user.email, image: user.image }} isAdmin={user.role === "admin"} />
+                  <AppSidebar boards={boards} counts={openCounts} user={{ id: user.id, name: user.name, email: user.email, image: user.image }} isAdmin={user.role === "admin"} updatesSeen={user.updatesSeen} />
                 </Suspense>
                 <div className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-card">
                   <Suspense fallback={<div className="h-12 shrink-0 border-b" />}>

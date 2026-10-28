@@ -53,6 +53,15 @@ export const en = {
     signOut: "Sign out",
   },
 
+  updates: {
+    title: "Updates",
+    description: "What's new in Qazbot Kanban.",
+    all: "All updates",
+    latest: "Latest",
+    unreadAria: "Updates, something new",
+    kind: { new: "New", improved: "Improved", fixed: "Fixed" },
+  },
+
   newBoard: {
     title: "New board",
     description: "It starts with To do, In progress and Done columns. You can change them later.",
