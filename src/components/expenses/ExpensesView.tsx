@@ -2,8 +2,8 @@
 
 // The expenses page: a 12-month bar strip (with Q1–Q4 chips and the year) picks the period; the table below has
 // date and category filters, sortable columns, Add record and Export; donuts split the spend by category and
-// vendor. Expenses are entered in ₸ or $ and everything adds up in ₸ at the rate in the header.
-import { useCallback, useMemo, useState } from "react";
+// vendor. Expenses are entered in ₸ or $; dollars add up in ₸ at the National Bank rate on each expense's date.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, FileDown, FileSpreadsheet, Paperclip, Plus, Receipt, X } from "lucide-react";
 import { Panel } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import { AddRecordDialog } from "./AddRecordDialog";
 import { CategoryPill, ExpenseSheet } from "./ExpenseSheet";
 import {
-  CAT_VARS_CSS, CATEGORIES, catColor, categoriesOf, DEFAULT_USD_KZT, exportCsv, filesToInvoices, kzt, money, MONTHS, newId, printReport,
-  SEED_EXPENSES, sumKzt, todayISO, toKzt, vendorsOf,
+  CAT_VARS_CSS, CATEGORIES, catColor, categoriesOf, DEFAULT_USD_KZT, exportCsv, filesToInvoices, fmtRate, kzt, money, MONTHS, newId, printReport,
+  sumKzt, todayISO, toKzt, vendorsOf,
   type Expense,
 } from "./data";
 
@@ -27,15 +27,48 @@ const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: "amount", label: "Amount", className: "w-36 text-right" },
 ];
 
-export function ExpensesView() {
-  const [expenses, setExpenses] = useState<Expense[]>(SEED_EXPENSES);
-  const [rate, setRate] = useState(DEFAULT_USD_KZT);
-  const add = useCallback((e: Omit<Expense, "id">) => {
-    const id = newId();
-    setExpenses((xs) => [...xs, { ...e, id }]);
-    return id;
+export function ExpensesView({ initial, todayRate }: { initial: Expense[]; todayRate: number | null }) {
+  const [expenses, setExpenses] = useState<Expense[]>(initial);
+  // Dollars without a rate of their own (still loading, or a date the National Bank has none for) use today's.
+  const rate = todayRate ?? DEFAULT_USD_KZT;
+  const latest = useRef(expenses);
+  useEffect(() => {
+    latest.current = expenses;
+  }, [expenses]);
+
+  // National Bank rate for a dollar expense's date, stored on the expense unless its date moved on meanwhile.
+  const ratesByDate = useRef(new Map<string, number>());
+  const fetchRate = useCallback(async (id: string, date: string) => {
+    let r: number | null = ratesByDate.current.get(date) ?? null;
+    if (r === null) {
+      const res = await fetch(`/api/fx?date=${date}`).then((x) => (x.ok ? x.json() : { rate: null }), () => ({ rate: null }));
+      r = typeof res.rate === "number" ? res.rate : null;
+      if (r !== null) ratesByDate.current.set(date, r);
+    }
+    setExpenses((xs) => xs.map((x) => (x.id === id && x.date === date && x.currency === "USD" ? { ...x, rate: r } : x)));
   }, []);
-  const update = useCallback((id: string, patch: Partial<Expense>) => setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x))), []);
+
+  const add = useCallback(
+    (e: Omit<Expense, "id">) => {
+      const id = newId();
+      setExpenses((xs) => [...xs, { ...e, id, rate: undefined }]);
+      if (e.currency === "USD") void fetchRate(id, e.date);
+      return id;
+    },
+    [fetchRate],
+  );
+  const update = useCallback(
+    (id: string, patch: Partial<Expense>) => {
+      const before = latest.current.find((x) => x.id === id);
+      if (!before) return;
+      const next = { ...before, ...patch };
+      // Re-read the rate when a dollar expense gets a new date, or an expense switches to dollars.
+      const refetch = next.currency === "USD" && (next.date !== before.date || before.currency !== "USD");
+      setExpenses((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch, ...(refetch && { rate: undefined }) } : x)));
+      if (refetch) void fetchRate(id, next.date);
+    },
+    [fetchRate],
+  );
   const remove = useCallback((id: string) => setExpenses((xs) => xs.filter((x) => x.id !== id)), []);
   const attach = useCallback((id: string, files: FileList | File[]) => {
     const inv = filesToInvoices(files);
@@ -113,17 +146,10 @@ export function ExpensesView() {
       <style>{CAT_VARS_CSS}</style>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold">Expenses · {label}</h1>
-        <label className="flex h-8 items-center gap-1.5 rounded-md border bg-card px-2 text-sm text-muted-foreground" title="Used to add $ expenses into ₸ totals">
-          1 $ =
-          <input
-            inputMode="numeric"
-            value={rate}
-            onChange={(e) => setRate(Number(e.target.value.replace(/\D/g, "")) || 0)}
-            className="w-12 bg-transparent text-right font-medium text-foreground tabular-nums outline-none"
-            aria-label="USD to KZT rate"
-          />
-          ₸
-        </label>
+        <span className="text-xs text-muted-foreground">
+          $ → ₸ at the National Bank rate on each expense&apos;s date
+          {todayRate ? ` · today 1 $ = ${fmtRate(todayRate)} ₸` : ` · rates unavailable, using 1 $ = ${DEFAULT_USD_KZT} ₸`}
+        </span>
       </div>
 
       <section className="rounded-lg border bg-card p-3 shadow-xs">
@@ -262,7 +288,11 @@ export function ExpensesView() {
                     </td>
                     <td className="text-right tabular-nums">
                       <div className="font-medium">{money(r.amount, r.currency)}</div>
-                      {r.currency === "USD" && <div className="text-xs text-muted-foreground">≈ {kzt(toKzt(r, rate))}</div>}
+                      {r.currency === "USD" && (
+                        <div className="text-xs text-muted-foreground" title={r.rate ? `National Bank rate on ${r.date}` : "No rate for this date yet; today's rate is used"}>
+                          ≈ {kzt(toKzt(r, rate))} · {r.rate === undefined ? "rate…" : r.rate === null ? "today's rate" : `@ ${fmtRate(r.rate)}`}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

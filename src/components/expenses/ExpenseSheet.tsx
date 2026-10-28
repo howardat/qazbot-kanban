@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { cn } from "@/lib/utils";
 import { AmountField } from "./AmountField";
 import { CategorySelect } from "./CategorySelect";
-import { catColor, kzt, money, toKzt, type Expense, type ExpenseStore } from "./data";
+import { catColor, fmtRate, kzt, money, toKzt, type Expense, type ExpenseStore } from "./data";
 
 /** A category tag: Plane-style grey pill with the category's palette colour as its dot. */
 export function CategoryPill({ name, categories }: { name: string; categories: string[] }) {
@@ -108,7 +108,9 @@ export function ExpenseSheet({
               <SheetTitle>{e.vendor || "New expense"}</SheetTitle>
               <SheetDescription>
                 {e.date} · {money(e.amount, e.currency)}
-                {e.currency === "USD" && ` ≈ ${kzt(toKzt(e, rate))}`} · changes save as you type
+                {e.currency === "USD" &&
+                  ` ≈ ${kzt(toKzt(e, rate))} (${e.rate ? `National Bank ${fmtRate(e.rate)} on ${e.date}` : e.rate === undefined ? "fetching rate…" : "no rate for this date, today's used"})`}{" "}
+                · changes save as you type
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">

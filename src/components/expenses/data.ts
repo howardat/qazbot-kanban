@@ -11,10 +11,12 @@ export type Expense = {
   category: string;
   amount: number; // in `currency`; USD may have cents
   currency: Currency;
+  /** USD only: National Bank KZT-per-USD rate on `date`. Undefined while it's being fetched, null if there's none. */
+  rate?: number | null;
   invoices: Invoice[];
 };
 
-/** Default USD→KZT rate for totals; the page lets you change it. */
+/** Last-resort USD→KZT rate, used only when the National Bank feed can't be reached at all. */
 export const DEFAULT_USD_KZT = 480;
 
 export const CATEGORIES = ["Hardware", "Software", "Travel", "Office", "Marketing", "Services"] as const;
@@ -89,9 +91,13 @@ export const CAT_VARS_CSS = `:root{${CAT_LIGHT.map((c, i) => `--cat-${i + 1}:${c
 let n = 1000;
 export const newId = () => `e${++n}`;
 
-/** An expense's value in tenge; totals, charts and reports all add up in KZT. */
-export const toKzt = (e: Pick<Expense, "amount" | "currency">, rate: number) => (e.currency === "USD" ? e.amount * rate : e.amount);
-export const sumKzt = (rows: Expense[], rate: number) => rows.reduce((s, r) => s + toKzt(r, rate), 0);
+/**
+ * An expense's value in tenge; totals, charts and reports all add up in KZT. Dollars convert at the National Bank
+ * rate for the expense's own date; `fallback` (today's rate) covers one that's still loading or has no rate.
+ */
+export const toKzt = (e: Pick<Expense, "amount" | "currency" | "rate">, fallback: number) => (e.currency === "USD" ? e.amount * (e.rate ?? fallback) : e.amount);
+export const sumKzt = (rows: Expense[], fallback: number) => rows.reduce((s, r) => s + toKzt(r, fallback), 0);
+export const fmtRate = (r: number) => r.toFixed(2);
 
 export const kzt = (v: number) => `${new Intl.NumberFormat("ru-RU").format(Math.round(v))} ₸`;
 export const usd = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
@@ -109,15 +115,20 @@ export const todayISO = () => new Date().toISOString().slice(0, 10);
 export const filesToInvoices = (files: FileList | File[]) =>
   Array.from(files).map((f) => ({ name: f.name, url: URL.createObjectURL(f) }));
 
-/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact; each row keeps its own currency plus a KZT column. */
-export function exportCsv(rows: Expense[], title: string, rate: number) {
+/** CSV with a UTF-8 BOM so Excel opens it with Cyrillic intact; each row keeps its own currency, the rate used and KZT. */
+export function exportCsv(rows: Expense[], title: string, fallback: number) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const lines = [
-    ["Date", "Vendor", "Description", "Category", "Amount", "Currency", `Amount (KZT, 1 USD = ${rate} KZT)`, "Invoices"].map(esc).join(";"),
+    ["Date", "Vendor", "Description", "Category", "Amount", "Currency", "USD→KZT rate (National Bank)", "Amount (KZT)", "Invoices"].map(esc).join(";"),
     ...rows.map((r) =>
-      [r.date, r.vendor, r.description, r.category, r.amount, r.currency, Math.round(toKzt(r, rate)), r.invoices.map((i) => i.name).join(", ")].map(esc).join(";"),
+      [
+        r.date, r.vendor, r.description, r.category, r.amount, r.currency,
+        r.currency === "USD" ? fmtRate(r.rate ?? fallback) : "",
+        Math.round(toKzt(r, fallback)),
+        r.invoices.map((i) => i.name).join(", "),
+      ].map(esc).join(";"),
     ),
-    ["", "", "", "Total", "", "", Math.round(sumKzt(rows, rate)), ""].map(esc).join(";"),
+    ["", "", "", "Total", "", "", "", Math.round(sumKzt(rows, fallback)), ""].map(esc).join(";"),
   ];
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -127,9 +138,14 @@ export function exportCsv(rows: Expense[], title: string, rate: number) {
 }
 
 /** Printable A4 report (see report.ts), totals in KZT. Category colours follow the page's slot order. */
-export function printReport(rows: Expense[], title: string, rate: number, categories?: string[]) {
-  const reportRows = rows.map((r) => ({ ...r, amount: toKzt(r, rate), original: r.currency === "USD" ? usd(r.amount) : undefined }));
-  openReport(reportRows, title, { categories: categories ?? categoriesOf(rows), rateNote: rows.some((r) => r.currency === "USD") ? `1 $ = ${rate} ₸` : undefined });
+export function printReport(rows: Expense[], title: string, fallback: number, categories?: string[]) {
+  const reportRows = rows.map((r) => ({
+    ...r,
+    amount: toKzt(r, fallback),
+    original: r.currency === "USD" ? `${usd(r.amount)} × ${fmtRate(r.rate ?? fallback)}` : undefined,
+  }));
+  const rateNote = rows.some((r) => r.currency === "USD") ? "USD at the National Bank rate on each expense's date" : undefined;
+  openReport(reportRows, title, { categories: categories ?? categoriesOf(rows), rateNote });
 }
 
 /** What the views get from the page's in-memory store. */
