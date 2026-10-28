@@ -36,6 +36,7 @@ export const ru: Dict = {
     homeAria: "Qazbot Kanban — главная",
     calendar: "Календарь",
     timeline: "Таймлайн",
+    expenses: "Расходы",
     boards: "Доски",
     newBoard: "Новая доска",
     menu: "Меню",

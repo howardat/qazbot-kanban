@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
-import { AppSidebar, SiteHeader } from "@/components/app-sidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { I18nProvider } from "@/components/I18nProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,15 +35,14 @@ export default async function RootLayout({
         <I18nProvider locale={locale}>
           <TooltipProvider delayDuration={300}>
             {user ? (
-              // shadcn sidebar-07 shell: the sidebar (collapses to icons), the page beside it under a slim breadcrumb header.
+              // shadcn sidebar-07 shell: the sidebar (collapses to icons; its toggle lives in the sidebar), the page beside it.
               <SidebarProvider defaultOpen={sidebarOpen} className="h-dvh min-h-0">
                 <Suspense>
                   <AppSidebar boards={boards} counts={openCounts} user={{ id: user.id, name: user.name, email: user.email, image: user.image }} isAdmin={user.role === "admin"} />
                 </Suspense>
                 <div className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-card">
-                  <Suspense fallback={<div className="h-12 shrink-0 border-b" />}>
-                    <SiteHeader boards={boards} />
-                  </Suspense>
+                  {/* On phones the sidebar is an off-canvas sheet, so its toggle floats over the page. */}
+                  <SidebarTrigger className="fixed top-2 left-2 z-40 bg-card shadow-sm md:hidden" />
                   <div id="page" className="min-h-0 flex-1 overflow-y-auto">
                     {children}
                   </div>

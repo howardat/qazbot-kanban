@@ -33,6 +33,7 @@ export const en = {
     homeAria: "Qazbot Kanban home",
     calendar: "Calendar",
     timeline: "Timeline",
+    expenses: "Expenses",
     boards: "Boards",
     newBoard: "New board",
     menu: "Menu",
