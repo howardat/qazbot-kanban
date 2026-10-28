@@ -15,6 +15,34 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-28-expense-fixes",
+    date: "2026-10-28",
+    title: { en: "Expenses fixes and safer boards", ru: "Исправления в расходах и защита досок" },
+    changes: [
+      {
+        kind: "improved",
+        text: {
+          en: "Only the person who created a board can delete it.",
+          ru: "Удалить доску теперь может только тот, кто её создал.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "A new category typed in the Add record window now shows up as picked straight away.",
+          ru: "Новая категория, введённая в окне «Добавить запись», теперь сразу отображается выбранной.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "Invoices attached to expenses upload again.",
+          ru: "Счета к расходам снова загружаются.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-28-expenses",
     date: "2026-10-28",
     title: { en: "Expenses, a new timeline and quicker labels", ru: "Расходы, новый таймлайн и быстрые метки" },

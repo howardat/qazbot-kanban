@@ -60,12 +60,14 @@ export async function createBoardOp(actor: Actor, boardName: string, starterColu
   });
 }
 
+/** Only a board's creator may delete it; admins only when the board has no creator left (deleted account). */
+export const canDeleteBoard = (actor: Actor, createdBy: string | null) =>
+  createdBy ? createdBy === actor.id : actor.role === "admin";
+
 export async function deleteBoardOp(actor: Actor, boardId: string) {
   const [board] = await db.select().from(boards).where(eq(boards.id, id.parse(boardId)));
   if (!board) return false;
-  if (actor.role !== "admin" && board.createdBy !== actor.id) {
-    throw new Error("Only the board creator or an admin can delete this board.");
-  }
+  if (!canDeleteBoard(actor, board.createdBy)) throw new Error("Only the board's creator can delete it.");
   await db.delete(boards).where(eq(boards.id, board.id));
   return true;
 }
