@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
 import { CalendarPlus, Check, Flag, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, DueBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, DueBadge, PEOPLE_MENU } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
 import { TagPicker } from "@/components/TagSelect";
@@ -199,7 +199,7 @@ export function CardQuickProps({
               </button>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto" onClick={stop}>
+          <DropdownMenuContent align="end" className={cn(PEOPLE_MENU, "w-56")} onClick={stop}>
             {members.filter((m) => !assignable || assignable.includes(m) || card.assigneeIds.includes(m.id)).map((m) => (
               <DropdownMenuItem
                 key={m.id}

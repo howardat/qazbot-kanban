@@ -7,6 +7,10 @@ import { useT } from "@/components/I18nProvider";
 import { dueState, type ISODate } from "@/lib/dates";
 import { displayName, type Member, type Tag } from "@/lib/types";
 
+// People pickers: tall enough for 5½ rows (28px items under the menu's 4px padding), so the half-cut last
+// row shows the list scrolls.
+export const PEOPLE_MENU = "max-h-[158px] overflow-y-auto";
+
 export function Avatar({ member, size = 24, className }: { member: Member; size?: number; className?: string }) {
   const label = displayName(member);
   const initials = label

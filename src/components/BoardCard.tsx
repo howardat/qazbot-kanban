@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Flag, Hexagon, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, DUE_TEXT, TagBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, DUE_TEXT, PEOPLE_MENU, TagBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import type { QuickPatch } from "@/components/CardQuickProps";
 import { useT } from "@/components/I18nProvider";
@@ -238,7 +238,7 @@ export function BoardCard({
                   </button>
                 )}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
+              <DropdownMenuContent align="start" className={cn(PEOPLE_MENU, "w-56")}>
                 {pickable.map((m) => (
                   <DropdownMenuItem
                     key={m.id}

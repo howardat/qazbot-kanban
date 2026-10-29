@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPen, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
-import { Avatar, AvatarStack } from "@/components/atoms";
+import { Avatar, AvatarStack, PEOPLE_MENU } from "@/components/atoms";
 import { CreatorMark } from "@/components/BoardCard";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { DatePicker } from "@/components/DatePicker";
@@ -19,6 +19,7 @@ import { STORY_POINTS, viaClaude } from "@/lib/card-source";
 import { PRIORITIES, type Priority } from "@/lib/priority";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const NONE = "none";
 // Borderless select trigger for a property row, like Plane's "select-ghost".
@@ -232,7 +233,7 @@ export function CardEditor({
                         <ChevronDown className="size-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-y-auto">
+                    <DropdownMenuContent align="start" className={cn(PEOPLE_MENU, "w-(--radix-dropdown-menu-trigger-width) min-w-56")}>
                       {members.filter((m) => !assignable || assignable.includes(m) || assigneeIds.includes(m.id)).map((m) => (
                         <DropdownMenuItem
                           key={m.id}
