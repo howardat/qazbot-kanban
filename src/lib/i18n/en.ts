@@ -247,6 +247,8 @@ export const en = {
     addTags: "Add labels",
     searchTags: "Search labels",
     addTag: (name: string) => `Add "${name}" to labels`,
+    creator: "Created by",
+    unknownCreator: "Unknown",
     assignees: "Assignees",
     noAssignees: "Unassigned",
     assigneeCount: (n: number) => `${n} people`,

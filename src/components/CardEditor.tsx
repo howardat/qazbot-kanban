@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPen, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack } from "@/components/atoms";
+import { CreatorMark } from "@/components/BoardCard";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { DatePicker } from "@/components/DatePicker";
 import { useT } from "@/components/I18nProvider";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
-import { STORY_POINTS } from "@/lib/card-source";
+import { STORY_POINTS, viaClaude } from "@/lib/card-source";
 import { PRIORITIES, type Priority } from "@/lib/priority";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -74,6 +75,8 @@ export function CardEditor({
     set(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
   const datesInvalid = !!startDate && !!dueDate && startDate > dueDate;
   const assignees = members.filter((m) => assigneeIds.includes(m.id));
+  const creator = card.createdBy ? (members.find((m) => m.id === card.createdBy) ?? null) : null;
+  const claude = viaClaude(card.createdVia);
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -184,6 +187,17 @@ export function CardEditor({
 
               <h3 className="mt-6 text-xs font-medium">{t.editor.properties}</h3>
               <div className="mt-3 space-y-1">
+                {/* Read-only: who made the card (and whether through Claude), and when. */}
+                <Property icon={UserPen} label={t.editor.creator}>
+                  <div className="flex h-8 min-w-0 items-center gap-2 px-2">
+                    <CreatorMark creator={creator} claude={claude} />
+                    <span className="min-w-0 truncate">
+                      {creator ? displayName(creator) : claude ? "Claude" : <span className="text-muted-foreground">{t.editor.unknownCreator}</span>}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{t.fmt.day(card.createdAt.slice(0, 10))}</span>
+                  </div>
+                </Property>
+
                 <Property icon={Users} label={t.editor.assignees}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
