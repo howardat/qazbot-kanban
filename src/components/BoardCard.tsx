@@ -216,15 +216,21 @@ export function BoardCard({
 
         {/* Title: click to rename in place */}
         {renaming ? (
-          <input
+          // A textarea that grows with the text, with the heading's exact box, so renaming doesn't
+          // shift or resize anything. Enter saves instead of adding a line.
+          <textarea
             autoFocus
+            rows={1}
             value={title}
             aria-label={t.cardMeta.rename}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={saveTitle}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
               if (e.key === "Escape") {
                 setTitle(card.title);
                 setRenaming(false);
@@ -232,7 +238,8 @@ export function BoardCard({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            className="mt-2 -mx-1 w-[calc(100%+0.5rem)] rounded-md bg-muted/60 px-1 text-[14px] leading-6 font-medium outline-none"
+            onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
+            className="mt-2 -mx-1 block w-[calc(100%+0.5rem)] resize-none overflow-hidden rounded-md bg-muted/60 px-1 pr-6 text-[14px] leading-6 font-medium break-words outline-none field-sizing-content"
           />
         ) : (
           <h3
