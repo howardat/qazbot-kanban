@@ -9,6 +9,7 @@ import { WorkerSheet } from "@/components/WorkerSheet";
 import { WorkersRoster } from "@/components/WorkersRoster";
 import { AGE_COLORS, PAL } from "@/components/office/palette";
 import type { Robot, Worker } from "@/lib/workers";
+import type { WorkRoom } from "@/lib/rooms";
 
 // three.js only loads on this page, in the browser; the server just sends the people and robots.
 const WorkersScene = dynamic(() => import("@/components/WorkersScene"), {
@@ -33,9 +34,12 @@ function useStable<T>(value: T): T {
 export function WorkersView({
   workers: fresh,
   robots: freshRobots,
+  roomBoards,
 }: {
   workers: Worker[];
   robots: Robot[];
+  /** Which board has each themed room, for the room labels. */
+  roomBoards: Partial<Record<WorkRoom, string>>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -80,7 +84,7 @@ export function WorkersView({
         setContainer(el);
       }}
       className="relative h-full min-h-[480px] w-full overflow-hidden" style={{ background: PAL.bg }}>
-      <WorkersScene workers={workers} robots={robots} now={now} onSelect={setSelected} />
+      <WorkersScene workers={workers} robots={robots} roomBoards={roomBoards} now={now} onSelect={setSelected} />
       {/* Vignette like the reference art; it never takes clicks */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45))]" />
 

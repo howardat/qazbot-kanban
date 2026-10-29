@@ -29,7 +29,8 @@ import {
 } from "@/lib/board-ops";
 import { getT } from "@/lib/i18n/server";
 import { newInviteToken } from "@/lib/invites";
-import { PROJECTS, ROBOT_MODELS } from "@/lib/projects";
+import { WORK_ROOMS, ROBOT_MODELS } from "@/lib/rooms";
+import { accessImpact, applyBoardAccess, assertBoard, assertCard, assertColumn, assertTag, canManageBoard, type AccessImpact } from "@/lib/board-access";
 import { requireAdmin, requireUser } from "@/lib/session";
 
 // Dashboard, calendar, timeline and boards all read the same cards.
@@ -50,6 +51,7 @@ export async function createBoard(formData: FormData) {
 export async function renameBoard(boardId: string, newName: string) {
   const user = await requireUser();
   await track(user.id, "board.rename");
+  await assertBoard(user, boardId);
   await db.update(boards).set({ name: name.parse(newName) }).where(eq(boards.id, id.parse(boardId)));
   refreshAll();
 }
@@ -57,9 +59,53 @@ export async function renameBoard(boardId: string, newName: string) {
 export async function deleteBoard(boardId: string) {
   const user = await requireUser();
   await track(user.id, "board.delete");
+  await assertBoard(user, boardId);
   if (!(await deleteBoardOp(user, boardId))) return;
   refreshAll();
   redirect("/");
+}
+
+/**
+ * Board settings: which office room the board's people sit in. A themed room belongs to one board, so
+ * taking one another board has swaps the two; the open office is shared. Anyone who sees the board may
+ * change it.
+ */
+export async function setBoardRoom(boardId: string, room: string) {
+  const user = await requireUser();
+  await track(user.id, "board.settings");
+  await assertBoard(user, boardId);
+  const bId = id.parse(boardId);
+  const next = z.enum(WORK_ROOMS).parse(room);
+  await db.transaction(async (tx) => {
+    const [board] = await tx.select({ room: boards.room }).from(boards).where(eq(boards.id, bId));
+    if (!board || board.room === next) return;
+    const [holder] = next === "back_office" ? [] : await tx.select({ id: boards.id }).from(boards).where(eq(boards.room, next));
+    // Park the holder in the open office first: the unique index allows one board per themed room.
+    if (holder) await tx.update(boards).set({ room: "back_office" }).where(eq(boards.id, holder.id));
+    await tx.update(boards).set({ room: next }).where(eq(boards.id, bId));
+    if (holder) await tx.update(boards).set({ room: board.room }).where(eq(boards.id, holder.id));
+  });
+  refreshAll();
+}
+
+/**
+ * Board settings: who may see the board. Empty opens it to everyone. Creator and admins only.
+ * When the change would lock people out of not-done cards they're assigned to, nothing is saved
+ * and the impact comes back for the owner to confirm; with `confirmed` those assignments go.
+ */
+export async function setBoardMemberIds(boardId: string, profileIds: string[], confirmed = false): Promise<{ saved: true } | { saved: false; impact: AccessImpact }> {
+  const user = await requireUser();
+  await track(user.id, "board.settings");
+  const bId = id.parse(boardId);
+  const ids = z.array(id).max(200).parse(profileIds);
+  if (!(await canManageBoard(user, bId))) throw new Error("Only the board's creator or an admin can change who sees it.");
+  if (!confirmed) {
+    const { impact } = await accessImpact(bId, ids);
+    if (impact.cards > 0) return { saved: false, impact };
+  }
+  await applyBoardAccess(bId, ids);
+  refreshAll();
+  return { saved: true };
 }
 
 // ---------- Columns ----------
@@ -67,6 +113,7 @@ export async function deleteBoard(boardId: string) {
 export async function addColumn(boardId: string, columnName: string) {
   const user = await requireUser();
   await track(user.id, "column.add");
+  await assertBoard(user, boardId);
   await addColumnOp(boardId, columnName);
   refreshAll();
 }
@@ -74,6 +121,7 @@ export async function addColumn(boardId: string, columnName: string) {
 export async function renameColumn(columnId: string, newName: string) {
   const user = await requireUser();
   await track(user.id, "column.rename");
+  await assertColumn(user, columnId);
   const [col] = await db
     .update(columns)
     .set({ name: name.parse(newName) })
@@ -85,6 +133,7 @@ export async function renameColumn(columnId: string, newName: string) {
 export async function deleteColumn(columnId: string) {
   const user = await requireUser();
   await track(user.id, "column.delete");
+  await assertColumn(user, columnId);
   const [col] = await db
     .delete(columns)
     .where(eq(columns.id, id.parse(columnId)))
@@ -95,6 +144,7 @@ export async function deleteColumn(columnId: string) {
 export async function setColumnDone(columnId: string, isDone: boolean) {
   const user = await requireUser();
   await track(user.id, "column.markDone");
+  await assertColumn(user, columnId);
   await setColumnFlagOp(columnId, "done", isDone);
   refreshAll();
 }
@@ -102,6 +152,7 @@ export async function setColumnDone(columnId: string, isDone: boolean) {
 export async function setColumnInProgress(columnId: string, isInProgress: boolean) {
   const user = await requireUser();
   await track(user.id, "column.markInProgress");
+  await assertColumn(user, columnId);
   await setColumnFlagOp(columnId, "inProgress", isInProgress);
   refreshAll();
 }
@@ -109,6 +160,7 @@ export async function setColumnInProgress(columnId: string, isInProgress: boolea
 export async function moveColumn(columnId: string, toIndex: number) {
   const user = await requireUser();
   await track(user.id, "column.reorder");
+  await assertColumn(user, columnId);
   const cId = id.parse(columnId);
   const index = z.number().int().min(0).parse(toIndex);
   const boardId = await db.transaction(async (tx) => {
@@ -131,7 +183,7 @@ export async function moveColumn(columnId: string, toIndex: number) {
 
 // ---------- Cards ----------
 
-type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority">>;
+type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority" | "tagIds" | "title" | "storyPoints">>;
 
 /**
  * Quick add from a column, a calendar day or a timeline row; `dates` pre-fills the schedule and
@@ -140,6 +192,7 @@ type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigne
 export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }, fields?: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.add");
+  await assertColumn(user, columnId);
   const cardId = await addCardOp(user, columnId, title, dates);
   if (fields) await patchCardOp(cardId, fields);
   refreshAll();
@@ -149,6 +202,7 @@ export async function addCard(columnId: string, title: string, dates?: { startDa
 export async function setCardDates(cardId: string, startDate: string | null, dueDate: string | null) {
   const user = await requireUser();
   await track(user.id, "card.timelineDrag");
+  await assertCard(user, cardId);
   await setCardDatesOp(cardId, startDate, dueDate);
   refreshAll();
 }
@@ -156,6 +210,7 @@ export async function setCardDates(cardId: string, startDate: string | null, due
 export async function updateCard(cardId: string, data: z.input<typeof cardUpdate>) {
   const user = await requireUser();
   await track(user.id, "card.edit");
+  await assertCard(user, cardId);
   await updateCardOp(cardId, data);
   refreshAll();
 }
@@ -164,6 +219,7 @@ export async function updateCard(cardId: string, data: z.input<typeof cardUpdate
 export async function rescheduleCard(cardId: string, newDue: string) {
   const user = await requireUser();
   await track(user.id, "card.calendarDrag");
+  await assertCard(user, cardId);
   await rescheduleCardOp(cardId, newDue);
   refreshAll();
 }
@@ -173,6 +229,7 @@ export async function rescheduleCard(cardId: string, newDue: string) {
 export async function createTag(boardId: string, input: z.input<typeof tagInput>) {
   const user = await requireUser();
   await track(user.id, "tag.create");
+  await assertBoard(user, boardId);
   const tag = await createTagOp(boardId, input);
   refreshAll();
   return tag;
@@ -181,6 +238,7 @@ export async function createTag(boardId: string, input: z.input<typeof tagInput>
 export async function updateTag(tagId: string, input: z.input<typeof tagInput>) {
   const user = await requireUser();
   await track(user.id, "tag.edit");
+  await assertTag(user, tagId);
   await db.update(tags).set(tagInput.parse(input)).where(eq(tags.id, id.parse(tagId)));
   refreshAll();
 }
@@ -188,6 +246,7 @@ export async function updateTag(tagId: string, input: z.input<typeof tagInput>) 
 export async function deleteTag(tagId: string) {
   const user = await requireUser();
   await track(user.id, "tag.delete");
+  await assertTag(user, tagId);
   await db.delete(tags).where(eq(tags.id, id.parse(tagId)));
   refreshAll();
 }
@@ -205,12 +264,15 @@ export async function updateMyName(formData: FormData) {
 export async function deleteCard(cardId: string) {
   const user = await requireUser();
   await track(user.id, "card.delete");
+  await assertCard(user, cardId);
   if (await deleteCardOp(cardId)) refreshAll();
 }
 
 export async function moveCard(cardId: string, toColumnId: string, toIndex: number) {
   const user = await requireUser();
   await track(user.id, "card.move");
+  await assertCard(user, cardId);
+  await assertColumn(user, toColumnId);
   await moveCardOp(cardId, toColumnId, toIndex);
   refreshAll();
 }
@@ -219,6 +281,7 @@ export async function moveCard(cardId: string, toColumnId: string, toIndex: numb
 export async function quickUpdateCard(cardId: string, patch: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.quickEdit");
+  await assertCard(user, cardId);
   await patchCardOp(cardId, patch);
   refreshAll();
 }
@@ -227,6 +290,7 @@ export async function quickUpdateCard(cardId: string, patch: QuickFields) {
 export async function workOnCard(cardId: string) {
   const user = await requireUser();
   await track(user.id, "card.workOn");
+  await assertCard(user, cardId);
   const ok = await workOnCardOp(cardId);
   if (ok) refreshAll();
   return ok;
@@ -306,7 +370,7 @@ export async function deleteEmployeeNote(noteId: string) {
 const robotInput = z.object({
   name: z.string().trim().min(1).max(60),
   model: z.enum(ROBOT_MODELS),
-  project: z.enum(PROJECTS).nullable(),
+  room: z.enum(WORK_ROOMS).nullable(),
   profileId: id.nullable(),
 });
 

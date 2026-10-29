@@ -45,7 +45,7 @@ export function WorkersRoster({ workers, now, onSelect }: { workers: Worker[]; n
               <AgeText lastUpdate={x.lastUpdate} now={now} className="ml-auto shrink-0 text-[10px] font-medium tabular-nums" />
             </span>
             <span className="block truncate text-[10px] text-[#c9bfb2]">
-              {x.current ? `${t.projects[x.current.project]} · ${x.current.title}` : x.lastUpdate ? w.idle : w.neverUpdated}
+              {x.current ? `${x.current.boardName} · ${x.current.title}` : x.lastUpdate ? w.idle : w.neverUpdated}
             </span>
           </span>
         )}

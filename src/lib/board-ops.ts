@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, eq, inArray, max, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profiles, TAG_COLORS, tags } from "@/db/schema";
 import { CARD_DONE } from "@/lib/activity";
 import { addDays, diffDays, isValidDate, todayISO } from "@/lib/dates";
+import { boardAudience } from "@/lib/board-access";
+import { STORY_POINTS, type CardSource } from "@/lib/card-source";
 import { PRIORITIES } from "@/lib/priority";
-import { PROJECTS } from "@/lib/projects";
 
 // Board and card writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
 // external agents). Callers authenticate first; these validate input and keep positions consistent.
@@ -31,8 +32,12 @@ export const cardUpdate = z
     dueDate: isoDate.nullable(),
     assigneeIds: z.array(id).max(50),
     tagIds: z.array(id).max(30),
-    project: z.enum(PROJECTS).nullable(),
     priority: z.enum(PRIORITIES).nullable(),
+    storyPoints: z
+      .number()
+      .int()
+      .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "Story points are 1, 2, 3, 5, 8 or 13.")
+      .nullable(),
   })
   .refine(datesInOrder, DATES_ORDER);
 
@@ -45,6 +50,7 @@ export type Actor = { id: string; role: "admin" | "member" };
 export async function createBoardOp(actor: Actor, boardName: string, starterColumns: string[]) {
   const parsed = name.parse(boardName);
   return db.transaction(async (tx) => {
+    // New boards start in the shared open office; board settings can give one a themed room.
     const [board] = await tx.insert(boards).values({ name: parsed, createdBy: actor.id }).returning({ id: boards.id });
     // The last starter column is the "done" column; the second is "in progress" when there's room for one.
     await tx.insert(columns).values(
@@ -95,13 +101,15 @@ export async function setColumnFlagOp(columnId: string, flag: "done" | "inProgre
 
 /**
  * New cards are due tomorrow (or on their start date, if that's later) unless a due date is given,
- * and start out assigned to the person who created them.
+ * and start out assigned to the person who created them (when they're in the board).
  */
 export async function addCardOp(
   actor: Actor,
   columnId: string,
   title: string,
   dates?: { startDate?: string | null; dueDate?: string | null },
+  /** Where the card is being made: the app, the assistant or MCP. */
+  source: CardSource = "app",
 ) {
   const cId = id.parse(columnId);
   const start = dates?.startDate ?? null;
@@ -114,9 +122,20 @@ export async function addCardOp(
   return db.transaction(async (tx) => {
     const [card] = await tx
       .insert(cards)
-      .values({ boardId: col.boardId, columnId: cId, title: name.parse(title), startDate, dueDate, position: (top ?? -1) + 1 })
+      .values({
+        boardId: col.boardId,
+        columnId: cId,
+        title: name.parse(title),
+        startDate,
+        dueDate,
+        position: (top ?? -1) + 1,
+        createdBy: actor.id,
+        createdVia: source,
+      })
       .returning({ id: cards.id });
-    await tx.insert(cardAssignees).values({ cardId: card.id, profileId: actor.id });
+    // Starts assigned to its creator, unless they aren't in this private board (an admin looking in).
+    const audience = await boardAudience(col.boardId);
+    if (!audience || audience.has(actor.id)) await tx.insert(cardAssignees).values({ cardId: card.id, profileId: actor.id });
     return card.id;
   });
 }
@@ -139,10 +158,22 @@ export async function updateCardOp(cardId: string, data: z.input<typeof cardUpda
     const validPeople = assigneeIds.length
       ? await tx.select({ id: profiles.id }).from(profiles).where(inArray(profiles.id, assigneeIds))
       : [];
+    // A private board only takes new assignees who are in it; people already on the card stay.
+    const audience = await boardAudience(card.boardId);
+    if (audience) {
+      const current = await tx.select({ id: cardAssignees.profileId }).from(cardAssignees).where(eq(cardAssignees.cardId, cId));
+      const outsider = validPeople.find((p) => !audience.has(p.id) && !current.some((c) => c.id === p.id));
+      if (outsider) throw new Error("Only people in this board can be assigned to its cards.");
+    }
     await tx.delete(cardTags).where(eq(cardTags.cardId, cId));
-    await tx.delete(cardAssignees).where(eq(cardAssignees.cardId, cId));
     if (validTags.length) await tx.insert(cardTags).values(validTags.map((t) => ({ cardId: cId, tagId: t.id })));
-    if (validPeople.length) await tx.insert(cardAssignees).values(validPeople.map((p) => ({ cardId: cId, profileId: p.id })));
+    // People already on the card keep their assigned_at (it places them on the workers view); only
+    // the removed go and only the new get stamped now.
+    const keep = validPeople.map((p) => p.id);
+    await tx
+      .delete(cardAssignees)
+      .where(keep.length ? and(eq(cardAssignees.cardId, cId), notInArray(cardAssignees.profileId, keep)) : eq(cardAssignees.cardId, cId));
+    if (keep.length) await tx.insert(cardAssignees).values(keep.map((profileId) => ({ cardId: cId, profileId }))).onConflictDoNothing();
   });
 }
 
@@ -162,8 +193,8 @@ export async function patchCardOp(cardId: string, patch: Partial<z.input<typeof 
     dueDate: card.dueDate,
     assigneeIds: assignees.map((a) => a.id),
     tagIds: cardTagRows.map((t) => t.id),
-    project: card.project,
     priority: card.priority,
+    storyPoints: card.storyPoints,
     ...patch,
   });
 }

@@ -55,7 +55,7 @@ function TaskRow({ task, highlight, children }: { task: WorkerTask; highlight?: 
           {task.title}
         </Link>
         <p className="truncate text-xs text-muted-foreground">
-          {t.projects[task.project]} · {task.boardName}
+          {task.boardName}
           {task.inProgress && ` · ${t.workers.since(t.fmt.ago(task.since))}`}
           {task.dueDate && ` · ${t.fmt.day(task.dueDate)}`}
         </p>

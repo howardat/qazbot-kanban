@@ -87,7 +87,7 @@ const overBudget = async () => {
  * a second or two of silence on a call.
  */
 async function myOpenCards(user: CurrentUser) {
-  const mine = (await loadCards())
+  const mine = (await loadCards(user))
     .filter((c) => !c.done && c.assigneeIds.includes(user.id))
     .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
   const lines = mine
@@ -241,6 +241,7 @@ export async function runAgent({
 
   const server = createMcpServer({
     actor: user,
+    source: "assistant",
     starterColumns: t.newBoard.defaultColumns,
     onChange: () => (changed = true),
   });

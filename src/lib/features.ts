@@ -14,6 +14,7 @@ export const FEATURES = [
   "board.create",
   "board.rename",
   "board.delete",
+  "board.settings",
   "column.add",
   "column.rename",
   "column.delete",

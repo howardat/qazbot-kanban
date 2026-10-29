@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, Tag as TagIcon, X } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, Check, ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, Tag as TagIcon, X } from "lucide-react";
 import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -17,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TagPicker } from "@/components/TagSelect";
+import { defaultDesc, MANUAL, SORT_KEYS, type Sort } from "@/lib/card-sort";
 import { TAG_DOT } from "@/lib/colors";
 import { PRIORITIES, PRIORITY_STYLE, type Priority } from "@/lib/priority";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -189,7 +191,7 @@ export function AppliedFilters({ value, onChange, members, tags }: { value: Filt
 
 /** Which properties cards show, and whether empty columns stay. A per-viewer preference in this browser. */
 export type Display = { description: boolean; tags: boolean; priority: boolean; dates: boolean; assignees: boolean; emptyColumns: boolean };
-const DEFAULT_DISPLAY: Display = { description: false, tags: true, priority: true, dates: true, assignees: true, emptyColumns: true };
+const DEFAULT_DISPLAY: Display = { description: true, tags: true, priority: true, dates: true, assignees: true, emptyColumns: true };
 const DISPLAY_KEY = "qazbot:board-display";
 
 export function useDisplay() {
@@ -211,6 +213,65 @@ export function useDisplay() {
 }
 
 /** Plane's "Display" button: toggles for the card properties and for empty columns. */
+// ---------- Order by ----------
+
+/** The board's order, remembered per board in this browser. Manual (the dragged order) by default. */
+export function useSort(boardId: string) {
+  const key = `qazbot:board-sort:${boardId}`;
+  const [sort, setSort] = useState<Sort>(MANUAL);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? "null") as Sort | null;
+      if (saved && SORT_KEYS.includes(saved.key)) setSort(saved);
+    } catch {}
+  }, [key]);
+  const update = (next: Sort) => {
+    setSort(next);
+    try {
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch {}
+  };
+  return [sort, update] as const;
+}
+
+/** Plane-style "Order by": one sort for every column, with its direction. */
+export function SortMenu({ value, onChange }: { value: Sort; onChange: (s: Sort) => void }) {
+  const t = useT();
+  const s = t.sort;
+  const active = value.key !== "manual";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className={cn(active && "border-primary/40 text-primary")}>
+          <ArrowDownUp /> {active ? s[value.key] : s.button}
+          {active && (value.desc ? <ArrowDown /> : <ArrowUp />)}
+          <ChevronDown className="opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{s.button}</DropdownMenuLabel>
+        {SORT_KEYS.map((k) => (
+          <DropdownMenuItem key={k} onSelect={() => onChange({ key: k, desc: defaultDesc(k) })}>
+            <span className="flex-1">{s[k]}</span>
+            {value.key === k && <Check />}
+          </DropdownMenuItem>
+        ))}
+        {active && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onChange({ ...value, desc: false })}>
+              <ArrowUp /> <span className="flex-1">{s.asc}</span> {!value.desc && <Check />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onChange({ ...value, desc: true })}>
+              <ArrowDown /> <span className="flex-1">{s.desc}</span> {value.desc && <Check />}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function DisplayMenu({ value, onChange }: { value: Display; onChange: (patch: Partial<Display>) => void }) {
   const d = useT().board.display;
   const keepOpen = (e: Event) => e.preventDefault();
@@ -270,5 +331,7 @@ export function StateIcon({ done, inProgress, first, className }: { done: boolea
 
 /** Priority as a filled flag in the priority's colour (red, orange, amber, sky). */
 export function PriorityIcon({ priority, className }: { priority: Priority; className?: string }) {
-  return <Flag className={cn("size-3.5 shrink-0", PRIORITY_STYLE[priority], className)} fill="currentColor" aria-hidden />;
+  // The flag's shapes take its colour even inside a highlighted menu row, whose hover style recolours
+  // every element under it (the shapes draw in their own colour, so they'd turn black).
+  return <Flag className={cn("size-3.5 shrink-0 **:text-inherit!", PRIORITY_STYLE[priority], className)} fill="currentColor" aria-hidden />;
 }

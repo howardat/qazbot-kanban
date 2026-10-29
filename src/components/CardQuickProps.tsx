@@ -16,7 +16,7 @@ import { PRIORITIES } from "@/lib/priority";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority" | "tagIds">>;
+export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority" | "tagIds" | "title" | "storyPoints">>;
 
 const toDate = (iso: string) => new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
 const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -43,10 +43,13 @@ export function CardQuickProps({
   onPatch,
   tags,
   onCreateTag,
+  assignable,
   children,
 }: {
   card: CardData;
   members: Member[];
+  /** Who may be newly assigned (a private board's audience); everyone when left out. */
+  assignable?: Member[];
   today: ISODate;
   done: boolean;
   /** Which properties the board's Display menu shows. */
@@ -82,7 +85,7 @@ export function CardQuickProps({
             // Icon only, in a bordered square; the name is in the tooltip.
             <button
               type="button"
-              className={cn(chip, "grid size-5 place-items-center border-[0.5px] border-border-strong", card.priority === "urgent" && "border-red-500/40 bg-red-500/10")}
+              className={cn(chip, "grid size-5 place-items-center border-[0.5px] border-border-strong", card.priority === "high" && "border-red-500/40 bg-red-500/10")}
               aria-label={`${t.quick.priority}: ${t.priority[card.priority]}`}
               title={t.priority[card.priority]}
             >
@@ -197,7 +200,7 @@ export function CardQuickProps({
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto" onClick={stop}>
-            {members.map((m) => (
+            {members.filter((m) => !assignable || assignable.includes(m) || card.assigneeIds.includes(m.id)).map((m) => (
               <DropdownMenuItem
                 key={m.id}
                 onSelect={(e) => {

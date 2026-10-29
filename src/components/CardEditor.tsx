@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack } from "@/components/atoms";
@@ -14,8 +14,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
+import { STORY_POINTS } from "@/lib/card-source";
 import { PRIORITIES, type Priority } from "@/lib/priority";
-import { PROJECTS, type Project } from "@/lib/projects";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 
@@ -46,10 +46,13 @@ export function CardEditor({
   members,
   boardTags,
   boardName,
+  assignable,
   onClose,
 }: {
   card: CardData;
   members: Member[];
+  /** Who may be newly assigned (a private board's audience); everyone when left out. */
+  assignable?: Member[];
   boardTags: Tag[];
   boardName?: string;
   onClose: () => void;
@@ -61,8 +64,8 @@ export function CardEditor({
   const [dueDate, setDueDate] = useState(card.dueDate ?? "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(card.assigneeIds);
   const [tagIds, setTagIds] = useState<string[]>(card.tagIds);
-  const [project, setProject] = useState<Project | null>(card.project);
   const [priority, setPriority] = useState<Priority | null>(card.priority);
+  const [storyPoints, setStoryPoints] = useState<number | null>(card.storyPoints);
   const [tags, setTags] = useState<Tag[]>(boardTags);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -84,8 +87,8 @@ export function CardEditor({
           dueDate: dueDate || null,
           assigneeIds,
           tagIds,
-          project,
           priority,
+          storyPoints,
         });
         toast.success(t.editor.saved);
         onClose();
@@ -200,7 +203,7 @@ export function CardEditor({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-y-auto">
-                      {members.map((m) => (
+                      {members.filter((m) => !assignable || assignable.includes(m) || assigneeIds.includes(m.id)).map((m) => (
                         <DropdownMenuItem
                           key={m.id}
                           onSelect={(e) => {
@@ -233,16 +236,16 @@ export function CardEditor({
                   </Select>
                 </Property>
 
-                <Property icon={FolderKanban} label={t.editor.project}>
-                  <Select value={project ?? NONE} onValueChange={(v) => setProject(v === NONE ? null : (v as Project))}>
-                    <SelectTrigger aria-label={t.editor.project} className={ghostSelect}>
+                <Property icon={Hexagon} label={t.cardMeta.points}>
+                  <Select value={storyPoints ? String(storyPoints) : NONE} onValueChange={(v) => setStoryPoints(v === NONE ? null : Number(v))}>
+                    <SelectTrigger aria-label={t.cardMeta.points} className={ghostSelect}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NONE}>{t.editor.noProject}</SelectItem>
-                      {PROJECTS.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {t.projects[p]}
+                      <SelectItem value={NONE}>{t.cardMeta.noPoints}</SelectItem>
+                      {STORY_POINTS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
                         </SelectItem>
                       ))}
                     </SelectContent>

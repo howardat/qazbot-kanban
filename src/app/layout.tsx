@@ -27,7 +27,7 @@ export default async function RootLayout({
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   // shadcn's sidebar remembers open/collapsed in this cookie; reading it here makes the first paint match.
   const sidebarOpen = (await cookies()).get("sidebar_state")?.value !== "false";
-  const [boards, openCounts] = user ? await Promise.all([loadBoards(), loadOpenCounts()]) : [[], {}];
+  const [boards, openCounts] = user ? await Promise.all([loadBoards(user), loadOpenCounts(user)]) : [[], {}];
 
   return (
     <html lang={locale}>

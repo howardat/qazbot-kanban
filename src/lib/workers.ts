@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, columns, employeeNotes, profiles, robots } from "@/db/schema";
 import { CARD_DONE, FEATURES } from "@/lib/activity";
 import { loadMembers } from "@/lib/data";
-import { DEFAULT_PROJECT, type Project, type RobotModel } from "@/lib/projects";
+import { visibleBoardIds, type Viewer } from "@/lib/board-access";
+import type { RobotModel, WorkRoom } from "@/lib/rooms";
 import type { Member } from "@/lib/types";
 
 const TZ = process.env.APP_TIMEZONE ?? "Asia/Almaty";
@@ -14,15 +15,19 @@ export type WorkerTask = {
   title: string;
   boardId: string;
   boardName: string;
-  project: Project;
+  /** The board's room on the workers view. */
+  room: WorkRoom;
   dueDate: string | null;
   inProgress: boolean;
   /** When the card entered its current column (ISO). */
   since: string;
 };
 
-/** Where someone is on the workers view: their current card's project room, or the lounge when idle. */
-export type Room = Project | "lounge";
+/**
+ * Where someone is on the workers view: the room of the board holding the in-progress card they were
+ * most recently assigned to, or the lounge when nothing of theirs is in progress.
+ */
+export type Room = WorkRoom | "lounge";
 
 export type Worker = Member & {
   /** The one card they're working on: their most recently moved in-progress card. */
@@ -34,10 +39,13 @@ export type Worker = Member & {
   lastUpdate: string | null;
 };
 
-export type Robot = { id: string; name: string; model: RobotModel; project: Project | null; profileId: string | null };
+export type Robot = { id: string; name: string; model: RobotModel; room: WorkRoom | null; profileId: string | null };
 
-/** Every person (or one) with their current task, queue and room, for the workers view. */
-export async function loadWorkers(profileId?: string): Promise<Worker[]> {
+/**
+ * Every person (or one) with their current task, queue and room, for the workers view. Tasks on
+ * boards the viewer can't see are left out of current and queue; the room still counts them.
+ */
+export async function loadWorkers(viewer: Viewer, profileId?: string): Promise<Worker[]> {
   const base = db
     .select({
       profileId: cardAssignees.profileId,
@@ -45,7 +53,8 @@ export async function loadWorkers(profileId?: string): Promise<Worker[]> {
       title: cards.title,
       boardId: cards.boardId,
       boardName: boards.name,
-      project: cards.project,
+      room: boards.room,
+      assignedAt: cardAssignees.assignedAt,
       dueDate: cards.dueDate,
       changedAt: cards.columnChangedAt,
       inProgress: columns.isInProgress,
@@ -56,16 +65,17 @@ export async function loadWorkers(profileId?: string): Promise<Worker[]> {
     .innerJoin(columns, eq(columns.id, cards.columnId))
     .innerJoin(boards, eq(boards.id, cards.boardId))
     .orderBy(desc(cards.columnChangedAt));
-  const [members, rows] = await Promise.all([
+  const [members, rows, visible] = await Promise.all([
     loadMembers(),
     profileId ? base.where(eq(cardAssignees.profileId, profileId)) : base,
+    visibleBoardIds(viewer),
   ]);
   const task = (r: (typeof rows)[number]): WorkerTask => ({
     id: r.id,
     title: r.title,
     boardId: r.boardId,
     boardName: r.boardName,
-    project: r.project ?? DEFAULT_PROJECT,
+    room: r.room,
     dueDate: r.dueDate,
     inProgress: r.inProgress,
     since: r.changedAt.toISOString(),
@@ -74,7 +84,11 @@ export async function loadWorkers(profileId?: string): Promise<Worker[]> {
   return members
     .filter((m) => !profileId || m.id === profileId)
     .map((m) => {
-      const mine = rows.filter((r) => r.profileId === m.id);
+      const all = rows.filter((r) => r.profileId === m.id);
+      const latest = all
+        .filter((r) => r.inProgress && !r.done)
+        .reduce<(typeof all)[number] | null>((best, r) => (!best || r.assignedAt > best.assignedAt ? r : best), null);
+      const mine = visible ? all.filter((r) => visible.has(r.boardId)) : all;
       const open = mine.filter((r) => !r.done);
       const [current, ...otherInProgress] = open.filter((r) => r.inProgress).map(task);
       const waiting = open
@@ -85,7 +99,7 @@ export async function loadWorkers(profileId?: string): Promise<Worker[]> {
         ...m,
         current: current ?? null,
         queue: [...otherInProgress, ...waiting],
-        room: current?.project ?? "lounge",
+        room: latest?.room ?? "lounge",
         lastUpdate: mine[0]?.changedAt.toISOString() ?? null,
       };
     });
@@ -93,7 +107,7 @@ export async function loadWorkers(profileId?: string): Promise<Worker[]> {
 
 export async function loadRobots(): Promise<Robot[]> {
   return db
-    .select({ id: robots.id, name: robots.name, model: robots.model, project: robots.project, profileId: robots.profileId })
+    .select({ id: robots.id, name: robots.name, model: robots.model, room: robots.room, profileId: robots.profileId })
     .from(robots)
     .orderBy(asc(robots.name));
 }
@@ -146,4 +160,13 @@ export async function loadDoneCounts(since: Date): Promise<Map<string, number>> 
     .where(and(eq(activityEvents.kind, CARD_DONE), gte(activityEvents.at, since)))
     .groupBy(activityEvents.profileId);
   return new Map(rows.flatMap((r) => (r.profileId ? [[r.profileId, r.n] as const] : [])));
+}
+
+/**
+ * Which board has each themed office room, by name, for the room labels (the shared open office
+ * has none). A board the viewer can't see shows as "" (taken, unnamed): its room keeps its own name.
+ */
+export async function loadRoomBoards(viewer: Viewer): Promise<Partial<Record<WorkRoom, string>>> {
+  const [rows, visible] = await Promise.all([db.select({ id: boards.id, name: boards.name, room: boards.room }).from(boards), visibleBoardIds(viewer)]);
+  return Object.fromEntries(rows.flatMap((b) => (b.room !== "back_office" ? [[b.room, !visible || visible.has(b.id) ? b.name : ""]] : [])));
 }

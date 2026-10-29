@@ -49,7 +49,7 @@ export function WorkerSheet({
                       style={{ background: STATUS_COLORS[staleness(worker.lastUpdate, !worker.current, now)] }}
                       aria-hidden
                     />
-                    {worker.room === "lounge" ? t.rooms.lounge : t.projects[worker.room]} ·{" "}
+                    {worker.room === "lounge" || worker.room === "back_office" ? t.rooms[worker.room] : (worker.current?.boardName ?? t.rooms[worker.room])} ·{" "}
                     {worker.lastUpdate ? w.updated(t.fmt.ago(worker.lastUpdate, now)) : w.neverUpdated}
                   </DialogPrimitive.Description>
                 </div>
@@ -75,7 +75,7 @@ export function WorkerSheet({
                           <span className="font-medium">{r.name}</span>
                           <span className="text-xs text-muted-foreground">
                             {t.robots.models[r.model]}
-                            {r.project && ` · ${t.projects[r.project]}`}
+                            {r.room && ` · ${t.rooms[r.room]}`}
                           </span>
                         </li>
                       ))}

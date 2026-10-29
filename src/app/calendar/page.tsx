@@ -35,12 +35,12 @@ export default async function CalendarPage({
   const month = isValidMonth(sp.month) ? sp.month : monthOf(today);
   const weekStart = startOfWeek(isValidDate(sp.date) ? sp.date : today);
 
-  const boards = await loadBoards();
+  const boards = await loadBoards(user);
   const board = boards.find((b) => b.id === sp.board) ?? null;
   const [cards, members, tags, inbox] = await Promise.all([
-    loadCards(board?.id),
+    loadCards(user, board?.id),
     loadMembers(),
-    loadTags(board?.id),
+    loadTags(user, board?.id),
     loadInboxColumns(),
   ]);
 

@@ -1,5 +1,5 @@
+import type { CardSource } from "@/lib/card-source";
 import type { Priority } from "@/lib/priority";
-import type { Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 
 export type Member = {
@@ -22,8 +22,15 @@ export type CardData = {
   dueDate: string | null;
   assigneeIds: string[];
   tagIds: string[];
-  project: Project | null;
   priority: Priority | null;
+  /** Estimate (1, 2, 3, 5, 8, 13), or null when unestimated. */
+  storyPoints: number | null;
+  /** Who made the card; null for cards from before this was recorded or whose maker left. */
+  createdBy: string | null;
+  /** In the app, or through Claude (the assistant or MCP). */
+  createdVia: CardSource;
+  /** ISO timestamp. */
+  createdAt: string;
 };
 
 /** A kanban column as the timeline groups cards by it. */

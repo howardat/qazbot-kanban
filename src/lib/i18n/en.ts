@@ -1,6 +1,6 @@
 import { diffDays, makeFormatters, type ISODate } from "@/lib/dates";
 import type { Feature } from "@/lib/features";
-import type { Project, RobotModel } from "@/lib/projects";
+import type { RobotModel } from "@/lib/rooms";
 
 const fmt = makeFormatters("en-GB");
 const s = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
@@ -31,6 +31,7 @@ export const en = {
 
   nav: {
     home: "Home",
+    otherBoards: "Other boards",
     homeAria: "Qazbot Kanban home",
     calendar: "Calendar",
     timeline: "Timeline",
@@ -192,6 +193,7 @@ export const en = {
     nameAria: "Board name",
     options: "Board options",
     deleteBoard: "Delete board",
+    settings: "Board settings",
     deleteTitle: (name: string) => `Delete “${name}”?`,
     deleteBody: "All its columns, cards and labels are deleted for everyone. This can’t be undone.",
     keepBoard: "Keep board",
@@ -234,8 +236,6 @@ export const en = {
     saveFailed: "Couldn't save the card. Check the fields and try again.",
     heading: "Edit card",
     title: "Title",
-    project: "Project",
-    noProject: "No project (back office)",
     description: "Description",
     descriptionPlaceholder: "Add details, links, acceptance criteria…",
     tags: "Labels",
@@ -486,6 +486,7 @@ export const en = {
       "board.create": "Create board",
       "board.rename": "Rename board",
       "board.delete": "Delete board",
+      "board.settings": "Board settings",
       "column.add": "Add column",
       "column.rename": "Rename column",
       "column.delete": "Delete column",
@@ -528,10 +529,31 @@ export const en = {
   priority: {
     label: "Priority",
     none: "No priority",
-    urgent: "Urgent",
     high: "High",
     medium: "Medium",
     low: "Low",
+  },
+
+  cardMeta: {
+    points: "Story points",
+    noPoints: "No estimate",
+    createdBy: (name: string) => `Created by ${name}`,
+    createdWithClaude: (name: string) => `Created by ${name} with Claude`,
+    madeWithClaude: "Created with Claude",
+    assignedTo: "assigned to",
+  },
+
+  sort: {
+    button: "Order by",
+    manual: "Manual",
+    created: "Created",
+    due: "Due date",
+    priority: "Priority",
+    points: "Story points",
+    title: "Title",
+    creator: "Creator",
+    asc: "Ascending",
+    desc: "Descending",
   },
 
   quick: {
@@ -542,16 +564,38 @@ export const en = {
     saveFailed: "Couldn't save. Check the dates and try again.",
   },
 
-  projects: {
-    receptionist: "Robot receptionist",
-    surveillance: "Surveillance robodog",
-    entertainment: "Entertaining squad",
-    navigation: "Autonomous navigation",
-    welding: "Welding defect detection",
-    back_office: "Back office",
-  } satisfies Record<Project, string> as Record<Project, string>,
+  boardSettings: {
+    title: (name: string) => `${name} settings`,
+    description: "Where this board's people sit in the office, and who can see the board.",
+    room: "Office room",
+    roomHint: "One board per room, except the shared open office. People sit here while their latest-assigned in-progress card is on this board.",
+    shared: "shared",
+    swapWith: (board: string) => `${board}'s, swaps`,
+    taken: "taken, swaps",
+    access: "Who can see it",
+    everyone: "Everyone can see this board. Tick people to limit it to them.",
+    restricted: (n: number) => `Only ${n === 1 ? "1 person" : `${n} people`}, the owner and admins can see this board.`,
+    owner: "Owner",
+    onlyOwner: "Only the board's owner or an admin can change who sees it.",
+    saveFailed: "Couldn't save the board settings.",
+    saveAccess: "Save access",
+    reset: "Reset",
+    cancel: "Cancel",
+    confirmPrivateTitle: "Make this board private?",
+    confirmNarrowTitle: "Remove access?",
+    confirmBody: (cards: number, people: string[]) =>
+      `${people.join(", ")} won't be in this board anymore and will be unassigned from ${cards === 1 ? "1 open card" : `${cards} open cards`}. Cards in Done keep their assignees.`,
+    confirmPrivate: "Make private",
+    confirmNarrow: "Remove access",
+  },
 
   rooms: {
+    receptionist: "Front desk",
+    surveillance: "Security room",
+    entertainment: "Stage",
+    navigation: "Lab",
+    welding: "Workshop",
+    back_office: "Open office",
     lounge: "Lounge",
     inventory: "Inventory",
     hall: "Meeting hall",
@@ -559,13 +603,13 @@ export const en = {
 
   robots: {
     title: "Robots",
-    description: "Each robot shows up next to its person in the Team office, or in its project's room when nobody has it.",
+    description: "Each robot shows up next to its person in the Team office, or in its room when nobody has it.",
     models: { agibot_x2: "AgiBot X2 humanoid", agibot_dog: "AgiBot robodog" } satisfies Record<RobotModel, string> as Record<RobotModel, string>,
     name: "Name",
     namePlaceholder: "e.g. X2-07",
     model: "Model",
-    project: "Project",
-    noProject: "No project",
+    room: "Room",
+    noRoom: "No room",
     assignee: "Assigned to",
     nobody: "Nobody",
     add: "Add robot",

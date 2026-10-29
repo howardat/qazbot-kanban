@@ -16,8 +16,9 @@ import {
 } from "@/lib/board-ops";
 import { loadCards, loadMembers } from "@/lib/data";
 import { createExpenseOp, deleteExpenseOp, loadExpenses, updateExpenseOp } from "@/lib/expenses";
+import { STORY_POINTS, type CardSource } from "@/lib/card-source";
 import { PRIORITIES } from "@/lib/priority";
-import { PROJECTS } from "@/lib/projects";
+import { assertBoard, assertCard, assertColumn, onVisible, visibleBoardIds } from "@/lib/board-access";
 import type { CardRow } from "@/lib/types";
 
 // Kanban and expense tools over MCP. The same server backs the in-app assistant (in-memory transport) and the
@@ -26,6 +27,8 @@ import type { CardRow } from "@/lib/types";
 
 export type McpContext = {
   actor: Actor;
+  /** Recorded on cards made through these tools: the in-app assistant or an external MCP client. */
+  source: CardSource;
   /** Starter columns for create_board, in the caller's language. */
   starterColumns: string[];
   /** Called after every successful write, so pages show fresh data. */
@@ -37,7 +40,6 @@ const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: fals
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, openWorldHint: false } as const;
 
 const uuid = z.string().uuid();
-const PROJECT_HINT = "Project the card belongs to; it decides which room its assignees work in on the workers view. Null means back office.";
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 
 // Compact JSON: tool results go straight into the model's context, where whitespace costs tokens.
@@ -71,8 +73,9 @@ const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, s
   ...(c.dueDate ? { dueDate: c.dueDate } : {}),
   ...(c.assigneeIds.length ? { assignees: c.assigneeIds.map((id) => names.get(id) ?? id) } : {}),
   ...(c.tagIds.length ? { tags: c.tagIds.map((id) => tagNames.get(id) ?? id) } : {}),
-  ...(c.project ? { project: c.project } : {}),
   ...(c.priority ? { priority: c.priority } : {}),
+  ...(c.storyPoints ? { storyPoints: c.storyPoints } : {}),
+  ...(c.createdBy ? { createdBy: names.get(c.createdBy) ?? c.createdBy } : {}),
 });
 
 async function lookups() {
@@ -96,11 +99,13 @@ export function createMcpServer(ctx: McpContext) {
       annotations: READ,
     },
     safe(async () => {
-      const [boardRows, colRows, cardRows] = await Promise.all([
+      const [allBoards, colRows, cardRows, visible] = await Promise.all([
         db.select().from(boards).orderBy(asc(boards.createdAt)),
         db.select().from(columns).orderBy(asc(columns.position)),
         db.select({ columnId: cards.columnId }).from(cards),
+        visibleBoardIds(ctx.actor),
       ]);
+      const boardRows = onVisible(allBoards.map((b) => ({ ...b, boardId: b.id })), visible);
       const counts = new Map<string, number>();
       for (const c of cardRows) counts.set(c.columnId, (counts.get(c.columnId) ?? 0) + 1);
       return ok(
@@ -124,11 +129,12 @@ export function createMcpServer(ctx: McpContext) {
       annotations: READ,
     },
     safe(async ({ boardId }) => {
+      await assertBoard(ctx.actor, boardId);
       const [board] = await db.select().from(boards).where(eq(boards.id, boardId));
       if (!board) return fail("Board not found.");
       const [colRows, cardRows, tagRows, { names, tagNames }] = await Promise.all([
         db.select().from(columns).where(eq(columns.boardId, boardId)).orderBy(asc(columns.position)),
-        loadCards(boardId),
+        loadCards(ctx.actor, boardId),
         db.select().from(tags).where(eq(tags.boardId, boardId)),
         lookups(),
       ]);
@@ -177,7 +183,8 @@ export function createMcpServer(ctx: McpContext) {
       annotations: READ,
     },
     safe(async (f) => {
-      let rows = await loadCards(f.boardId);
+      if (f.boardId) await assertBoard(ctx.actor, f.boardId);
+      let rows = await loadCards(ctx.actor, f.boardId);
       if (f.query) {
         const matches = await db
           .select({ id: cards.id })
@@ -225,20 +232,27 @@ export function createMcpServer(ctx: McpContext) {
         dueDate: date.optional(),
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
-        project: z.enum(PROJECTS).nullable().optional().describe(PROJECT_HINT),
-        priority: z.enum(PRIORITIES).nullable().optional().describe("urgent, high, medium or low; null clears it."),
+        priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
+        storyPoints: z
+          .number()
+          .int()
+          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
+          .nullable()
+          .optional()
+          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
       },
       annotations: WRITE,
     },
     safe(async (a) => {
-      const cardId = await addCardOp(ctx.actor, a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate });
+      await assertColumn(ctx.actor, a.columnId);
+      const cardId = await addCardOp(ctx.actor, a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate }, ctx.source);
       const [col] = await db.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, a.columnId));
       const tagIds = await tagIdsFor(col.boardId, a.tags);
-      if (a.description || a.assigneeIds || tagIds || a.project || a.priority) {
+      if (a.description || a.assigneeIds || tagIds || a.priority || a.storyPoints) {
         await patchCardOp(cardId, {
           ...(a.description ? { description: a.description } : {}),
-          ...(a.project ? { project: a.project } : {}),
           ...(a.priority ? { priority: a.priority } : {}),
+          ...(a.storyPoints ? { storyPoints: a.storyPoints } : {}),
           ...(a.assigneeIds ? { assigneeIds: a.assigneeIds } : {}),
           ...(tagIds ? { tagIds } : {}),
         });
@@ -262,12 +276,19 @@ export function createMcpServer(ctx: McpContext) {
         dueDate: date.nullable().optional(),
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
-        project: z.enum(PROJECTS).nullable().optional().describe(PROJECT_HINT),
-        priority: z.enum(PRIORITIES).nullable().optional().describe("urgent, high, medium or low; null clears it."),
+        priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
+        storyPoints: z
+          .number()
+          .int()
+          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
+          .nullable()
+          .optional()
+          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
       },
       annotations: WRITE,
     },
     safe(async ({ cardId, tags: tagNames, ...patch }) => {
+      await assertCard(ctx.actor, cardId);
       const [card] = await db.select({ boardId: cards.boardId }).from(cards).where(eq(cards.id, cardId));
       if (!card) return fail("Card not found.");
       const tagIds = tagNames ? ((await tagIdsFor(card.boardId, tagNames)) ?? []) : undefined;
@@ -286,6 +307,8 @@ export function createMcpServer(ctx: McpContext) {
       annotations: WRITE,
     },
     safe(async ({ cardId, columnId, position }) => {
+      await assertCard(ctx.actor, cardId);
+      await assertColumn(ctx.actor, columnId);
       await moveCardOp(cardId, columnId, position ?? 1_000_000);
       ctx.onChange();
       return ok({ moved: cardId, to: columnId });
@@ -301,6 +324,7 @@ export function createMcpServer(ctx: McpContext) {
       annotations: DESTRUCTIVE,
     },
     safe(async ({ cardId }) => {
+      await assertCard(ctx.actor, cardId);
       if (!(await deleteCardOp(cardId))) return fail("Card not found.");
       ctx.onChange();
       return ok({ deleted: cardId });
@@ -331,6 +355,7 @@ export function createMcpServer(ctx: McpContext) {
       annotations: WRITE,
     },
     safe(async ({ boardId, name }) => {
+      await assertBoard(ctx.actor, boardId);
       const columnId = await addColumnOp(boardId, name);
       ctx.onChange();
       return ok({ created: columnId });
@@ -346,6 +371,7 @@ export function createMcpServer(ctx: McpContext) {
       annotations: WRITE,
     },
     safe(async (a) => {
+      await assertBoard(ctx.actor, a.boardId);
       const tag = await createTagOp(a.boardId, { name: a.name, color: a.color });
       ctx.onChange();
       return ok({ tag: tag.id });

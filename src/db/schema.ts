@@ -12,11 +12,14 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { authUsers } from "drizzle-orm/supabase";
+import { CARD_SOURCES } from "../lib/card-source";
 import { PRIORITIES } from "../lib/priority";
-import { PROJECTS, ROBOT_MODELS } from "../lib/projects";
+import { WORK_ROOMS, ROBOT_MODELS } from "../lib/rooms";
 import { TAG_COLORS } from "../lib/tag-colors";
 
 export { TAG_COLORS, type TagColor } from "../lib/tag-colors";
@@ -61,16 +64,39 @@ export const allowedEmails = pgTable("allowed_email", {
 
 // ---------- Kanban ----------
 
-// Which project (room on the workers view) a card belongs to; null counts as back office.
-export const projectEnum = pgEnum("project", PROJECTS);
+// Work room on the workers view, set per board (and per robot).
+export const roomEnum = pgEnum("room", WORK_ROOMS);
+export const cardSourceEnum = pgEnum("card_source", CARD_SOURCES);
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 
-export const boards = pgTable("board", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-}).enableRLS();
+export const boards = pgTable(
+  "board",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // The office room its people sit in on the workers view. A themed room belongs to one board; the
+    // open office (back_office) is shared by every other board.
+    room: roomEnum("room").notNull().default("back_office"),
+  },
+  (t) => [uniqueIndex("board_room_unique").on(t.room).where(sql`${t.room} <> 'back_office'`)],
+).enableRLS();
+
+// Who may see a board. No rows means everyone does; with rows, only these people, the board's
+// creator and admins.
+export const boardMembers = pgTable(
+  "board_member",
+  {
+    boardId: uuid("board_id")
+      .notNull()
+      .references(() => boards.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.boardId, t.profileId] }), index("board_member_profile_idx").on(t.profileId)],
+).enableRLS();
 
 export const columns = pgTable(
   "column",
@@ -104,8 +130,12 @@ export const cards = pgTable(
     startDate: date("start_date"),
     dueDate: date("due_date"),
     position: integer("position").notNull(),
-    project: projectEnum("project"),
     priority: priorityEnum("priority"),
+    // Estimate in story points (1, 2, 3, 5, 8, 13); null when unestimated.
+    storyPoints: integer("story_points"),
+    // Who made the card, and whether in the app or through Claude (the in-app assistant or MCP).
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdVia: cardSourceEnum("created_via").notNull().default("app"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     // When the card last entered its column: the "last status update" on the workers view.
     columnChangedAt: timestamp("column_changed_at", { mode: "date" }).notNull().defaultNow(),
@@ -122,6 +152,8 @@ export const cardAssignees = pgTable(
     profileId: uuid("profile_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    // When this person was put on the card: their latest one decides their room on the workers view.
+    assignedAt: timestamp("assigned_at", { mode: "date" }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.cardId, t.profileId] }), index("card_assignee_profile_idx").on(t.profileId)],
 ).enableRLS();
@@ -257,14 +289,14 @@ export const employeeNotes = pgTable(
 ).enableRLS();
 
 // Company robots. An assigned robot stands next to its person on the workers view; an unassigned one
-// stays in its project's room (or the inventory room without a project).
+// stays in its room (or the inventory room without a project).
 export const robotModelEnum = pgEnum("robot_model", ROBOT_MODELS);
 
 export const robots = pgTable("robot", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   model: robotModelEnum("model").notNull(),
-  project: projectEnum("project"),
+  room: roomEnum("room"),
   profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();

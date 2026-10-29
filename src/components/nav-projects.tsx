@@ -18,18 +18,23 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-/** sidebar-07's projects list, as our boards: icon, name, open-card count; "…" on hover opens a view. */
+/**
+ * sidebar-07's projects list, as our boards: icon, name, open-card count; "…" on hover opens a view.
+ * Boards holding the viewer's open cards come first, then a quiet "Other boards" label and the rest.
+ */
 export function NavProjects({
   boards,
   counts,
   isActive,
 }: {
-  boards: { id: string; name: string }[];
+  boards: { id: string; name: string; mine: boolean }[];
   counts: Record<string, number>;
   isActive: (id: string) => boolean;
 }) {
   const t = useT();
   const { isMobile } = useSidebar();
+  const mine = boards.filter((b) => b.mine);
+  const rest = boards.filter((b) => !b.mine);
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>{t.nav.boards}</SidebarGroupLabel>
@@ -41,8 +46,11 @@ export function NavProjects({
         }
       />
       <SidebarMenu>
-        {boards.map((b) => (
+        {[...mine, ...rest].map((b, i) => (
           <SidebarMenuItem key={b.id}>
+            {i === mine.length && mine.length > 0 && (
+              <div className="mt-2 mb-0.5 px-2 text-[11px] font-normal text-muted-foreground/60">{t.nav.otherBoards}</div>
+            )}
             <SidebarMenuButton asChild isActive={isActive(b.id)}>
               <Link href={`/boards/${b.id}`}>
                 <BoardIcon board={b} size={16} />

@@ -20,8 +20,11 @@ const card = (id: string, startDate: string | null, dueDate: string | null, extr
   dueDate,
   assigneeIds: [],
   tagIds: [],
-  project: null,
   priority: null,
+  storyPoints: null,
+  createdBy: null,
+  createdVia: "app",
+  createdAt: "2026-10-01T00:00:00Z",
   boardName: "Board",
   columnName: "Todo",
   done: false,
@@ -379,9 +382,9 @@ describe("planning in the card column", () => {
     expect(priority).not.toBeNull();
     expect(row.querySelector('[aria-label="Assignees"]')).not.toBeNull();
     await userEvent.click(priority);
-    await screen.getByRole("menuitem", { name: "Urgent" }).click();
-    await expect.poll(() => calls("quickUpdateCard")).toEqual([["1", { priority: "urgent" }]]);
-    await expect.poll(() => row.querySelector('[aria-label="Set priority: Urgent"]')).not.toBeNull();
+    await screen.getByRole("menuitem", { name: "Low" }).click();
+    await expect.poll(() => calls("quickUpdateCard")).toEqual([["1", { priority: "low" }]]);
+    await expect.poll(() => row.querySelector('[aria-label="Set priority: Low"]')).not.toBeNull();
   });
 });
 
