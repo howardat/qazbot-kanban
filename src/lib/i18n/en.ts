@@ -541,7 +541,6 @@ export const en = {
     createdWithClaude: (name: string) => `Created by ${name} with Claude`,
     madeWithClaude: "Created with Claude",
     assignedTo: "assigned to",
-    rename: "Rename",
   },
 
   sort: {

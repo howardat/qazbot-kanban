@@ -545,7 +545,6 @@ export const ru: Dict = {
     createdWithClaude: (name: string) => `Создал(а) ${name} с Claude`,
     madeWithClaude: "Создано с Claude",
     assignedTo: "назначено",
-    rename: "Переименовать",
   },
 
   sort: {

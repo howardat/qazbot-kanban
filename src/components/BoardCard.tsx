@@ -80,7 +80,7 @@ function DueText({ due, today, done }: { due: ISODate; today: ISODate; done: boo
 /**
  * A board card: priority and label pills, the title, the description's first line, then a footer with
  * the creator (and Claude's mark) → assignees on the left and story points and deadline on the right.
- * Everything but the description edits in place; a click anywhere else opens the card.
+ * Priority, labels, people, points and deadline edit in place; a click anywhere else opens the card.
  */
 export function BoardCard({
   card,
@@ -112,8 +112,6 @@ export function BoardCard({
   onCreateTag: (name: string) => void;
 }) {
   const t = useT();
-  const [renaming, setRenaming] = useState(false);
-  const [title, setTitle] = useState(card.title);
   const [dateOpen, setDateOpen] = useState(false);
   const desc = show.description ? firstLine(card.description) : "";
   const cardTags = card.tagIds.map((id) => tags.find((x) => x.id === id)).filter((x): x is Tag => !!x);
@@ -131,12 +129,6 @@ export function BoardCard({
     if (!e.currentTarget.contains(target) || (control && e.currentTarget.contains(control))) e.stopPropagation();
   };
   const guard = overlay ? {} : { onPointerDown: stop, onClick: stop, onKeyDown: stop };
-  const saveTitle = () => {
-    setRenaming(false);
-    const next = title.trim();
-    if (next && next !== card.title) onPatch({ title: next });
-    else setTitle(card.title);
-  };
 
   const hasPills = (show.priority && !!card.priority) || (show.tags && cardTags.length > 0);
   return (
@@ -211,54 +203,15 @@ export function BoardCard({
           </div>
         )}
 
-        {/* Title: click to rename in place */}
-        {renaming ? (
-          // A textarea that grows with the text, with the heading's exact box, so renaming doesn't
-          // shift or resize anything. Enter saves instead of adding a line.
-          <textarea
-            autoFocus
-            rows={1}
-            value={title}
-            aria-label={t.cardMeta.rename}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={saveTitle}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter") {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }
-              if (e.key === "Escape") {
-                setTitle(card.title);
-                setRenaming(false);
-              }
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
-            className="mt-2 -mx-1 block w-[calc(100%+0.5rem)] resize-none overflow-hidden rounded-md bg-muted/60 px-1 pr-6 text-[14px] leading-6 font-medium break-words outline-none field-sizing-content"
-          />
-        ) : (
-          <h3
-            title={card.title}
-            onPointerDown={overlay ? undefined : (e) => e.stopPropagation()}
-            onClick={
-              overlay
-                ? undefined
-                : (e) => {
-                    e.stopPropagation();
-                    setTitle(card.title);
-                    setRenaming(true);
-                  }
-            }
-            className={cn(
-              "mt-2 -mx-1 line-clamp-2 cursor-text rounded-md px-1 pr-6 text-[14px] leading-6 font-medium break-words hover:bg-muted/60",
-              done && "text-muted-foreground line-through decoration-muted-foreground/60",
-            )}
-          >
-            {card.title}
-          </h3>
-        )}
+        <h3
+          title={card.title}
+          className={cn(
+            "mt-2 line-clamp-2 pr-6 text-[14px] leading-6 font-medium break-words",
+            done && "text-muted-foreground line-through decoration-muted-foreground/60",
+          )}
+        >
+          {card.title}
+        </h3>
         {desc && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{desc}</p>}
       </div>
 
