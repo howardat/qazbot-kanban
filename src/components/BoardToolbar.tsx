@@ -331,5 +331,7 @@ export function StateIcon({ done, inProgress, first, className }: { done: boolea
 
 /** Priority as a filled flag in the priority's colour (red, orange, amber, sky). */
 export function PriorityIcon({ priority, className }: { priority: Priority; className?: string }) {
-  return <Flag className={cn("size-3.5 shrink-0", PRIORITY_STYLE[priority], className)} fill="currentColor" aria-hidden />;
+  // The flag's shapes take its colour even inside a highlighted menu row, whose hover style recolours
+  // every element under it (the shapes draw in their own colour, so they'd turn black).
+  return <Flag className={cn("size-3.5 shrink-0 **:text-inherit!", PRIORITY_STYLE[priority], className)} fill="currentColor" aria-hidden />;
 }
