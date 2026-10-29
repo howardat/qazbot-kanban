@@ -15,6 +15,20 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-29-profile-photos",
+    date: "2026-10-29",
+    title: { en: "Profile photos", ru: "Фото профиля" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Add your photo on the Avatar page (your name at the bottom of the sidebar → Avatar): it shows next to your name on boards, cards and in the team list.",
+          ru: "Добавьте своё фото на странице «Аватар» (ваше имя внизу боковой панели → «Аватар»): оно появится рядом с вашим именем на досках, в карточках и в списке команды.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-29-cards-rooms-private-boards",
     date: "2026-10-29",
     title: { en: "New cards, private boards and office rooms", ru: "Новые карточки, закрытые доски и комнаты в офисе" },

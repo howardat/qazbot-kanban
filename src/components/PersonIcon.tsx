@@ -2,8 +2,11 @@ import { lookOf, type Look } from "@/components/office/look";
 import { displayName, type Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Avatar icon drawn like the person's figure in the office: same skin, hair, outfit and accessory. */
+/** The person's photo, or an icon drawn like their figure in the office: same skin, hair, outfit and accessory. */
 export function PersonIcon({ member, size = 28, className }: { member: Member; size?: number; className?: string }) {
+  if (member.image)
+    // eslint-disable-next-line @next/next/no-img-element -- a tiny Storage URL; next/image would need the host configured
+    return <img src={member.image} alt={displayName(member)} title={displayName(member)} width={size} height={size} className={cn("shrink-0 rounded-full object-cover", className)} style={{ width: size, height: size }} />;
   return <LookIcon look={lookOf(member)} size={size} className={className} label={displayName(member)} />;
 }
 

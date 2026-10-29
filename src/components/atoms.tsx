@@ -15,6 +15,19 @@ export function Avatar({ member, size = 24, className }: { member: Member; size?
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
     .join("");
+  if (member.image)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a tiny Storage URL; next/image would need the host configured
+      <img
+        src={member.image}
+        alt={label}
+        title={label}
+        width={size}
+        height={size}
+        className={cn("inline-block shrink-0 select-none rounded-full object-cover ring-2 ring-card", className)}
+        style={{ width: size, height: size }}
+      />
+    );
   return (
     <span
       title={label}
