@@ -108,11 +108,11 @@ export function DueBadge({
     ) : null;
   }
   const Icon = state === "overdue" ? AlertCircle : state === "later" || state === "done" ? CalendarDays : Clock;
-  // Overdue is told by the red alert icon and the date; "N days late" is only in the tooltip.
-  const text = state === "later" || state === "done" || state === "overdue" ? t.fmt.day(due!) : t.due.relative(due!, today);
+  // Close and late deadlines read relative ("Завтра", "Прос. 2 дня"); a late one's date is in the tooltip.
+  const text = state === "later" || state === "done" ? t.fmt.day(due!) : t.due.relative(due!, today);
   return (
     <span
-      title={state === "overdue" ? t.due.relative(due!, today) : undefined}
+      title={state === "overdue" ? t.fmt.day(due!) : undefined}
       className={cn("inline-flex h-5 items-center gap-1 rounded-sm border-[0.5px] px-1.5 text-[11px] font-medium", DUE_STYLE[state])}
     >
       <Icon className="size-3" />

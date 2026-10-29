@@ -64,11 +64,12 @@ export function CreatorMark({ creator, claude, size = 20 }: { creator: Member | 
 function DueText({ due, today, done }: { due: ISODate; today: ISODate; done: boolean }) {
   const t = useT();
   const state = dueState(due, today, done);
-  const text = state === "today" || state === "soon" ? t.due.relative(due, today) : t.fmt.day(due);
+  // Close and late deadlines read relative ("Завтра", "Прос. 2 дня"); the date is in the tooltip.
+  const text = state === "today" || state === "soon" || state === "overdue" ? t.due.relative(due, today) : t.fmt.day(due);
   const Icon = state === "overdue" ? AlertCircle : CalendarDays;
   return (
     <span
-      title={state === "overdue" ? t.due.relative(due, today) : undefined}
+      title={state === "overdue" ? t.fmt.day(due) : undefined}
       className={cn("inline-flex items-center gap-1", DUE_TEXT[state], done && "line-through")}
     >
       <Icon className="size-3.5" /> {text}

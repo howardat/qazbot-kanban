@@ -100,7 +100,7 @@ export const ru: Dict = {
       const d = diffDays(due, today);
       if (d === 0) return "Сегодня";
       if (d === 1) return "Завтра";
-      if (d < 0) return `Просрочено на ${-d} ${p(-d, "день", "дня", "дней")}`;
+      if (d < 0) return `Прос. ${-d} ${p(-d, "день", "дня", "дней")}`;
       if (d < 7) return `До ${fmt.weekday(due)}`;
       return `До ${fmt.day(due)}`;
     },
