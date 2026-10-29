@@ -182,6 +182,8 @@ export const ru: Dict = {
     assignee: "Исполнитель",
     tag: "Метка",
     me: "Я",
+    searchPeople: "Найти человека",
+    noPeople: "Здесь пока никого нет.",
     removeFilter: "Убрать фильтр",
     clearFilters: "Сбросить все",
     display: {

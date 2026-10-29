@@ -178,6 +178,8 @@ export const en = {
     assignee: "Assignee",
     tag: "Label",
     me: "Me",
+    searchPeople: "Search people",
+    noPeople: "No one here yet.",
     removeFilter: "Remove filter",
     clearFilters: "Clear all",
     display: {

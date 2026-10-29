@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowDownUp, ArrowUp, Check, ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, Tag as TagIcon, X } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, Check, ChevronDown, Circle, CircleCheck, CircleDashed, Flag, ListFilter, SlidersHorizontal, Tag as TagIcon, Users, X } from "lucide-react";
 import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
@@ -78,17 +78,26 @@ export function FiltersMenu({
         <FiltersTrigger count={count} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[70vh] w-60 overflow-y-auto">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">{b.assignee}</DropdownMenuLabel>
-        {me && (
-          <DropdownMenuCheckboxItem checked={value.people.includes(me.id)} onSelect={keepOpen} onCheckedChange={() => onChange({ ...value, people: flip(value.people, me.id) })}>
-            <Avatar member={me} size={18} className="ring-0" /> {b.me}
-          </DropdownMenuCheckboxItem>
-        )}
-        {others.map((m) => (
-          <DropdownMenuCheckboxItem key={m.id} checked={value.people.includes(m.id)} onSelect={keepOpen} onCheckedChange={() => onChange({ ...value, people: flip(value.people, m.id) })}>
-            <Avatar member={m} size={18} className="ring-0" /> <span className="truncate">{displayName(m)}</span>
-          </DropdownMenuCheckboxItem>
-        ))}
+        {/* People: a searchable submenu like labels, since the team list runs long */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Users /> {b.assignee}
+            {value.people.length > 0 && <span className="ml-auto rounded-sm bg-primary/10 px-1 text-[11px] text-primary tabular-nums">{value.people.length}</span>}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-60 p-1">
+            <TagPicker
+              autoFocus
+              options={[...(me ? [me] : []), ...others].map((m) => ({
+                id: m.id,
+                name: m === me ? b.me : displayName(m),
+                icon: <Avatar member={m} size={18} className="ring-0" />,
+              }))}
+              selected={value.people}
+              onToggle={(id) => onChange({ ...value, people: flip(value.people, id) })}
+              labels={{ search: b.searchPeople, add: () => "", empty: b.noPeople }}
+            />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">{t.priority.label}</DropdownMenuLabel>
         {PRIORITIES.map((p) => (

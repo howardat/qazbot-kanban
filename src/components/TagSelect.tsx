@@ -10,12 +10,13 @@ import { useT } from "@/components/I18nProvider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-/** One choice: its dot is either a CSS colour or a class (the label palette's TAG_DOT). */
-export type TagOption = { id: string; name: string; color?: string; dotClassName?: string };
+/** One choice: its dot is either a CSS colour or a class (the label palette's TAG_DOT), or an icon in its place. */
+export type TagOption = { id: string; name: string; color?: string; dotClassName?: string; icon?: React.ReactNode };
 
 type PickerLabels = { search: string; add: (name: string) => string; empty: string };
 
 function Dot({ option }: { option: TagOption }) {
+  if (option.icon) return option.icon;
   return <span className={cn("size-2 shrink-0 rounded-full", option.dotClassName)} style={option.color ? { background: option.color } : undefined} aria-hidden />;
 }
 
