@@ -232,7 +232,7 @@ export function BoardCard({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            className="mt-2 -mx-1 w-[calc(100%+0.5rem)] rounded-md bg-muted/60 px-1 text-[14px] leading-6 font-semibold ring-1 ring-primary/40 outline-none"
+            className="mt-2 -mx-1 w-[calc(100%+0.5rem)] rounded-md bg-muted/60 px-1 text-[14px] leading-6 font-medium outline-none"
           />
         ) : (
           <h3
@@ -248,7 +248,7 @@ export function BoardCard({
                   }
             }
             className={cn(
-              "mt-2 -mx-1 line-clamp-2 cursor-text rounded-md px-1 pr-6 text-[14px] leading-6 font-semibold break-words hover:bg-muted/60",
+              "mt-2 -mx-1 line-clamp-2 cursor-text rounded-md px-1 pr-6 text-[14px] leading-6 font-medium break-words hover:bg-muted/60",
               done && "text-muted-foreground line-through decoration-muted-foreground/60",
             )}
           >
