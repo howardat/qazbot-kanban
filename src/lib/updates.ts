@@ -15,6 +15,76 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-29-cards-rooms-private-boards",
+    date: "2026-10-29",
+    title: { en: "New cards, private boards and office rooms", ru: "Новые карточки, закрытые доски и комнаты в офисе" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Board cards have a new look: priority and labels on top, then who made the card (with Claude's mark if it was made with Claude) and who it's assigned to, story points and the deadline.",
+          ru: "У карточек новый вид: сверху приоритет и метки, внизу — кто создал карточку (со значком Claude, если с его помощью), кому она назначена, стори-поинты и срок.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Cards take story points: set them right on the card or in the card editor.",
+          ru: "У карточек появились стори-поинты: их можно поставить прямо на карточке или в редакторе.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Sort a board with the new Order by button: by created date, deadline, priority, story points, title or creator.",
+          ru: "Доску можно отсортировать кнопкой «Сортировка»: по дате создания, сроку, приоритету, стори-поинтам, названию или автору.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Private boards: in a board's settings (the ⋯ menu), its owner can pick who sees it. Only those people can see its cards and be assigned to them.",
+          ru: "Закрытые доски: в настройках доски (меню ⋯) владелец выбирает, кто её видит. Только эти люди видят её карточки и могут быть на них назначены.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Projects are gone: in the office, rooms belong to boards (named after them, the rest share the open office), and people sit in the room of the board they're working on now.",
+          ru: "Проектов больше нет: комнаты в офисе принадлежат доскам (подписаны их названиями, остальные доски делят опенспейс), и человек сидит в комнате доски, над которой сейчас работает.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Your boards come first in the sidebar.",
+          ru: "Доски с вашими карточками теперь первыми в меню.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Deadlines are easier to read: red when late (\"2 days late\"), yellow for today and the next two days, grey otherwise.",
+          ru: "Сроки читаются проще: красным, если просрочено («Прос. 2 дня»), жёлтым — сегодня и в ближайшие два дня, серым — остальные.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Priority is now just High, Medium or Low; urgent cards became High.",
+          ru: "Приоритетов теперь три: высокий, средний и низкий; срочные карточки стали высокими.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "Dates no longer show an error on first load in Safari.",
+          ru: "В Safari даты больше не вызывают ошибку при открытии страницы.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-28-feedback",
     date: "2026-10-28",
     title: { en: "Report bugs and ideas", ru: "Сообщайте об ошибках и идеях" },
