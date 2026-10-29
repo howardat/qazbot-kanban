@@ -8,6 +8,7 @@ import { canDeleteBoard } from "@/lib/board-ops";
 import { loadCards, loadMembers, loadTags } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { track } from "@/lib/activity";
+import { loadRoomBoards } from "@/lib/workers";
 import { boardAudience, canManageBoard, canSeeBoard, loadBoardMembers } from "@/lib/board-access";
 import { requireUser } from "@/lib/session";
 
@@ -20,7 +21,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
   const [board] = await db.select().from(boards).where(eq(boards.id, id));
   if (!board || !(await canSeeBoard(user, id))) notFound();
 
-  const [cols, cardRows, members, tags, boardMemberIds, canManage, audience] = await Promise.all([
+  const [cols, cardRows, members, tags, boardMemberIds, canManage, audience, roomBoards] = await Promise.all([
     db.select().from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     loadCards(user, id),
     loadMembers(),
@@ -28,6 +29,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
     loadBoardMembers(id),
     canManageBoard(user, id),
     boardAudience(id),
+    loadRoomBoards(user),
   ]);
 
   const data: ColumnData[] = cols.map((c) => ({
@@ -40,7 +42,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
 
   return (
     <Board
-      board={{ id: board.id, name: board.name, room: board.room, createdBy: board.createdBy, memberIds: boardMemberIds, canManage }}
+      board={{ id: board.id, name: board.name, room: board.room, roomBoards, createdBy: board.createdBy, memberIds: boardMemberIds, canManage }}
       columns={data}
       members={members}
       tags={tags}

@@ -120,6 +120,13 @@
       "when": 1793270238122,
       "tag": "0016_card_creator_points",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793275903316,
+      "tag": "0017_board_rooms_by_name",
+      "breakpoints": true
     }
   ]
 }

@@ -161,3 +161,12 @@ export async function loadDoneCounts(since: Date): Promise<Map<string, number>> 
     .groupBy(activityEvents.profileId);
   return new Map(rows.flatMap((r) => (r.profileId ? [[r.profileId, r.n] as const] : [])));
 }
+
+/**
+ * Which board has each themed office room, by name, for the room labels (the shared open office
+ * has none). A board the viewer can't see shows as "" (taken, unnamed): its room keeps its own name.
+ */
+export async function loadRoomBoards(viewer: Viewer): Promise<Partial<Record<WorkRoom, string>>> {
+  const [rows, visible] = await Promise.all([db.select({ id: boards.id, name: boards.name, room: boards.room }).from(boards), visibleBoardIds(viewer)]);
+  return Object.fromEntries(rows.flatMap((b) => (b.room !== "back_office" ? [[b.room, !visible || visible.has(b.id) ? b.name : ""]] : [])));
+}

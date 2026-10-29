@@ -65,12 +65,26 @@ export async function deleteBoard(boardId: string) {
   redirect("/");
 }
 
-/** Board settings: which office room the board works from. Anyone who sees the board may change it. */
+/**
+ * Board settings: which office room the board's people sit in. A themed room belongs to one board, so
+ * taking one another board has swaps the two; the open office is shared. Anyone who sees the board may
+ * change it.
+ */
 export async function setBoardRoom(boardId: string, room: string) {
   const user = await requireUser();
   await track(user.id, "board.settings");
   await assertBoard(user, boardId);
-  await db.update(boards).set({ room: z.enum(WORK_ROOMS).parse(room) }).where(eq(boards.id, id.parse(boardId)));
+  const bId = id.parse(boardId);
+  const next = z.enum(WORK_ROOMS).parse(room);
+  await db.transaction(async (tx) => {
+    const [board] = await tx.select({ room: boards.room }).from(boards).where(eq(boards.id, bId));
+    if (!board || board.room === next) return;
+    const [holder] = next === "back_office" ? [] : await tx.select({ id: boards.id }).from(boards).where(eq(boards.room, next));
+    // Park the holder in the open office first: the unique index allows one board per themed room.
+    if (holder) await tx.update(boards).set({ room: "back_office" }).where(eq(boards.id, holder.id));
+    await tx.update(boards).set({ room: next }).where(eq(boards.id, bId));
+    if (holder) await tx.update(boards).set({ room: board.room }).where(eq(boards.id, holder.id));
+  });
   refreshAll();
 }
 

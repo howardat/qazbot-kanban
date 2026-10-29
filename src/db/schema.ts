@@ -12,8 +12,10 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { authUsers } from "drizzle-orm/supabase";
 import { CARD_SOURCES } from "../lib/card-source";
 import { PRIORITIES } from "../lib/priority";
@@ -67,14 +69,19 @@ export const roomEnum = pgEnum("room", WORK_ROOMS);
 export const cardSourceEnum = pgEnum("card_source", CARD_SOURCES);
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 
-export const boards = pgTable("board", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  // Where people working on this board's cards sit on the workers view.
-  room: roomEnum("room").notNull().default("back_office"),
-}).enableRLS();
+export const boards = pgTable(
+  "board",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // The office room its people sit in on the workers view. A themed room belongs to one board; the
+    // open office (back_office) is shared by every other board.
+    room: roomEnum("room").notNull().default("back_office"),
+  },
+  (t) => [uniqueIndex("board_room_unique").on(t.room).where(sql`${t.room} <> 'back_office'`)],
+).enableRLS();
 
 // Who may see a board. No rows means everyone does; with rows, only these people, the board's
 // creator and admins.

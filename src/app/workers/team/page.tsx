@@ -13,7 +13,7 @@ import { WORK_ROOMS } from "@/lib/rooms";
 import { requireUser } from "@/lib/session";
 import { displayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { loadDoneCounts, loadWorkers } from "@/lib/workers";
+import { loadDoneCounts, loadRoomBoards, loadWorkers } from "@/lib/workers";
 
 // The classic counterpart of the 3D office: summary numbers, who sits in which room, and one row per
 // person with their availability, current task and workload.
@@ -23,7 +23,7 @@ export default async function TeamPage() {
   const t = await getT();
   const w = t.workers;
   const today = todayISO();
-  const [workers, cards, done30] = await Promise.all([loadWorkers(user), loadCards(user), loadDoneCounts(new Date(Date.now() - 30 * 86_400_000))]);
+  const [workers, cards, roomBoards, done30] = await Promise.all([loadWorkers(user), loadCards(user), loadRoomBoards(user), loadDoneCounts(new Date(Date.now() - 30 * 86_400_000))]);
   const open = cards.filter((c) => !c.done);
 
   const rows = workers
@@ -32,9 +32,12 @@ export default async function TeamPage() {
   const working = workers.filter((x) => x.current).length;
   const lateCards = open.filter((c) => c.dueDate && c.dueDate < today && c.assigneeIds.length > 0).length;
   const doneTotal = [...done30.values()].reduce((n, v) => n + v, 0);
-  const rooms = [...WORK_ROOMS.map((p) => ({ key: p, label: t.rooms[p], color: ROOM_COLORS[p] })), { key: "lounge", label: t.rooms.lounge, color: "#9a918a" }].map(
-    (r) => ({ ...r, n: workers.filter((x) => x.room === r.key).length }),
-  );
+  // One row per themed room with a board (named after it), then the shared open office and the lounge.
+  const rooms = [
+    ...WORK_ROOMS.flatMap((p) => (p !== "back_office" && roomBoards[p] ? [{ key: p as string, label: roomBoards[p], color: ROOM_COLORS[p] }] : [])),
+    { key: "back_office", label: t.rooms.back_office, color: ROOM_COLORS.back_office },
+    { key: "lounge", label: t.rooms.lounge, color: "#9a918a" },
+  ].map((r) => ({ ...r, n: workers.filter((x) => x.room === r.key).length }));
   const roomMax = Math.max(1, ...rooms.map((r) => r.n));
 
   const stats = [

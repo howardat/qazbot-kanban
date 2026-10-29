@@ -50,6 +50,7 @@ export type Actor = { id: string; role: "admin" | "member" };
 export async function createBoardOp(actor: Actor, boardName: string, starterColumns: string[]) {
   const parsed = name.parse(boardName);
   return db.transaction(async (tx) => {
+    // New boards start in the shared open office; board settings can give one a themed room.
     const [board] = await tx.insert(boards).values({ name: parsed, createdBy: actor.id }).returning({ id: boards.id });
     // The last starter column is the "done" column; the second is "in progress" when there's room for one.
     await tx.insert(columns).values(

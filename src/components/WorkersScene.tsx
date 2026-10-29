@@ -41,6 +41,7 @@ import { AgeAvatar, AgeText } from "@/components/AgeRing";
 import { staleness } from "@/lib/staleness";
 import { displayName } from "@/lib/types";
 import type { Robot, Worker } from "@/lib/workers";
+import type { WorkRoom } from "@/lib/rooms";
 
 // The office floor: project rooms, a meeting hall, a robotics lab, inventory and a lounge, with every
 // person at a seat in the room of their current card's project (the lounge when idle) and every robot
@@ -155,11 +156,14 @@ const roomCenter = (room: RoomId): [number, number] => {
 export default function WorkersScene({
   workers,
   robots,
+  roomBoards,
   now,
   onSelect,
 }: {
   workers: Worker[];
   robots: Robot[];
+  /** Which board has each themed room: its label shows the board's name. */
+  roomBoards: Partial<Record<WorkRoom, string>>;
   now: number;
   /** Someone was clicked: their bubble or their figure. */
   onSelect: (workerId: string) => void;
@@ -538,7 +542,7 @@ export default function WorkersScene({
           ) : kind === "robot" && robot ? (
             <span className="block rounded-sm bg-black/55 px-1 text-[9px] leading-tight whitespace-nowrap text-white/90">{robot.name}</span>
           ) : kind === "room" ? (
-            <RoomTag room={id as RoomId} count={workers.filter((w) => w.room === id).length} />
+            <RoomTag room={id as RoomId} board={roomBoards[id as WorkRoom]} count={workers.filter((w) => w.room === id).length} />
           ) : null;
         return node ? createPortal(node, div, key) : null;
       })}
@@ -546,9 +550,10 @@ export default function WorkersScene({
   );
 }
 
-function RoomTag({ room, count }: { room: RoomId; count: number }) {
+/** A room's name tag: the board that has the room, else the place's own name (open office, lounge…). */
+function RoomTag({ room, board, count }: { room: RoomId; board?: string; count: number }) {
   const t = useT();
-  const name = room in t.rooms ? t.rooms[room as keyof typeof t.rooms] : t.rooms[room as keyof typeof t.rooms];
+  const name = board || t.rooms[room];
   return (
     <span className="block rounded-sm bg-[#24201c]/80 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide whitespace-nowrap text-[#f1ebe1] uppercase">
       {name}

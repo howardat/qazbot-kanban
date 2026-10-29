@@ -18,7 +18,10 @@ import { cn } from "@/lib/utils";
 export type BoardInfo = {
   id: string;
   name: string;
+  /** The office room this board's people sit in. */
   room: WorkRoom;
+  /** Which board has each themed room (by name; "" for a board the viewer can't see). */
+  roomBoards: Partial<Record<WorkRoom, string>>;
   createdBy: string | null;
   /** Who may see the board; empty means everyone. */
   memberIds: string[];
@@ -82,11 +85,20 @@ export function BoardSettings({ board, members, open, onOpenChange }: { board: B
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {WORK_ROOMS.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {t.rooms[r]}
-                </SelectItem>
-              ))}
+              {WORK_ROOMS.map((r) => {
+                // Another board's room: picking it swaps the two boards' rooms.
+                const holder = r === board.room ? undefined : board.roomBoards[r];
+                return (
+                  <SelectItem key={r} value={r}>
+                    {t.rooms[r]}
+                    {r === "back_office" ? (
+                      <span className="text-muted-foreground"> · {s.shared}</span>
+                    ) : (
+                      holder !== undefined && <span className="text-muted-foreground"> · {holder ? s.swapWith(holder) : s.taken}</span>
+                    )}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">{s.roomHint}</p>
