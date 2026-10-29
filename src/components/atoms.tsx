@@ -64,7 +64,8 @@ export function TagBadge({ tag, size = "sm", className }: { tag: Pick<Tag, "name
   );
 }
 
-// Property chips, as on Plane's cards: neutral hairline chip, colored only when it needs attention.
+// Property chips, as on Plane's cards: neutral hairline chip, colored only when it needs attention:
+// red past the deadline, amber today and the next two days, grey otherwise.
 const DUE_STYLE = {
   overdue: "border-destructive/40 text-destructive",
   today: "border-warning/40 text-warning",
@@ -95,9 +96,13 @@ export function DueBadge({
     ) : null;
   }
   const Icon = state === "overdue" ? AlertCircle : state === "later" || state === "done" ? CalendarDays : Clock;
-  const text = state === "later" || state === "done" ? t.fmt.day(due!) : t.due.relative(due!, today);
+  // Overdue is told by the red alert icon and the date; "N days late" is only in the tooltip.
+  const text = state === "later" || state === "done" || state === "overdue" ? t.fmt.day(due!) : t.due.relative(due!, today);
   return (
-    <span className={cn("inline-flex h-5 items-center gap-1 rounded-sm border-[0.5px] px-1.5 text-[11px] font-medium", DUE_STYLE[state])}>
+    <span
+      title={state === "overdue" ? t.due.relative(due!, today) : undefined}
+      className={cn("inline-flex h-5 items-center gap-1 rounded-sm border-[0.5px] px-1.5 text-[11px] font-medium", DUE_STYLE[state])}
+    >
       <Icon className="size-3" />
       {start && (state === "later" || state === "done") && <span className="font-normal">{t.fmt.day(start)} –</span>}
       {text}

@@ -95,6 +95,6 @@ export function dueState(due: ISODate | null, today: ISODate, done: boolean): Du
   const d = diffDays(due, today);
   if (d < 0) return "overdue";
   if (d === 0) return "today";
-  if (d <= 3) return "soon";
+  if (d <= 2) return "soon";
   return "later";
 }
