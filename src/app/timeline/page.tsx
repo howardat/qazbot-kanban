@@ -17,9 +17,9 @@ export default async function TimelinePage({
   const sp = await searchParams;
   const today = todayISO();
   const zoom = sp.zoom === "week" || sp.zoom === "quarter" ? sp.zoom : "month";
-  const boards = await loadBoards();
+  const boards = await loadBoards(user);
   const board = boards.find((b) => b.id === sp.board) ?? null;
-  const [cards, columns, members, tags] = await Promise.all([loadCards(board?.id), loadColumns(board?.id), loadMembers(), loadTags(board?.id)]);
+  const [cards, columns, members, tags] = await Promise.all([loadCards(user, board?.id), loadColumns(user, board?.id), loadMembers(), loadTags(user, board?.id)]);
 
   return (
     // The chart gets the page's height below the header at most, so it scrolls in both directions on its own.

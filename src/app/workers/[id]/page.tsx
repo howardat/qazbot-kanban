@@ -21,7 +21,7 @@ export default async function WorkerPage({ params }: { params: Promise<{ id: str
   const user = await requireUser();
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const [worker] = await loadWorkers(id);
+  const [worker] = await loadWorkers(user, id);
   if (!worker) notFound();
   await track(user.id, "worker.view");
   const t = await getT();
@@ -36,7 +36,7 @@ export default async function WorkerPage({ params }: { params: Promise<{ id: str
     loadDoneByDay(worker.id, new Date(Date.parse(`${first}T00:00:00Z`) - 86_400_000)),
     isAdmin ? loadNotes(worker.id) : Promise.resolve([]),
     loadRobots(),
-    loadCards(),
+    loadCards(user),
     loadMembers(),
   ]);
   const myRobots = allRobots.filter((r) => r.profileId === worker.id);
@@ -74,7 +74,7 @@ export default async function WorkerPage({ params }: { params: Promise<{ id: str
                   <span className="font-medium">{r.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {t.robots.models[r.model]}
-                    {r.project && ` · ${t.projects[r.project]}`}
+                    {r.room && ` · ${t.rooms[r.room]}`}
                   </span>
                 </li>
               ))}

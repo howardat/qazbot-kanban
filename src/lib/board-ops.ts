@@ -1,12 +1,11 @@
 import "server-only";
-import { and, asc, eq, inArray, max, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profiles, TAG_COLORS, tags } from "@/db/schema";
 import { CARD_DONE } from "@/lib/activity";
 import { addDays, diffDays, isValidDate, todayISO } from "@/lib/dates";
 import { PRIORITIES } from "@/lib/priority";
-import { PROJECTS } from "@/lib/projects";
 
 // Board and card writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
 // external agents). Callers authenticate first; these validate input and keep positions consistent.
@@ -31,7 +30,6 @@ export const cardUpdate = z
     dueDate: isoDate.nullable(),
     assigneeIds: z.array(id).max(50),
     tagIds: z.array(id).max(30),
-    project: z.enum(PROJECTS).nullable(),
     priority: z.enum(PRIORITIES).nullable(),
   })
   .refine(datesInOrder, DATES_ORDER);
@@ -140,9 +138,14 @@ export async function updateCardOp(cardId: string, data: z.input<typeof cardUpda
       ? await tx.select({ id: profiles.id }).from(profiles).where(inArray(profiles.id, assigneeIds))
       : [];
     await tx.delete(cardTags).where(eq(cardTags.cardId, cId));
-    await tx.delete(cardAssignees).where(eq(cardAssignees.cardId, cId));
     if (validTags.length) await tx.insert(cardTags).values(validTags.map((t) => ({ cardId: cId, tagId: t.id })));
-    if (validPeople.length) await tx.insert(cardAssignees).values(validPeople.map((p) => ({ cardId: cId, profileId: p.id })));
+    // People already on the card keep their assigned_at (it places them on the workers view); only
+    // the removed go and only the new get stamped now.
+    const keep = validPeople.map((p) => p.id);
+    await tx
+      .delete(cardAssignees)
+      .where(keep.length ? and(eq(cardAssignees.cardId, cId), notInArray(cardAssignees.profileId, keep)) : eq(cardAssignees.cardId, cId));
+    if (keep.length) await tx.insert(cardAssignees).values(keep.map((profileId) => ({ cardId: cId, profileId }))).onConflictDoNothing();
   });
 }
 
@@ -162,7 +165,6 @@ export async function patchCardOp(cardId: string, patch: Partial<z.input<typeof 
     dueDate: card.dueDate,
     assigneeIds: assignees.map((a) => a.id),
     tagIds: cardTagRows.map((t) => t.id),
-    project: card.project,
     priority: card.priority,
     ...patch,
   });

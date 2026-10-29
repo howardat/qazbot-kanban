@@ -34,6 +34,7 @@ import {
   GripVertical,
   MoreHorizontal,
   Plus,
+  Settings2,
   SquarePen,
   Trash2,
   UnfoldHorizontal,
@@ -58,6 +59,7 @@ import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
 import { AppliedFilters, DisplayMenu, FiltersMenu, hasFilters, matches, NO_FILTERS, PriorityIcon, StateIcon, useDisplay, type Display, type Filters } from "@/components/BoardToolbar";
+import { BoardSettings, type BoardInfo } from "@/components/BoardSettings";
 import { TagManager } from "@/components/TagManager";
 import { ViewBar } from "@/components/ViewTabs";
 import { Button } from "@/components/ui/button";
@@ -159,7 +161,7 @@ export function Board({
   canDelete,
   layout = "board",
 }: {
-  board: { id: string; name: string };
+  board: BoardInfo;
   columns: ColumnData[];
   members: Member[];
   tags: Tag[];
@@ -353,7 +355,7 @@ export function Board({
               <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
               <DisplayMenu value={display} onChange={setDisplay} />
               <TagManager boardId={board.id} tags={tags} />
-              {canDelete && <DeleteBoard board={board} />}
+              <BoardMenu board={board} members={members} canDelete={canDelete} />
             </>
           }
         >
@@ -438,9 +440,11 @@ function BoardTitle({ board }: { board: { id: string; name: string } }) {
   );
 }
 
-function DeleteBoard({ board }: { board: { id: string; name: string } }) {
+/** The board's "…" menu: settings for everyone who sees it, delete for its creator and admins. */
+function BoardMenu({ board, members, canDelete }: { board: BoardInfo; members: Member[]; canDelete: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState(false);
   const [pending, startTransition] = useTransition();
   return (
     <>
@@ -450,12 +454,21 @@ function DeleteBoard({ board }: { board: { id: string; name: string } }) {
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem variant="destructive" onSelect={() => setOpen(true)}>
-            <Trash2 /> {t.board.deleteBoard}
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onSelect={() => setSettings(true)}>
+            <Settings2 /> {t.board.settings}
           </DropdownMenuItem>
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={() => setOpen(true)}>
+                <Trash2 /> {t.board.deleteBoard}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <BoardSettings board={board} members={members} open={settings} onOpenChange={setSettings} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -823,7 +836,6 @@ function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => v
     description: "",
     startDate: null,
     tagIds: [],
-    project: null,
     ...props,
   };
 

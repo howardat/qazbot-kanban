@@ -23,7 +23,7 @@ export default async function HomePage() {
   const d = t.dashboard;
   const today = todayISO();
   const isAdmin = user.role === "admin";
-  const [boards, cards, members] = await Promise.all([loadBoards(), loadCards(), loadMembers()]);
+  const [boards, cards, members] = await Promise.all([loadBoards(user), loadCards(user), loadMembers()]);
 
   const open = cards.filter((c) => !c.done);
   const urgent = byUrgency(today);

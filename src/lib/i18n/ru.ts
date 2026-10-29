@@ -34,6 +34,7 @@ export const ru: Dict = {
 
   nav: {
     home: "Главная",
+    otherBoards: "Остальные доски",
     homeAria: "Qazbot Kanban — главная",
     calendar: "Календарь",
     timeline: "Таймлайн",
@@ -196,6 +197,7 @@ export const ru: Dict = {
     nameAria: "Название доски",
     options: "Параметры доски",
     deleteBoard: "Удалить доску",
+    settings: "Настройки доски",
     deleteTitle: (name) => `Удалить «${name}»?`,
     deleteBody: "Все её колонки, карточки и метки будут удалены для всех. Отменить это нельзя.",
     keepBoard: "Оставить доску",
@@ -238,8 +240,6 @@ export const ru: Dict = {
     saveFailed: "Не удалось сохранить карточку. Проверьте поля и попробуйте снова.",
     heading: "Редактирование карточки",
     title: "Название",
-    project: "Проект",
-    noProject: "Без проекта (бэк-офис)",
     description: "Описание",
     descriptionPlaceholder: "Добавьте детали, ссылки, критерии готовности…",
     tags: "Метки",
@@ -490,6 +490,7 @@ export const ru: Dict = {
       "board.create": "Создать доску",
       "board.rename": "Переименовать доску",
       "board.delete": "Удалить доску",
+      "board.settings": "Настройки доски",
       "column.add": "Добавить колонку",
       "column.rename": "Переименовать колонку",
       "column.delete": "Удалить колонку",
@@ -532,7 +533,6 @@ export const ru: Dict = {
   priority: {
     label: "Приоритет",
     none: "Без приоритета",
-    urgent: "Срочно",
     high: "Высокий",
     medium: "Средний",
     low: "Низкий",
@@ -546,16 +546,26 @@ export const ru: Dict = {
     saveFailed: "Не удалось сохранить. Проверьте даты и попробуйте снова.",
   },
 
-  projects: {
+  boardSettings: {
+    title: (name: string) => `Настройки: ${name}`,
+    description: "Где люди этой доски сидят в офисе и кто видит доску.",
+    room: "Комната в офисе",
+    roomHint: "Человек сидит здесь, пока его последняя назначенная карточка «в работе» — на этой доске.",
+    access: "Кто видит доску",
+    everyone: "Доску видят все. Отметьте людей, чтобы открыть её только им.",
+    restricted: (n: number) => `Доску видят только отмеченные (${n}), владелец и админы.`,
+    owner: "Владелец",
+    onlyOwner: "Менять доступ может только владелец доски или админ.",
+    saveFailed: "Не удалось сохранить настройки доски.",
+  },
+
+  rooms: {
     receptionist: "Робот-ресепшионист",
     surveillance: "Робособака-охранник",
     entertainment: "Развлекательная команда",
     navigation: "Автономная навигация",
     welding: "Детекция дефектов сварки",
     back_office: "Бэк-офис",
-  },
-
-  rooms: {
     lounge: "Комната отдыха",
     inventory: "Склад",
     hall: "Переговорная",
@@ -563,13 +573,13 @@ export const ru: Dict = {
 
   robots: {
     title: "Роботы",
-    description: "Робот стоит рядом со своим сотрудником в офисе команды, а без него — в комнате своего проекта.",
+    description: "Робот стоит рядом со своим сотрудником в офисе команды, а без него — в своей комнате.",
     models: { agibot_x2: "Гуманоид AgiBot X2", agibot_dog: "Робособака AgiBot" },
     name: "Название",
     namePlaceholder: "например, X2-07",
     model: "Модель",
-    project: "Проект",
-    noProject: "Без проекта",
+    room: "Комната",
+    noRoom: "Без комнаты",
     assignee: "Закреплён за",
     nobody: "Никто",
     add: "Добавить робота",

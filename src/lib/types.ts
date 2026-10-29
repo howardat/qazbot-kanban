@@ -1,5 +1,4 @@
 import type { Priority } from "@/lib/priority";
-import type { Project } from "@/lib/projects";
 import type { TagColor } from "@/lib/tag-colors";
 
 export type Member = {
@@ -22,7 +21,6 @@ export type CardData = {
   dueDate: string | null;
   assigneeIds: string[];
   tagIds: string[];
-  project: Project | null;
   priority: Priority | null;
 };
 

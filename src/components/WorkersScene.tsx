@@ -8,7 +8,7 @@ import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRe
 import { useT } from "@/components/I18nProvider";
 import { buildShell, buildStation, furnish } from "@/components/office/furniture";
 import { Kit, PAL } from "@/components/office/kit";
-import { PROJECT_COLORS } from "@/components/office/palette";
+import { ROOM_COLORS } from "@/components/office/palette";
 import {
   FLOOR_D,
   FLOOR_W,
@@ -329,7 +329,7 @@ export default function WorkersScene({
         ][next(`owner:${r.profileId}`) % 3];
         [x, z] = fromSeat(owner, lx, lz);
         rot = owner.rot;
-      } else if (r.project === "entertainment") {
+      } else if (r.room === "entertainment") {
         const n = next("stage");
         if (n < STAGE.length) {
           [x, z] = STAGE[n];
@@ -337,20 +337,20 @@ export default function WorkersScene({
           rot = -Math.PI / 4;
         } else [x, z] = spotIn("entertainment");
         mode = "dance";
-      } else if (r.project === "surveillance" || r.project === "navigation") {
-        path = patrol(PATROLS[r.project]!, next(`patrol:${r.project}`) * 0.29, r.model === "agibot_dog" ? 0.9 : 0.5);
+      } else if (r.room === "surveillance" || r.room === "navigation") {
+        path = patrol(PATROLS[r.room]!, next(`patrol:${r.room}`) * 0.29, r.model === "agibot_dog" ? 0.9 : 0.5);
         mode = "walk";
-      } else if (r.project === "welding" && r.model === "agibot_x2" && next("inspector") === 0) {
+      } else if (r.room === "welding" && r.model === "agibot_x2" && next("inspector") === 0) {
         // At the welding table: mirroring the VR operator when there is one, scanning on its own otherwise.
         [x, z] = INSPECT;
         rot = 0;
         mode = teleoperated ? "teleop" : "inspect";
-      } else if (r.project === "receptionist" && r.model === "agibot_x2" && next("greeter") === 0) {
+      } else if (r.room === "receptionist" && r.model === "agibot_x2" && next("greeter") === 0) {
         [x, z] = GREETER;
         rot = -Math.PI / 2;
         mode = "greet";
-      } else if (r.project) {
-        [x, z] = spotIn(r.project);
+      } else if (r.room) {
+        [x, z] = spotIn(r.room);
       } else {
         // No project and nobody: parked in the inventory room, switched off.
         [x, z] = spotIn("inventory");
@@ -548,7 +548,7 @@ export default function WorkersScene({
 
 function RoomTag({ room, count }: { room: RoomId; count: number }) {
   const t = useT();
-  const name = room in t.projects ? t.projects[room as keyof typeof t.projects] : t.rooms[room as keyof typeof t.rooms];
+  const name = room in t.rooms ? t.rooms[room as keyof typeof t.rooms] : t.rooms[room as keyof typeof t.rooms];
   return (
     <span className="block rounded-sm bg-[#24201c]/80 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide whitespace-nowrap text-[#f1ebe1] uppercase">
       {name}
@@ -590,7 +590,7 @@ function Bubble({ worker, now, onOpen: open }: { worker: Worker; now: number; on
             <AgeText lastUpdate={worker.lastUpdate} now={now} className="ml-auto shrink-0 text-[10px] font-medium tabular-nums" />
           </span>
           <span className="flex items-center gap-1 text-[10px] text-[#c9bfb2]">
-            {task && <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_COLORS[task.project] }} />}
+            {task && <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: ROOM_COLORS[task.room] }} />}
             <Marquee text={task ? task.title : t.workers.idle} />
           </span>
         </span>

@@ -2,14 +2,14 @@ import Link from "next/link";
 import { AlertCircle, CheckCheck, CircleDot, Coffee, LayoutGrid, Users } from "lucide-react";
 import { PageHeader, Panel, StatTile } from "@/components/atoms";
 import { TickMeter } from "@/components/TickMeter";
-import { PROJECT_COLORS } from "@/components/office/palette";
+import { ROOM_COLORS } from "@/components/office/palette";
 import { PersonIcon } from "@/components/PersonIcon";
 import { track } from "@/lib/activity";
 import { availabilityOf, LEVEL_BAR, LEVEL_TEXT } from "@/lib/availability";
 import { loadCards } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { getT } from "@/lib/i18n/server";
-import { PROJECTS } from "@/lib/projects";
+import { WORK_ROOMS } from "@/lib/rooms";
 import { requireUser } from "@/lib/session";
 import { displayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ export default async function TeamPage() {
   const t = await getT();
   const w = t.workers;
   const today = todayISO();
-  const [workers, cards, done30] = await Promise.all([loadWorkers(), loadCards(), loadDoneCounts(new Date(Date.now() - 30 * 86_400_000))]);
+  const [workers, cards, done30] = await Promise.all([loadWorkers(user), loadCards(user), loadDoneCounts(new Date(Date.now() - 30 * 86_400_000))]);
   const open = cards.filter((c) => !c.done);
 
   const rows = workers
@@ -32,7 +32,7 @@ export default async function TeamPage() {
   const working = workers.filter((x) => x.current).length;
   const lateCards = open.filter((c) => c.dueDate && c.dueDate < today && c.assigneeIds.length > 0).length;
   const doneTotal = [...done30.values()].reduce((n, v) => n + v, 0);
-  const rooms = [...PROJECTS.map((p) => ({ key: p, label: t.projects[p], color: PROJECT_COLORS[p] })), { key: "lounge", label: t.rooms.lounge, color: "#9a918a" }].map(
+  const rooms = [...WORK_ROOMS.map((p) => ({ key: p, label: t.rooms[p], color: ROOM_COLORS[p] })), { key: "lounge", label: t.rooms.lounge, color: "#9a918a" }].map(
     (r) => ({ ...r, n: workers.filter((x) => x.room === r.key).length }),
   );
   const roomMax = Math.max(1, ...rooms.map((r) => r.n));
@@ -116,7 +116,7 @@ export default async function TeamPage() {
                     <td className="max-w-72 px-4 py-2.5">
                       {wk.current ? (
                         <Link href={`/boards/${wk.current.boardId}`} className="flex items-center gap-2 hover:underline">
-                          <span className="size-2 shrink-0 rounded-full" style={{ background: PROJECT_COLORS[wk.current.project] }} aria-hidden />
+                          <span className="size-2 shrink-0 rounded-full" style={{ background: ROOM_COLORS[wk.current.room] }} aria-hidden />
                           <span className="truncate">{wk.current.title}</span>
                         </Link>
                       ) : (

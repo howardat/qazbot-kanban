@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, FolderKanban, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack } from "@/components/atoms";
@@ -15,7 +15,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
 import { PRIORITIES, type Priority } from "@/lib/priority";
-import { PROJECTS, type Project } from "@/lib/projects";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 
@@ -61,7 +60,6 @@ export function CardEditor({
   const [dueDate, setDueDate] = useState(card.dueDate ?? "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(card.assigneeIds);
   const [tagIds, setTagIds] = useState<string[]>(card.tagIds);
-  const [project, setProject] = useState<Project | null>(card.project);
   const [priority, setPriority] = useState<Priority | null>(card.priority);
   const [tags, setTags] = useState<Tag[]>(boardTags);
   const [confirming, setConfirming] = useState(false);
@@ -84,7 +82,6 @@ export function CardEditor({
           dueDate: dueDate || null,
           assigneeIds,
           tagIds,
-          project,
           priority,
         });
         toast.success(t.editor.saved);
@@ -227,22 +224,6 @@ export function CardEditor({
                       {PRIORITIES.map((p) => (
                         <SelectItem key={p} value={p}>
                           <PriorityIcon priority={p} /> {t.priority[p]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Property>
-
-                <Property icon={FolderKanban} label={t.editor.project}>
-                  <Select value={project ?? NONE} onValueChange={(v) => setProject(v === NONE ? null : (v as Project))}>
-                    <SelectTrigger aria-label={t.editor.project} className={ghostSelect}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>{t.editor.noProject}</SelectItem>
-                      {PROJECTS.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {t.projects[p]}
                         </SelectItem>
                       ))}
                     </SelectContent>

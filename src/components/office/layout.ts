@@ -1,4 +1,4 @@
-import type { Project } from "@/lib/projects";
+import type { WorkRoom } from "@/lib/rooms";
 
 // Floor plan of the office, in world units (about a metre each). x runs toward the bottom right of the
 // screen, z toward the bottom left; the camera looks from +x +z, so walls at low x/z are the far ones.
@@ -12,7 +12,7 @@ import type { Project } from "@/lib/projects";
 //        x 0         9              24
 //                                                 28           36
 
-export type RoomId = Project | "lounge" | "inventory" | "hall";
+export type RoomId = WorkRoom | "lounge" | "inventory" | "hall";
 type Side = "top" | "bottom" | "left" | "right";
 
 /** Floor finish: plank wood, darker oak, polished concrete, or the dark stage floor. */

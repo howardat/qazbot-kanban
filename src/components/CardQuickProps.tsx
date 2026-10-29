@@ -82,7 +82,7 @@ export function CardQuickProps({
             // Icon only, in a bordered square; the name is in the tooltip.
             <button
               type="button"
-              className={cn(chip, "grid size-5 place-items-center border-[0.5px] border-border-strong", card.priority === "urgent" && "border-red-500/40 bg-red-500/10")}
+              className={cn(chip, "grid size-5 place-items-center border-[0.5px] border-border-strong", card.priority === "high" && "border-red-500/40 bg-red-500/10")}
               aria-label={`${t.quick.priority}: ${t.priority[card.priority]}`}
               title={t.priority[card.priority]}
             >

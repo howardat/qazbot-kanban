@@ -29,7 +29,8 @@ import {
 } from "@/lib/board-ops";
 import { getT } from "@/lib/i18n/server";
 import { newInviteToken } from "@/lib/invites";
-import { PROJECTS, ROBOT_MODELS } from "@/lib/projects";
+import { WORK_ROOMS, ROBOT_MODELS } from "@/lib/rooms";
+import { assertBoard, assertCard, assertColumn, assertTag, canManageBoard, setBoardMembers } from "@/lib/board-access";
 import { requireAdmin, requireUser } from "@/lib/session";
 
 // Dashboard, calendar, timeline and boards all read the same cards.
@@ -50,6 +51,7 @@ export async function createBoard(formData: FormData) {
 export async function renameBoard(boardId: string, newName: string) {
   const user = await requireUser();
   await track(user.id, "board.rename");
+  await assertBoard(user, boardId);
   await db.update(boards).set({ name: name.parse(newName) }).where(eq(boards.id, id.parse(boardId)));
   refreshAll();
 }
@@ -57,9 +59,29 @@ export async function renameBoard(boardId: string, newName: string) {
 export async function deleteBoard(boardId: string) {
   const user = await requireUser();
   await track(user.id, "board.delete");
+  await assertBoard(user, boardId);
   if (!(await deleteBoardOp(user, boardId))) return;
   refreshAll();
   redirect("/");
+}
+
+/** Board settings: which office room the board works from. Anyone who sees the board may change it. */
+export async function setBoardRoom(boardId: string, room: string) {
+  const user = await requireUser();
+  await track(user.id, "board.settings");
+  await assertBoard(user, boardId);
+  await db.update(boards).set({ room: z.enum(WORK_ROOMS).parse(room) }).where(eq(boards.id, id.parse(boardId)));
+  refreshAll();
+}
+
+/** Board settings: who may see the board. Empty opens it to everyone. Creator and admins only. */
+export async function setBoardMemberIds(boardId: string, profileIds: string[]) {
+  const user = await requireUser();
+  await track(user.id, "board.settings");
+  const bId = id.parse(boardId);
+  if (!(await canManageBoard(user, bId))) throw new Error("Only the board's creator or an admin can change who sees it.");
+  await setBoardMembers(bId, z.array(id).max(200).parse(profileIds));
+  refreshAll();
 }
 
 // ---------- Columns ----------
@@ -67,6 +89,7 @@ export async function deleteBoard(boardId: string) {
 export async function addColumn(boardId: string, columnName: string) {
   const user = await requireUser();
   await track(user.id, "column.add");
+  await assertBoard(user, boardId);
   await addColumnOp(boardId, columnName);
   refreshAll();
 }
@@ -74,6 +97,7 @@ export async function addColumn(boardId: string, columnName: string) {
 export async function renameColumn(columnId: string, newName: string) {
   const user = await requireUser();
   await track(user.id, "column.rename");
+  await assertColumn(user, columnId);
   const [col] = await db
     .update(columns)
     .set({ name: name.parse(newName) })
@@ -85,6 +109,7 @@ export async function renameColumn(columnId: string, newName: string) {
 export async function deleteColumn(columnId: string) {
   const user = await requireUser();
   await track(user.id, "column.delete");
+  await assertColumn(user, columnId);
   const [col] = await db
     .delete(columns)
     .where(eq(columns.id, id.parse(columnId)))
@@ -95,6 +120,7 @@ export async function deleteColumn(columnId: string) {
 export async function setColumnDone(columnId: string, isDone: boolean) {
   const user = await requireUser();
   await track(user.id, "column.markDone");
+  await assertColumn(user, columnId);
   await setColumnFlagOp(columnId, "done", isDone);
   refreshAll();
 }
@@ -102,6 +128,7 @@ export async function setColumnDone(columnId: string, isDone: boolean) {
 export async function setColumnInProgress(columnId: string, isInProgress: boolean) {
   const user = await requireUser();
   await track(user.id, "column.markInProgress");
+  await assertColumn(user, columnId);
   await setColumnFlagOp(columnId, "inProgress", isInProgress);
   refreshAll();
 }
@@ -109,6 +136,7 @@ export async function setColumnInProgress(columnId: string, isInProgress: boolea
 export async function moveColumn(columnId: string, toIndex: number) {
   const user = await requireUser();
   await track(user.id, "column.reorder");
+  await assertColumn(user, columnId);
   const cId = id.parse(columnId);
   const index = z.number().int().min(0).parse(toIndex);
   const boardId = await db.transaction(async (tx) => {
@@ -140,6 +168,7 @@ type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigne
 export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }, fields?: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.add");
+  await assertColumn(user, columnId);
   const cardId = await addCardOp(user, columnId, title, dates);
   if (fields) await patchCardOp(cardId, fields);
   refreshAll();
@@ -149,6 +178,7 @@ export async function addCard(columnId: string, title: string, dates?: { startDa
 export async function setCardDates(cardId: string, startDate: string | null, dueDate: string | null) {
   const user = await requireUser();
   await track(user.id, "card.timelineDrag");
+  await assertCard(user, cardId);
   await setCardDatesOp(cardId, startDate, dueDate);
   refreshAll();
 }
@@ -156,6 +186,7 @@ export async function setCardDates(cardId: string, startDate: string | null, due
 export async function updateCard(cardId: string, data: z.input<typeof cardUpdate>) {
   const user = await requireUser();
   await track(user.id, "card.edit");
+  await assertCard(user, cardId);
   await updateCardOp(cardId, data);
   refreshAll();
 }
@@ -164,6 +195,7 @@ export async function updateCard(cardId: string, data: z.input<typeof cardUpdate
 export async function rescheduleCard(cardId: string, newDue: string) {
   const user = await requireUser();
   await track(user.id, "card.calendarDrag");
+  await assertCard(user, cardId);
   await rescheduleCardOp(cardId, newDue);
   refreshAll();
 }
@@ -173,6 +205,7 @@ export async function rescheduleCard(cardId: string, newDue: string) {
 export async function createTag(boardId: string, input: z.input<typeof tagInput>) {
   const user = await requireUser();
   await track(user.id, "tag.create");
+  await assertBoard(user, boardId);
   const tag = await createTagOp(boardId, input);
   refreshAll();
   return tag;
@@ -181,6 +214,7 @@ export async function createTag(boardId: string, input: z.input<typeof tagInput>
 export async function updateTag(tagId: string, input: z.input<typeof tagInput>) {
   const user = await requireUser();
   await track(user.id, "tag.edit");
+  await assertTag(user, tagId);
   await db.update(tags).set(tagInput.parse(input)).where(eq(tags.id, id.parse(tagId)));
   refreshAll();
 }
@@ -188,6 +222,7 @@ export async function updateTag(tagId: string, input: z.input<typeof tagInput>) 
 export async function deleteTag(tagId: string) {
   const user = await requireUser();
   await track(user.id, "tag.delete");
+  await assertTag(user, tagId);
   await db.delete(tags).where(eq(tags.id, id.parse(tagId)));
   refreshAll();
 }
@@ -205,12 +240,15 @@ export async function updateMyName(formData: FormData) {
 export async function deleteCard(cardId: string) {
   const user = await requireUser();
   await track(user.id, "card.delete");
+  await assertCard(user, cardId);
   if (await deleteCardOp(cardId)) refreshAll();
 }
 
 export async function moveCard(cardId: string, toColumnId: string, toIndex: number) {
   const user = await requireUser();
   await track(user.id, "card.move");
+  await assertCard(user, cardId);
+  await assertColumn(user, toColumnId);
   await moveCardOp(cardId, toColumnId, toIndex);
   refreshAll();
 }
@@ -219,6 +257,7 @@ export async function moveCard(cardId: string, toColumnId: string, toIndex: numb
 export async function quickUpdateCard(cardId: string, patch: QuickFields) {
   const user = await requireUser();
   await track(user.id, "card.quickEdit");
+  await assertCard(user, cardId);
   await patchCardOp(cardId, patch);
   refreshAll();
 }
@@ -227,6 +266,7 @@ export async function quickUpdateCard(cardId: string, patch: QuickFields) {
 export async function workOnCard(cardId: string) {
   const user = await requireUser();
   await track(user.id, "card.workOn");
+  await assertCard(user, cardId);
   const ok = await workOnCardOp(cardId);
   if (ok) refreshAll();
   return ok;
@@ -306,7 +346,7 @@ export async function deleteEmployeeNote(noteId: string) {
 const robotInput = z.object({
   name: z.string().trim().min(1).max(60),
   model: z.enum(ROBOT_MODELS),
-  project: z.enum(PROJECTS).nullable(),
+  room: z.enum(WORK_ROOMS).nullable(),
   profileId: id.nullable(),
 });
 

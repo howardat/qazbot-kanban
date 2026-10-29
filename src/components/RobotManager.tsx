@@ -8,13 +8,13 @@ import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PROJECTS, ROBOT_MODELS, type Project, type RobotModel } from "@/lib/projects";
+import { WORK_ROOMS, ROBOT_MODELS, type WorkRoom, type RobotModel } from "@/lib/rooms";
 import { displayName, type Member } from "@/lib/types";
 import type { Robot } from "@/lib/workers";
 
 const NONE = "none";
 
-/** Admin list of robots: add one, change its project or person, remove it. */
+/** Admin list of robots: add one, change its room or person, remove it. */
 export function RobotManager({ robots, members }: { robots: Robot[]; members: Member[] }) {
   const t = useT();
   const r = t.robots;
@@ -23,7 +23,7 @@ export function RobotManager({ robots, members }: { robots: Robot[]; members: Me
   const [model, setModel] = useState<RobotModel>("agibot_x2");
 
   const save = (robot: Robot, patch: Partial<Robot>) =>
-    startTransition(() => updateRobot(robot.id, { name: robot.name, model: robot.model, project: robot.project, profileId: robot.profileId, ...patch }));
+    startTransition(() => updateRobot(robot.id, { name: robot.name, model: robot.model, room: robot.room, profileId: robot.profileId, ...patch }));
 
   return (
     <Panel icon={<Bot />} title={r.title} action={<span className="text-xs tabular-nums">{robots.length}</span>}>
@@ -34,7 +34,7 @@ export function RobotManager({ robots, members }: { robots: Robot[]; members: Me
           e.preventDefault();
           if (!name.trim()) return;
           startTransition(async () => {
-            await addRobot({ name, model, project: null, profileId: null });
+            await addRobot({ name, model, room: null, profileId: null });
             setName("");
           });
         }}
@@ -64,15 +64,15 @@ export function RobotManager({ robots, members }: { robots: Robot[]; members: Me
                 <div className="truncate text-sm font-medium">{robot.name}</div>
                 <div className="truncate text-xs text-muted-foreground">{r.models[robot.model]}</div>
               </div>
-              <Select value={robot.project ?? NONE} onValueChange={(v) => save(robot, { project: v === NONE ? null : (v as Project) })}>
-                <SelectTrigger aria-label={r.project} className="w-48" size="sm">
+              <Select value={robot.room ?? NONE} onValueChange={(v) => save(robot, { room: v === NONE ? null : (v as WorkRoom) })}>
+                <SelectTrigger aria-label={r.room} className="w-48" size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>{r.noProject}</SelectItem>
-                  {PROJECTS.map((p) => (
+                  <SelectItem value={NONE}>{r.noRoom}</SelectItem>
+                  {WORK_ROOMS.map((p) => (
                     <SelectItem key={p} value={p}>
-                      {t.projects[p]}
+                      {t.rooms[p]}
                     </SelectItem>
                   ))}
                 </SelectContent>

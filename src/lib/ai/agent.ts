@@ -87,7 +87,7 @@ const overBudget = async () => {
  * a second or two of silence on a call.
  */
 async function myOpenCards(user: CurrentUser) {
-  const mine = (await loadCards())
+  const mine = (await loadCards(user))
     .filter((c) => !c.done && c.assigneeIds.includes(user.id))
     .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
   const lines = mine

@@ -1,6 +1,6 @@
 // Flat colours for the office. Kept free of three.js so page UI can share them without loading it.
 
-import type { Project } from "@/lib/projects";
+import type { WorkRoom } from "@/lib/rooms";
 
 export const PAL = {
   bg: "#24201c",
@@ -36,7 +36,7 @@ export const PAL = {
 export const CHAIRS = ["#e2574c", "#f2b134", "#3fa7a0", "#4a6fa5", "#8e6bb8", "#2f2f33"];
 
 /** One colour per project: room accents and the stripe on people's status cards. */
-export const PROJECT_COLORS: Record<Project, string> = {
+export const ROOM_COLORS: Record<WorkRoom, string> = {
   receptionist: "#3fa7a0",
   surveillance: "#4a6fa5",
   entertainment: "#d84aa8",

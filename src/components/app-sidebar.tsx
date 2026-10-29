@@ -13,7 +13,7 @@ import { SearchDialog } from "@/components/SearchDialog";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import type { Member } from "@/lib/types";
 
-type Board = { id: string; name: string };
+type Board = { id: string; name: string; mine: boolean };
 
 /**
  * The app sidebar: shadcn's sidebar-07 block (collapses to icons) wired to Qazbot. The Qazbot wordmark and a
