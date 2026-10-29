@@ -1,8 +1,9 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { INVOICE_TYPES, MAX_INVOICE_BYTES } from "@/lib/invoice-files";
+import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/photo-files";
 
-// Supabase Storage for expense invoices, from the server with the secret key (Storage RLS doesn't apply).
+// Supabase Storage for expense invoices and profile photos, from the server with the secret key (Storage RLS doesn't apply).
 // Callers check the signed-in user first. The bucket is private: files are only reachable through
 // short-lived signed URLs handed out by /api/expenses/invoices/[id].
 
@@ -59,4 +60,48 @@ export async function invoiceSignedUrl(path: string) {
 
 export async function removeInvoiceFiles(paths: string[]) {
   if (paths.length) await admin().storage.from(INVOICE_BUCKET).remove(paths);
+}
+
+// Profile photos live in a public bucket: they show next to names everywhere, so a plain URL is
+// stored in profile.image. Each upload gets a new file name, so browsers never show a stale photo.
+
+export const PHOTO_BUCKET = "avatars";
+
+let photoBucketReady: Promise<void> | null = null;
+
+function ensurePhotoBucket(client: SupabaseClient) {
+  photoBucketReady ??= (async () => {
+    const options = { public: true, fileSizeLimit: MAX_PHOTO_BYTES, allowedMimeTypes: PHOTO_TYPES };
+    if (!(await client.storage.getBucket(PHOTO_BUCKET)).error) {
+      const { error } = await client.storage.updateBucket(PHOTO_BUCKET, options);
+      if (error) throw error;
+      return;
+    }
+    const { error } = await client.storage.createBucket(PHOTO_BUCKET, options);
+    if (error && !/exists/i.test(error.message)) throw error;
+  })().catch((e) => {
+    photoBucketReady = null;
+    throw e;
+  });
+  return photoBucketReady;
+}
+
+/** Stores a person's photo, removes their earlier ones, and returns its public URL. */
+export async function savePhoto(userId: string, file: File) {
+  const client = admin();
+  await ensurePhotoBucket(client);
+  const bucket = client.storage.from(PHOTO_BUCKET);
+  const name = `${Date.now()}.${file.type.split("/")[1]}`;
+  const { error } = await bucket.upload(`${userId}/${name}`, file, { contentType: file.type, cacheControl: "31536000" });
+  if (error) throw error;
+  await removePhotos(userId, name);
+  return bucket.getPublicUrl(`${userId}/${name}`).data.publicUrl;
+}
+
+/** Removes a person's photo files, except `keep`. */
+export async function removePhotos(userId: string, keep?: string) {
+  const bucket = admin().storage.from(PHOTO_BUCKET);
+  const { data } = await bucket.list(userId);
+  const old = (data ?? []).filter((f) => f.name !== keep).map((f) => `${userId}/${f.name}`);
+  if (old.length) await bucket.remove(old);
 }

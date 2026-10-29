@@ -34,6 +34,7 @@ export const FEATURES = [
   "tag.delete",
   "profile.rename",
   "profile.avatar",
+  "profile.photo",
   "access.remove",
   "access.role",
   "invite.create",
