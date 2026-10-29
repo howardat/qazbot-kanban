@@ -16,6 +16,7 @@ import {
 } from "@/lib/board-ops";
 import { loadCards, loadMembers } from "@/lib/data";
 import { createExpenseOp, deleteExpenseOp, loadExpenses, updateExpenseOp } from "@/lib/expenses";
+import { STORY_POINTS, type CardSource } from "@/lib/card-source";
 import { PRIORITIES } from "@/lib/priority";
 import { assertBoard, assertCard, assertColumn, onVisible, visibleBoardIds } from "@/lib/board-access";
 import type { CardRow } from "@/lib/types";
@@ -26,6 +27,8 @@ import type { CardRow } from "@/lib/types";
 
 export type McpContext = {
   actor: Actor;
+  /** Recorded on cards made through these tools: the in-app assistant or an external MCP client. */
+  source: CardSource;
   /** Starter columns for create_board, in the caller's language. */
   starterColumns: string[];
   /** Called after every successful write, so pages show fresh data. */
@@ -71,6 +74,8 @@ const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, s
   ...(c.assigneeIds.length ? { assignees: c.assigneeIds.map((id) => names.get(id) ?? id) } : {}),
   ...(c.tagIds.length ? { tags: c.tagIds.map((id) => tagNames.get(id) ?? id) } : {}),
   ...(c.priority ? { priority: c.priority } : {}),
+  ...(c.storyPoints ? { storyPoints: c.storyPoints } : {}),
+  ...(c.createdBy ? { createdBy: names.get(c.createdBy) ?? c.createdBy } : {}),
 });
 
 async function lookups() {
@@ -228,18 +233,26 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
+        storyPoints: z
+          .number()
+          .int()
+          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
+          .nullable()
+          .optional()
+          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
       },
       annotations: WRITE,
     },
     safe(async (a) => {
       await assertColumn(ctx.actor, a.columnId);
-      const cardId = await addCardOp(ctx.actor, a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate });
+      const cardId = await addCardOp(ctx.actor, a.columnId, a.title, { startDate: a.startDate, dueDate: a.dueDate }, ctx.source);
       const [col] = await db.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, a.columnId));
       const tagIds = await tagIdsFor(col.boardId, a.tags);
-      if (a.description || a.assigneeIds || tagIds || a.priority) {
+      if (a.description || a.assigneeIds || tagIds || a.priority || a.storyPoints) {
         await patchCardOp(cardId, {
           ...(a.description ? { description: a.description } : {}),
           ...(a.priority ? { priority: a.priority } : {}),
+          ...(a.storyPoints ? { storyPoints: a.storyPoints } : {}),
           ...(a.assigneeIds ? { assigneeIds: a.assigneeIds } : {}),
           ...(tagIds ? { tagIds } : {}),
         });
@@ -264,6 +277,13 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
+        storyPoints: z
+          .number()
+          .int()
+          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
+          .nullable()
+          .optional()
+          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
       },
       annotations: WRITE,
     },

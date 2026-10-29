@@ -15,6 +15,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
+import { CARD_SOURCES } from "../lib/card-source";
 import { PRIORITIES } from "../lib/priority";
 import { WORK_ROOMS, ROBOT_MODELS } from "../lib/rooms";
 import { TAG_COLORS } from "../lib/tag-colors";
@@ -63,6 +64,7 @@ export const allowedEmails = pgTable("allowed_email", {
 
 // Work room on the workers view, set per board (and per robot).
 export const roomEnum = pgEnum("room", WORK_ROOMS);
+export const cardSourceEnum = pgEnum("card_source", CARD_SOURCES);
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 
 export const boards = pgTable("board", {
@@ -122,6 +124,11 @@ export const cards = pgTable(
     dueDate: date("due_date"),
     position: integer("position").notNull(),
     priority: priorityEnum("priority"),
+    // Estimate in story points (1, 2, 3, 5, 8, 13); null when unestimated.
+    storyPoints: integer("story_points"),
+    // Who made the card, and whether in the app or through Claude (the in-app assistant or MCP).
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdVia: cardSourceEnum("created_via").notNull().default("app"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     // When the card last entered its column: the "last status update" on the workers view.
     columnChangedAt: timestamp("column_changed_at", { mode: "date" }).notNull().defaultNow(),

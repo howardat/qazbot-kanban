@@ -25,6 +25,7 @@ async function handle(req: Request) {
   let changed = false;
   const server = createMcpServer({
     actor: user,
+    source: "mcp",
     starterColumns: dictFor(localeFromHeader(req.headers.get("accept-language"))).newBoard.defaultColumns,
     onChange: () => (changed = true),
   });

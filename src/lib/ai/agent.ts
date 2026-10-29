@@ -241,6 +241,7 @@ export async function runAgent({
 
   const server = createMcpServer({
     actor: user,
+    source: "assistant",
     starterColumns: t.newBoard.defaultColumns,
     onChange: () => (changed = true),
   });

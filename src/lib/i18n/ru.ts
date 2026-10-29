@@ -538,6 +538,29 @@ export const ru: Dict = {
     low: "Низкий",
   },
 
+  cardMeta: {
+    points: "Стори-поинты",
+    noPoints: "Без оценки",
+    createdBy: (name: string) => `Создал(а) ${name}`,
+    createdWithClaude: (name: string) => `Создал(а) ${name} с Claude`,
+    madeWithClaude: "Создано с Claude",
+    assignedTo: "назначено",
+    rename: "Переименовать",
+  },
+
+  sort: {
+    button: "Сортировка",
+    manual: "Вручную",
+    created: "Создано",
+    due: "Срок",
+    priority: "Приоритет",
+    points: "Стори-поинты",
+    title: "Название",
+    creator: "Автор",
+    asc: "По возрастанию",
+    desc: "По убыванию",
+  },
+
   quick: {
     deadline: "Назначить срок",
     clearDeadline: "Убрать срок",

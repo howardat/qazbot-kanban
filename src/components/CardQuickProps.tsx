@@ -16,7 +16,7 @@ import { PRIORITIES } from "@/lib/priority";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority" | "tagIds">>;
+export type QuickPatch = Partial<Pick<CardData, "dueDate" | "assigneeIds" | "priority" | "tagIds" | "title" | "storyPoints">>;
 
 const toDate = (iso: string) => new Date(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
 const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

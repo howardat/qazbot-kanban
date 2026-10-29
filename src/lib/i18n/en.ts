@@ -534,6 +534,29 @@ export const en = {
     low: "Low",
   },
 
+  cardMeta: {
+    points: "Story points",
+    noPoints: "No estimate",
+    createdBy: (name: string) => `Created by ${name}`,
+    createdWithClaude: (name: string) => `Created by ${name} with Claude`,
+    madeWithClaude: "Created with Claude",
+    assignedTo: "assigned to",
+    rename: "Rename",
+  },
+
+  sort: {
+    button: "Order by",
+    manual: "Manual",
+    created: "Created",
+    due: "Due date",
+    priority: "Priority",
+    points: "Story points",
+    title: "Title",
+    creator: "Creator",
+    asc: "Ascending",
+    desc: "Descending",
+  },
+
   quick: {
     deadline: "Set deadline",
     clearDeadline: "Clear deadline",

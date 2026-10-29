@@ -169,7 +169,7 @@ export async function moveColumn(columnId: string, toIndex: number) {
 
 // ---------- Cards ----------
 
-type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority">>;
+type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigneeIds" | "priority" | "tagIds" | "title" | "storyPoints">>;
 
 /**
  * Quick add from a column, a calendar day or a timeline row; `dates` pre-fills the schedule and

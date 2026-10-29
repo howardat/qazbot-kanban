@@ -6,6 +6,7 @@ import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profil
 import { CARD_DONE } from "@/lib/activity";
 import { addDays, diffDays, isValidDate, todayISO } from "@/lib/dates";
 import { boardAudience } from "@/lib/board-access";
+import { STORY_POINTS, type CardSource } from "@/lib/card-source";
 import { PRIORITIES } from "@/lib/priority";
 
 // Board and card writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
@@ -32,6 +33,11 @@ export const cardUpdate = z
     assigneeIds: z.array(id).max(50),
     tagIds: z.array(id).max(30),
     priority: z.enum(PRIORITIES).nullable(),
+    storyPoints: z
+      .number()
+      .int()
+      .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "Story points are 1, 2, 3, 5, 8 or 13.")
+      .nullable(),
   })
   .refine(datesInOrder, DATES_ORDER);
 
@@ -101,6 +107,8 @@ export async function addCardOp(
   columnId: string,
   title: string,
   dates?: { startDate?: string | null; dueDate?: string | null },
+  /** Where the card is being made: the app, the assistant or MCP. */
+  source: CardSource = "app",
 ) {
   const cId = id.parse(columnId);
   const start = dates?.startDate ?? null;
@@ -113,7 +121,16 @@ export async function addCardOp(
   return db.transaction(async (tx) => {
     const [card] = await tx
       .insert(cards)
-      .values({ boardId: col.boardId, columnId: cId, title: name.parse(title), startDate, dueDate, position: (top ?? -1) + 1 })
+      .values({
+        boardId: col.boardId,
+        columnId: cId,
+        title: name.parse(title),
+        startDate,
+        dueDate,
+        position: (top ?? -1) + 1,
+        createdBy: actor.id,
+        createdVia: source,
+      })
       .returning({ id: cards.id });
     // Starts assigned to its creator, unless they aren't in this private board (an admin looking in).
     const audience = await boardAudience(col.boardId);
@@ -176,6 +193,7 @@ export async function patchCardOp(cardId: string, patch: Partial<z.input<typeof 
     assigneeIds: assignees.map((a) => a.id),
     tagIds: cardTagRows.map((t) => t.id),
     priority: card.priority,
+    storyPoints: card.storyPoints,
     ...patch,
   });
 }

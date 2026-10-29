@@ -54,11 +54,12 @@ import {
   setColumnDone,
   setColumnInProgress,
 } from "@/app/actions";
-import { AvatarStack, DueBadge, TagBadge, BoardIcon } from "@/components/atoms";
+import { TagBadge, BoardIcon } from "@/components/atoms";
 import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
-import { AppliedFilters, DisplayMenu, FiltersMenu, hasFilters, matches, NO_FILTERS, PriorityIcon, StateIcon, useDisplay, type Display, type Filters } from "@/components/BoardToolbar";
+import { AppliedFilters, DisplayMenu, FiltersMenu, hasFilters, matches, NO_FILTERS, SortMenu, StateIcon, useDisplay, useSort, type Display, type Filters } from "@/components/BoardToolbar";
+import { BoardCard } from "@/components/BoardCard";
 import { BoardSettings, type BoardInfo } from "@/components/BoardSettings";
 import { TagManager } from "@/components/TagManager";
 import { ViewBar } from "@/components/ViewTabs";
@@ -85,9 +86,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { sortCards } from "@/lib/card-sort";
 import { addDays, type ISODate } from "@/lib/dates";
 import { TAG_COLORS } from "@/lib/tag-colors";
-import type { CardData, Member, Tag } from "@/lib/types";
+import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type ColumnData = { id: string; name: string; isDone: boolean; isInProgress: boolean; cards: CardData[] };
@@ -183,6 +185,9 @@ export function Board({
   const [editing, setEditing] = useState<CardData | null>(null);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [display, setDisplay] = useDisplay();
+  const [sort, setSort] = useSort(board.id);
+  // Where a dragged card started, so a drag inside a sorted column changes nothing.
+  const dragFrom = useRef<string | null>(null);
   const [collapsed, toggleCollapsed] = useCollapsed(board.id);
   const [, startTransition] = useTransition();
 
@@ -281,7 +286,13 @@ export function Board({
   const filtering = hasFilters(filters);
   const filteredCols = filtering ? cols.map((c) => ({ ...c, cards: c.cards.filter((card) => matches(filters, card)) })) : cols;
   // "Show empty columns" off hides columns with nothing to show (never the one a drag is passing over).
-  const visibleCols = display.emptyColumns ? filteredCols : filteredCols.filter((c) => c.cards.length > 0);
+  const shownCols = display.emptyColumns ? filteredCols : filteredCols.filter((c) => c.cards.length > 0);
+  // "Order by" only changes what's drawn; the stored (manual) order stays as it is.
+  const nameOf = (profileId: string) => {
+    const m = maps.memberById.get(profileId);
+    return m ? displayName(m) : "";
+  };
+  const visibleCols = sort.key === "manual" ? shownCols : shownCols.map((c) => ({ ...c, cards: sortCards(c.cards, sort, nameOf) }));
   const cardCount = cols.reduce((n, c) => n + c.cards.length, 0);
 
   function columnOf(key: string, list = cols) {
@@ -291,6 +302,7 @@ export function Board({
 
   function onDragStart(e: DragStartEvent) {
     setActiveKey(String(e.active.id));
+    dragFrom.current = columnOf(String(e.active.id))?.id ?? null;
   }
 
   // Move a card across columns live while hovering.
@@ -338,6 +350,12 @@ export function Board({
 
     const col = columnOf(active);
     if (!col) return;
+    // Sorted columns have no manual order to change: a drop in the same column is a no-op, and a
+    // drop in another column just moves the card there.
+    if (sort.key !== "manual") {
+      if (col.id !== dragFrom.current) startTransition(() => moveCard(rawId(active), col.id, 1_000_000));
+      return;
+    }
     const fromIdx = col.cards.findIndex((c) => c.id === rawId(active));
     let toIdx = fromIdx;
     if (!isCol(over) && columnOf(over)?.id === col.id) {
@@ -361,6 +379,7 @@ export function Board({
           actions={
             <>
               <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
+              <SortMenu value={sort} onChange={setSort} />
               <DisplayMenu value={display} onChange={setDisplay} />
               <TagManager boardId={board.id} tags={tags} />
               <BoardMenu board={board} members={members} canDelete={canDelete} />
@@ -750,48 +769,22 @@ function CardMenu({ card, ctx, className }: { card: CardData; ctx: Ctx; classNam
   );
 }
 
-/** Plane-style card: title, then one row of property chips (priority, dates, tags, people). */
+/** A card on the board: see BoardCard. The drag overlay draws the same card without controls. */
 function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done: boolean; overlay?: boolean }) {
-  const show = ctx.display;
-  const cardTags = show.tags ? card.tagIds.map((id) => ctx.tagById.get(id)).filter((t): t is Tag => !!t) : [];
-  const people = card.assigneeIds.map((id) => ctx.memberById.get(id)).filter((m): m is Member => !!m);
-  const late = !done && !!card.dueDate && card.dueDate < ctx.today;
-  const tagChips = <LabelChips tags={cardTags} />;
   return (
-    <article
-      className={cn(
-        "cursor-pointer rounded-lg border bg-card p-3 text-[13px] shadow-xs transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-sm",
-        late && "border-destructive/30 hover:border-destructive/50",
-        ctx.editingId === card.id && "border-primary ring-1 ring-primary hover:border-primary",
-        overlay && "rotate-1 shadow-lg",
-      )}
-    >
-      {/* One line, like Plane; the full title is on hover */}
-      <h3 title={card.title} className={cn("line-clamp-1 pr-6 text-[14px] leading-5 font-medium break-all", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
-        {card.title}
-      </h3>
-      {show.description && card.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
-      {overlay ? (
-        <div className="flex flex-wrap items-center gap-2 pt-3">
-          {show.priority && card.priority && (
-            <span className="grid size-5 place-items-center rounded-sm border border-border-strong">
-              <PriorityIcon priority={card.priority} className="size-3" />
-            </span>
-          )}
-          {show.dates && <DueBadge start={card.startDate} due={card.dueDate} today={ctx.today} done={done} />}
-          {tagChips}
-          {show.assignees && (
-            <span className="ml-auto">
-              <AvatarStack members={people} size={20} />
-            </span>
-          )}
-        </div>
-      ) : (
-        <CardQuickProps card={card} members={[...ctx.memberById.values()]} assignable={ctx.assignable} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(card, name)}>
-          {tagChips}
-        </CardQuickProps>
-      )}
-    </article>
+    <BoardCard
+      card={card}
+      done={done}
+      members={ctx.memberById}
+      assignable={ctx.assignable}
+      tags={ctx.tags}
+      today={ctx.today}
+      selected={ctx.editingId === card.id}
+      overlay={overlay}
+      show={ctx.display}
+      onPatch={(p) => ctx.patch(card.id, p)}
+      onCreateTag={(name) => ctx.createLabel(card, name)}
+    />
   );
 }
 
@@ -848,6 +841,10 @@ function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => v
     title,
     description: "",
     startDate: null,
+    storyPoints: null,
+    createdBy: ctx.currentUserId,
+    createdVia: "app",
+    createdAt: new Date(0).toISOString(),
     tagIds: [],
     ...props,
   };

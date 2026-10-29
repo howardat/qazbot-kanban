@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
 import { Avatar, AvatarStack } from "@/components/atoms";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
+import { STORY_POINTS } from "@/lib/card-source";
 import { PRIORITIES, type Priority } from "@/lib/priority";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -64,6 +65,7 @@ export function CardEditor({
   const [assigneeIds, setAssigneeIds] = useState<string[]>(card.assigneeIds);
   const [tagIds, setTagIds] = useState<string[]>(card.tagIds);
   const [priority, setPriority] = useState<Priority | null>(card.priority);
+  const [storyPoints, setStoryPoints] = useState<number | null>(card.storyPoints);
   const [tags, setTags] = useState<Tag[]>(boardTags);
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -86,6 +88,7 @@ export function CardEditor({
           assigneeIds,
           tagIds,
           priority,
+          storyPoints,
         });
         toast.success(t.editor.saved);
         onClose();
@@ -227,6 +230,22 @@ export function CardEditor({
                       {PRIORITIES.map((p) => (
                         <SelectItem key={p} value={p}>
                           <PriorityIcon priority={p} /> {t.priority[p]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Property>
+
+                <Property icon={Hexagon} label={t.cardMeta.points}>
+                  <Select value={storyPoints ? String(storyPoints) : NONE} onValueChange={(v) => setStoryPoints(v === NONE ? null : Number(v))}>
+                    <SelectTrigger aria-label={t.cardMeta.points} className={ghostSelect}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>{t.cardMeta.noPoints}</SelectItem>
+                      {STORY_POINTS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
                         </SelectItem>
                       ))}
                     </SelectContent>

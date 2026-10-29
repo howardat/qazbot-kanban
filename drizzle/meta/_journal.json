@@ -113,6 +113,13 @@
       "when": 1793268829760,
       "tag": "0015_board_rooms_members",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793270238122,
+      "tag": "0016_card_creator_points",
+      "breakpoints": true
     }
   ]
 }
