@@ -38,15 +38,39 @@ export function monthGrid(month: string): ISODate[] {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// Month and weekday names, spelled out instead of asked of Intl: each JavaScript engine ships its own
+// locale data (Safari writes Saturday as "Сб", Node as "сб"), and a date rendered on the server must
+// read the same in every browser or React's hydration fails. Same wording Node's Intl gives.
+const NAMES = {
+  en: {
+    monthShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"],
+    /** "7 Nov" */
+    monthInDay: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"],
+    monthLong: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    /** "7 November" */
+    monthLongInDay: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    /** Monday first */
+    weekdayShort: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    weekdayLong: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    year: "",
+    longSep: " ",
+  },
+  ru: {
+    monthShort: ["янв.", "февр.", "март", "апр.", "май", "июнь", "июль", "авг.", "сент.", "окт.", "нояб.", "дек."],
+    monthInDay: ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."],
+    monthLong: ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"],
+    monthLongInDay: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+    weekdayShort: ["пн", "вт", "ср", "чт", "пт", "сб", "вс"],
+    weekdayLong: ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"],
+    year: " г.",
+    longSep: ", ",
+  },
+};
+
 /** Date (and money) formatters for one language (a BCP 47 tag such as "en-GB" or "ru-RU"). Dates are UTC days. */
 export function makeFormatters(tag: string) {
-  const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(tag, { timeZone: "UTC", ...opts });
-  const dayMonth = fmt({ day: "numeric", month: "short" });
-  const dayMonthYear = fmt({ day: "numeric", month: "short", year: "numeric" });
-  const monthYear = fmt({ month: "long", year: "numeric" });
-  const monthShort = fmt({ month: "short" });
-  const weekdayShort = fmt({ weekday: "short" });
-  const longDay = fmt({ weekday: "long", day: "numeric", month: "long" });
+  const n = tag.toLowerCase().startsWith("ru") ? NAMES.ru : NAMES.en;
+  const parts = (d: ISODate) => ({ y: +d.slice(0, 4), m: +d.slice(5, 7) - 1, day: +d.slice(8, 10) });
   const money = new Intl.NumberFormat(tag, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const smallMoney = new Intl.NumberFormat(tag, { style: "currency", currency: "USD", maximumSignificantDigits: 2 });
   const rel = new Intl.RelativeTimeFormat(tag, { numeric: "auto" });
@@ -57,17 +81,29 @@ export function makeFormatters(tag: string) {
   });
   return {
     /** "24 Oct" */
-    day: (d: ISODate) => dayMonth.format(toUTC(d)),
+    day: (d: ISODate) => {
+      const { m, day } = parts(d);
+      return `${day} ${n.monthInDay[m]}`;
+    },
     /** "24 Oct 2026" */
-    dayYear: (d: ISODate) => dayMonthYear.format(toUTC(d)),
+    dayYear: (d: ISODate) => {
+      const { y, m, day } = parts(d);
+      return `${day} ${n.monthInDay[m]} ${y}${n.year}`;
+    },
     /** "October 2026", from "YYYY-MM" */
-    month: (month: string) => cap(monthYear.format(toUTC(`${month}-01`))),
+    month: (month: string) => {
+      const { y, m } = parts(`${month}-01`);
+      return cap(`${n.monthLong[m]} ${y}${n.year}`);
+    },
     /** "Oct" */
-    monthShort: (d: ISODate) => monthShort.format(toUTC(d)),
+    monthShort: (d: ISODate) => n.monthShort[parts(d).m],
     /** "Sat" */
-    weekday: (d: ISODate) => weekdayShort.format(toUTC(d)),
+    weekday: (d: ISODate) => n.weekdayShort[weekday(d)],
     /** "Saturday 24 October" */
-    long: (d: ISODate) => cap(longDay.format(toUTC(d))),
+    long: (d: ISODate) => {
+      const { m, day } = parts(d);
+      return cap(`${n.weekdayLong[weekday(d)]}${n.longSep}${day} ${n.monthLongInDay[m]}`);
+    },
     /** "$1.25"; amounts under a cent keep two significant digits ("$0.0042") so they don't read as zero. */
     usd: (n: number) => (n > 0 && n < 0.01 ? smallMoney.format(n) : money.format(n)),
     /** "5 minutes ago", "yesterday": how long before `now` an instant was. */
