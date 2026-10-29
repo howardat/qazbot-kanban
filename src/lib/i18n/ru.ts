@@ -238,7 +238,6 @@ export const ru: Dict = {
   },
 
   editor: {
-    saved: "Карточка сохранена",
     saveFailed: "Не удалось сохранить карточку. Проверьте поля и попробуйте снова.",
     heading: "Редактирование карточки",
     title: "Название",
@@ -264,7 +263,6 @@ export const ru: Dict = {
     datesInvalid: "Начало должно быть не позже дедлайна.",
     confirmDelete: "Удалить эту карточку?",
     deleted: "Карточка удалена",
-    save: "Сохранить",
     clear: (label) => `Очистить: ${label.toLowerCase()}`,
   },
 

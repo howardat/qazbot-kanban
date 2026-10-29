@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPen, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -39,8 +39,8 @@ function Property({ icon: Icon, label, children }: { icon: React.ComponentType<{
 
 /**
  * Plane's "side peek": the card opens in a panel on the right half of the screen, over the board,
- * which stays visible. Title and description on top, then the properties list. Changes are kept
- * until Save, so a stray click can't change a card.
+ * which stays visible. Title and description on top, then the properties list. Changes save on
+ * their own, shortly after the last edit and again on close, as in Plane.
  */
 export function CardEditor({
   card,
@@ -69,7 +69,7 @@ export function CardEditor({
   const [storyPoints, setStoryPoints] = useState<number | null>(card.storyPoints);
   const [tags, setTags] = useState<Tag[]>(boardTags);
   const [confirming, setConfirming] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -78,28 +78,43 @@ export function CardEditor({
   const creator = card.createdBy ? (members.find((m) => m.id === card.createdBy) ?? null) : null;
   const claude = viaClaude(card.createdVia);
 
-  function save(e: React.FormEvent) {
-    e.preventDefault();
-    if (datesInvalid) return;
-    startTransition(async () => {
-      try {
-        await updateCard(card.id, {
-          title,
-          description,
-          startDate: startDate || null,
-          dueDate: dueDate || null,
-          assigneeIds,
-          tagIds,
-          priority,
-          storyPoints,
-        });
-        toast.success(t.editor.saved);
-        onClose();
-      } catch {
-        toast.error(t.editor.saveFailed);
-      }
+  // Everything the card saves, as one string so an unchanged card is cheap to spot.
+  const snapshot = JSON.stringify({
+    title: title.trim(),
+    description,
+    startDate: startDate || null,
+    dueDate: dueDate || null,
+    assigneeIds,
+    tagIds,
+    priority,
+    storyPoints,
+  });
+  const valid = !datesInvalid && !!title.trim();
+  const saved = useRef(snapshot);
+  // Saves run one after another, so a slow one can't land after a newer one.
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const latest = useRef({ snapshot, valid });
+  latest.current = { snapshot, valid };
+
+  const flush = useRef(() => {
+    const { snapshot, valid } = latest.current;
+    if (!valid || snapshot === saved.current) return;
+    saved.current = snapshot;
+    queue.current = queue.current.then(() => updateCard(card.id, JSON.parse(snapshot))).catch(() => {
+      toast.error(t.editor.saveFailed);
     });
-  }
+  }).current;
+
+  // Typing settles for a moment before it saves; picks in menus save just as soon.
+  useEffect(() => {
+    const timer = setTimeout(flush, 600);
+    return () => clearTimeout(timer);
+  }, [snapshot, flush]);
+
+  const close = () => {
+    flush();
+    onClose();
+  };
 
   // A label typed into the picker that the board doesn't have yet: create it with the next palette colour
   // (recolour it in the label manager) and put it on this card.
@@ -113,7 +128,7 @@ export function CardEditor({
 
   return (
     // Not modal: the board stays scrollable beside the panel; a click outside closes it, as in Plane.
-    <DialogPrimitive.Root open modal={false} onOpenChange={(open) => !open && onClose()}>
+    <DialogPrimitive.Root open modal={false} onOpenChange={(open) => !open && close()}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -124,7 +139,7 @@ export function CardEditor({
           }}
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-card text-sm shadow-[0_4px_8px_rgba(0,0,0,0.12),0_6px_12px_rgba(16,24,40,0.12),0_1px_16px_rgba(16,24,40,0.12)] duration-200 outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-right-8 data-[state=open]:fade-in-0 md:w-1/2 md:min-w-[520px]"
         >
-          <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
             {/* Header bar: close on the left, board name, card menu on the right */}
             <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
               <DialogPrimitive.Close asChild>
@@ -153,6 +168,7 @@ export function CardEditor({
                         return;
                       }
                       startTransition(async () => {
+                        saved.current = latest.current.snapshot; // nothing left to save on a deleted card
                         await deleteCard(card.id);
                         toast(t.editor.deleted);
                         onClose();
@@ -288,13 +304,7 @@ export function CardEditor({
               </div>
             </div>
 
-            <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-tray px-6 py-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t.common.cancel}
-              </Button>
-              <Button disabled={pending || datesInvalid}>{t.editor.save}</Button>
-            </footer>
-          </form>
+          </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

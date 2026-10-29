@@ -234,7 +234,6 @@ export const en = {
   },
 
   editor: {
-    saved: "Card saved",
     saveFailed: "Couldn't save the card. Check the fields and try again.",
     heading: "Edit card",
     title: "Title",
@@ -260,7 +259,6 @@ export const en = {
     datesInvalid: "Start must be on or before the deadline.",
     confirmDelete: "Delete this card?",
     deleted: "Card deleted",
-    save: "Save changes",
     clear: (label: string) => `Clear ${label.toLowerCase()}`,
   },
 
