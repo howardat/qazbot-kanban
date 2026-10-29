@@ -39,8 +39,18 @@ const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, openWorldHint: false } as const;
 
-const uuid = z.string().uuid();
+// Tool definitions ride along on every request, so schemas stay lean: ids are checked in code rather than by
+// zod's uuid pattern (a 150-character regex per id field), and story points by a refine rather than .int()
+// (which spells out the safe-integer bounds).
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuid = z.string().refine((s) => UUID.test(s), "Expected an id from a previous result.");
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
+const storyPoints = z
+  .number()
+  .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
+  .nullable()
+  .optional()
+  .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it.");
 
 // Compact JSON: tool results go straight into the model's context, where whitespace costs tokens.
 const ok = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
@@ -61,13 +71,13 @@ function safe<A>(run: (args: A) => Promise<ReturnType<typeof ok>>) {
 /**
  * A card as tools return it, kept small because every field lands in the model's context: empty
  * fields are left out, and people and tags come as names (ids are in list_members and get_board).
+ * Results group cards by board, so the board is left out; get_board groups them by column too.
  */
-const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, string>) => ({
+const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, string>, withColumn = true) => ({
   id: c.id,
   title: c.title,
   ...(c.description ? { description: c.description.slice(0, 500) } : {}),
-  board: c.boardName,
-  column: c.columnName,
+  ...(withColumn ? { column: c.columnName } : {}),
   ...(c.done ? { done: true } : {}),
   ...(c.startDate ? { startDate: c.startDate } : {}),
   ...(c.dueDate ? { dueDate: c.dueDate } : {}),
@@ -76,6 +86,12 @@ const cardOut = (c: CardRow, names: Map<string, string>, tagNames: Map<string, s
   ...(c.priority ? { priority: c.priority } : {}),
   ...(c.storyPoints ? { storyPoints: c.storyPoints } : {}),
   ...(c.createdBy ? { createdBy: names.get(c.createdBy) ?? c.createdBy } : {}),
+});
+
+/** A column's role, only when it has one: false flags on every column are tokens with no news. */
+const columnFlags = (c: { isDone: boolean; isInProgress: boolean }) => ({
+  ...(c.isDone ? { done: true } : {}),
+  ...(c.isInProgress ? { inProgress: true } : {}),
 });
 
 async function lookups() {
@@ -95,7 +111,7 @@ export function createMcpServer(ctx: McpContext) {
     "list_boards",
     {
       title: "List boards",
-      description: "All boards with their columns (id, name, whether it is the done or in-progress column, card count).",
+      description: "All boards with their columns (id, name, card count; done or inProgress marks those columns).",
       annotations: READ,
     },
     safe(async () => {
@@ -114,7 +130,7 @@ export function createMcpServer(ctx: McpContext) {
           name: b.name,
           columns: colRows
             .filter((c) => c.boardId === b.id)
-            .map((c) => ({ id: c.id, name: c.name, isDone: c.isDone, isInProgress: c.isInProgress, cards: counts.get(c.id) ?? 0 })),
+            .map((c) => ({ id: c.id, name: c.name, ...columnFlags(c), cards: counts.get(c.id) ?? 0 })),
         })),
       );
     }),
@@ -145,9 +161,8 @@ export function createMcpServer(ctx: McpContext) {
         columns: colRows.map((c) => ({
           id: c.id,
           name: c.name,
-          isDone: c.isDone,
-          isInProgress: c.isInProgress,
-          cards: cardRows.filter((k) => k.columnId === c.id).map((k) => cardOut(k, names, tagNames)),
+          ...columnFlags(c),
+          cards: cardRows.filter((k) => k.columnId === c.id).map((k) => cardOut(k, names, tagNames, false)),
         })),
       });
     }),
@@ -160,7 +175,7 @@ export function createMcpServer(ctx: McpContext) {
       description: "Everyone who can be assigned to cards (id, name, email).",
       annotations: READ,
     },
-    safe(async () => ok((await loadMembers()).map((m) => ({ id: m.id, name: m.name, email: m.email })))),
+    safe(async () => ok((await loadMembers()).map((m) => ({ id: m.id, ...(m.name?.trim() ? { name: m.name.trim() } : {}), email: m.email })))),
   );
 
   server.registerTool(
@@ -168,7 +183,7 @@ export function createMcpServer(ctx: McpContext) {
     {
       title: "Search cards",
       description:
-        "Find cards across boards. All filters are optional and combine. Done cards are left out unless includeDone is true. Returns at most 60. Assignees come as names; list_members has their ids, and get_board or list_boards the column ids.",
+        "Find cards across boards. All filters are optional and combine. Done cards are left out unless includeDone is true. Returns at most 60, grouped by board name. Assignees come as names; list_members has their ids, and get_board or list_boards the column ids.",
       inputSchema: {
         query: z.string().max(200).optional().describe("Text to match in title or description"),
         boardId: uuid.optional(),
@@ -204,7 +219,10 @@ export function createMcpServer(ctx: McpContext) {
           (!f.noDates || (!c.startDate && !c.dueDate)),
       );
       const { names, tagNames } = await lookups();
-      return ok({ total: rows.length, cards: rows.slice(0, 60).map((c) => cardOut(c, names, tagNames)) });
+      // Grouped by board name, so a board's name is written once rather than on each of its cards.
+      const byBoard: Record<string, ReturnType<typeof cardOut>[]> = {};
+      for (const c of rows.slice(0, 60)) (byBoard[c.boardName] ??= []).push(cardOut(c, names, tagNames));
+      return ok({ total: rows.length, boards: byBoard });
     }),
   );
 
@@ -233,13 +251,7 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
-        storyPoints: z
-          .number()
-          .int()
-          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
-          .nullable()
-          .optional()
-          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
+        storyPoints,
       },
       annotations: WRITE,
     },
@@ -277,13 +289,7 @@ export function createMcpServer(ctx: McpContext) {
         assigneeIds: z.array(uuid).max(50).optional(),
         tags: z.array(z.string().min(1).max(40)).max(30).optional(),
         priority: z.enum(PRIORITIES).nullable().optional().describe("high, medium or low; null clears it."),
-        storyPoints: z
-          .number()
-          .int()
-          .refine((n) => (STORY_POINTS as readonly number[]).includes(n), "1, 2, 3, 5, 8 or 13")
-          .nullable()
-          .optional()
-          .describe("Estimate: 1, 2, 3, 5, 8 or 13; null clears it."),
+        storyPoints,
       },
       annotations: WRITE,
     },
@@ -392,24 +398,18 @@ export function createMcpServer(ctx: McpContext) {
     {
       title: "List expenses",
       description:
-        "Company expenses, oldest first, optionally filtered by date range, category or vendor. Amounts are whole KZT. `invoices` is how many invoice files are attached (0 means the invoice is missing).",
+        "Company expenses, oldest first, optionally filtered by date range, category or vendor. Amounts are whole KZT. Rows are arrays in the order of `fields`; `invoices` is how many invoice files are attached (0 means the invoice is missing).",
       inputSchema: expenseFilter,
       annotations: READ,
     },
     safe(async (f) => {
       const rows = await loadExpenses(f);
+      // A table rather than objects: every row has every field, so naming them once saves their repeats.
       return ok({
         count: rows.length,
         totalKzt: rows.reduce((s, r) => s + r.amount, 0),
-        expenses: rows.map((r) => ({
-          id: r.id,
-          date: r.date,
-          vendor: r.vendor,
-          ...(r.description ? { description: r.description.slice(0, 300) } : {}),
-          category: r.category,
-          amountKzt: r.amount,
-          invoices: r.invoices.length,
-        })),
+        fields: ["id", "date", "vendor", "category", "amountKzt", "invoices", "description"],
+        rows: rows.map((r) => [r.id, r.date, r.vendor, r.category, r.amount, r.invoices.length, r.description.slice(0, 300)]),
       });
     }),
   );
@@ -505,5 +505,23 @@ export function createMcpServer(ctx: McpContext) {
     }),
   );
 
+  dropSchemaUrls(server);
   return server;
+}
+
+/**
+ * The SDK stamps `"$schema": "http://json-schema.org/draft-07/schema#"` on every tool's input schema;
+ * models don't need it, and it rides on every request. Wraps the SDK's own tools/list handler (the SDK
+ * is pinned, and if the internals move this does nothing).
+ */
+function dropSchemaUrls(server: McpServer) {
+  type Handler = (...args: unknown[]) => Promise<{ tools: { inputSchema?: Record<string, unknown> }[] }>;
+  const handlers = (server.server as unknown as { _requestHandlers?: Map<string, Handler> })._requestHandlers;
+  const list = handlers?.get("tools/list");
+  if (!handlers || !list) return;
+  handlers.set("tools/list", async (...args) => {
+    const result = await list(...args);
+    for (const tool of result.tools) if (tool.inputSchema) delete tool.inputSchema.$schema;
+    return result;
+  });
 }
