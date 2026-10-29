@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Flag, Hexagon, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, TagBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, DUE_TEXT, TagBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import type { QuickPatch } from "@/components/CardQuickProps";
 import { useT } from "@/components/I18nProvider";
@@ -60,7 +60,7 @@ export function CreatorMark({ creator, claude, size = 20 }: { creator: Member | 
   );
 }
 
-/** Due date as footer text: red alert icon when late, amber today and the next two days, grey otherwise. */
+/** Due date as footer text: red alert icon when late, yellow today and the next two days, grey otherwise. */
 function DueText({ due, today, done }: { due: ISODate; today: ISODate; done: boolean }) {
   const t = useT();
   const state = dueState(due, today, done);
@@ -69,11 +69,7 @@ function DueText({ due, today, done }: { due: ISODate; today: ISODate; done: boo
   return (
     <span
       title={state === "overdue" ? t.due.relative(due, today) : undefined}
-      className={cn(
-        "inline-flex items-center gap-1",
-        state === "overdue" ? "text-destructive" : state === "today" || state === "soon" ? "text-warning" : "text-muted-foreground",
-        done && "line-through",
-      )}
+      className={cn("inline-flex items-center gap-1", DUE_TEXT[state], done && "line-through")}
     >
       <Icon className="size-3.5" /> {text}
     </span>

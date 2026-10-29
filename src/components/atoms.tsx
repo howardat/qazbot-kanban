@@ -64,12 +64,24 @@ export function TagBadge({ tag, size = "sm", className }: { tag: Pick<Tag, "name
   );
 }
 
-// Property chips, as on Plane's cards: neutral hairline chip, colored only when it needs attention:
-// red past the deadline, amber today and the next two days, grey otherwise.
+/**
+ * Deadline colours everywhere a due date shows: red past the deadline, yellow today and the next two
+ * days, grey otherwise. As text classes, for plain due dates.
+ */
+export const DUE_TEXT = {
+  overdue: "text-destructive",
+  today: "text-yellow-600 dark:text-yellow-400",
+  soon: "text-yellow-600 dark:text-yellow-400",
+  later: "text-muted-foreground",
+  done: "text-muted-foreground",
+  none: "text-muted-foreground",
+} as const;
+
+// Property chips, as on Plane's cards: neutral hairline chip, coloured only when it needs attention.
 const DUE_STYLE = {
   overdue: "border-destructive/40 text-destructive",
-  today: "border-warning/40 text-warning",
-  soon: "border-warning/40 text-warning",
+  today: "border-yellow-500/50 text-yellow-600 dark:text-yellow-400",
+  soon: "border-yellow-500/50 text-yellow-600 dark:text-yellow-400",
   later: "border-border-strong text-muted-foreground",
   done: "border-border-strong text-muted-foreground line-through",
   none: "",
