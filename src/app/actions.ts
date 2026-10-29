@@ -30,7 +30,7 @@ import {
 import { getT } from "@/lib/i18n/server";
 import { newInviteToken } from "@/lib/invites";
 import { WORK_ROOMS, ROBOT_MODELS } from "@/lib/rooms";
-import { assertBoard, assertCard, assertColumn, assertTag, canManageBoard, setBoardMembers } from "@/lib/board-access";
+import { accessImpact, applyBoardAccess, assertBoard, assertCard, assertColumn, assertTag, canManageBoard, type AccessImpact } from "@/lib/board-access";
 import { requireAdmin, requireUser } from "@/lib/session";
 
 // Dashboard, calendar, timeline and boards all read the same cards.
@@ -74,14 +74,24 @@ export async function setBoardRoom(boardId: string, room: string) {
   refreshAll();
 }
 
-/** Board settings: who may see the board. Empty opens it to everyone. Creator and admins only. */
-export async function setBoardMemberIds(boardId: string, profileIds: string[]) {
+/**
+ * Board settings: who may see the board. Empty opens it to everyone. Creator and admins only.
+ * When the change would lock people out of not-done cards they're assigned to, nothing is saved
+ * and the impact comes back for the owner to confirm; with `confirmed` those assignments go.
+ */
+export async function setBoardMemberIds(boardId: string, profileIds: string[], confirmed = false): Promise<{ saved: true } | { saved: false; impact: AccessImpact }> {
   const user = await requireUser();
   await track(user.id, "board.settings");
   const bId = id.parse(boardId);
+  const ids = z.array(id).max(200).parse(profileIds);
   if (!(await canManageBoard(user, bId))) throw new Error("Only the board's creator or an admin can change who sees it.");
-  await setBoardMembers(bId, z.array(id).max(200).parse(profileIds));
+  if (!confirmed) {
+    const { impact } = await accessImpact(bId, ids);
+    if (impact.cards > 0) return { saved: false, impact };
+  }
+  await applyBoardAccess(bId, ids);
   refreshAll();
+  return { saved: true };
 }
 
 // ---------- Columns ----------

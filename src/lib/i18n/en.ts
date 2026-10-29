@@ -553,6 +553,15 @@ export const en = {
     owner: "Owner",
     onlyOwner: "Only the board's owner or an admin can change who sees it.",
     saveFailed: "Couldn't save the board settings.",
+    saveAccess: "Save access",
+    reset: "Reset",
+    cancel: "Cancel",
+    confirmPrivateTitle: "Make this board private?",
+    confirmNarrowTitle: "Remove access?",
+    confirmBody: (cards: number, people: string[]) =>
+      `${people.join(", ")} won't be in this board anymore and will be unassigned from ${cards === 1 ? "1 open card" : `${cards} open cards`}. Cards in Done keep their assignees.`,
+    confirmPrivate: "Make private",
+    confirmNarrow: "Remove access",
   },
 
   rooms: {

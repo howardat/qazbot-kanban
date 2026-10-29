@@ -43,10 +43,13 @@ export function CardQuickProps({
   onPatch,
   tags,
   onCreateTag,
+  assignable,
   children,
 }: {
   card: CardData;
   members: Member[];
+  /** Who may be newly assigned (a private board's audience); everyone when left out. */
+  assignable?: Member[];
   today: ISODate;
   done: boolean;
   /** Which properties the board's Display menu shows. */
@@ -197,7 +200,7 @@ export function CardQuickProps({
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto" onClick={stop}>
-            {members.map((m) => (
+            {members.filter((m) => !assignable || assignable.includes(m) || card.assigneeIds.includes(m.id)).map((m) => (
               <DropdownMenuItem
                 key={m.id}
                 onSelect={(e) => {

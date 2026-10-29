@@ -8,7 +8,7 @@ import { canDeleteBoard } from "@/lib/board-ops";
 import { loadCards, loadMembers, loadTags } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { track } from "@/lib/activity";
-import { canManageBoard, canSeeBoard, loadBoardMembers } from "@/lib/board-access";
+import { boardAudience, canManageBoard, canSeeBoard, loadBoardMembers } from "@/lib/board-access";
 import { requireUser } from "@/lib/session";
 
 /** Loads one board and renders it in the given layout; shared by the Board and List routes. */
@@ -20,13 +20,14 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
   const [board] = await db.select().from(boards).where(eq(boards.id, id));
   if (!board || !(await canSeeBoard(user, id))) notFound();
 
-  const [cols, cardRows, members, tags, boardMemberIds, canManage] = await Promise.all([
+  const [cols, cardRows, members, tags, boardMemberIds, canManage, audience] = await Promise.all([
     db.select().from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     loadCards(user, id),
     loadMembers(),
     loadTags(user, id),
     loadBoardMembers(id),
     canManageBoard(user, id),
+    boardAudience(id),
   ]);
 
   const data: ColumnData[] = cols.map((c) => ({
@@ -46,6 +47,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
       today={todayISO()}
       currentUserId={user.id}
       canDelete={canDeleteBoard(user, board.createdBy)}
+      assignableIds={audience ? [...audience] : null}
       layout={layout}
     />
   );

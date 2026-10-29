@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import { setBoardMemberIds, setBoardRoom } from "@/app/actions";
 import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { AccessImpact } from "@/lib/board-access";
 import { WORK_ROOMS, type WorkRoom } from "@/lib/rooms";
 import { displayName, type Member } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -29,8 +31,12 @@ export function BoardSettings({ board, members, open, onOpenChange }: { board: B
   const t = useT();
   const s = t.boardSettings;
   const [room, setRoom] = useState(board.room);
+  // Access is staged: ticks change nothing until Save, which may first ask to confirm unassigning.
+  const [saved, setSaved] = useState(board.memberIds);
   const [picked, setPicked] = useState(board.memberIds);
-  const [, startTransition] = useTransition();
+  const [impact, setImpact] = useState<AccessImpact | null>(null);
+  const [pending, startTransition] = useTransition();
+  const dirty = picked.length !== saved.length || picked.some((id) => !saved.includes(id));
   const creator = members.find((m) => m.id === board.createdBy);
   const others = members.filter((m) => m.id !== board.createdBy);
 
@@ -46,19 +52,19 @@ export function BoardSettings({ board, members, open, onOpenChange }: { board: B
       }
     });
   };
-  const toggle = (id: string) => {
-    const before = picked;
-    const next = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id];
-    setPicked(next);
+  const toggle = (id: string) => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const saveAccess = (confirmed: boolean) =>
     startTransition(async () => {
       try {
-        await setBoardMemberIds(board.id, next);
+        const res = await setBoardMemberIds(board.id, picked, confirmed);
+        if (res.saved) {
+          setSaved(picked);
+          setImpact(null);
+        } else setImpact(res.impact);
       } catch {
-        setPicked(before);
         toast.error(s.saveFailed);
       }
     });
-  };
   const restricted = picked.length > 0;
 
   return (
@@ -122,8 +128,36 @@ export function BoardSettings({ board, members, open, onOpenChange }: { board: B
             })}
           </ul>
           {!board.canManage && <p className="text-xs text-muted-foreground">{s.onlyOwner}</p>}
+          {board.canManage && dirty && (
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setPicked(saved)}>
+                {s.reset}
+              </Button>
+              <Button size="sm" disabled={pending} onClick={() => saveAccess(false)}>
+                {s.saveAccess}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
+
+      {/* Asked when the new access would unassign people from open cards */}
+      <Dialog open={!!impact} onOpenChange={(o) => !o && setImpact(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{saved.length === 0 ? s.confirmPrivateTitle : s.confirmNarrowTitle}</DialogTitle>
+            <DialogDescription>{impact && s.confirmBody(impact.cards, impact.people)}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">{s.cancel}</Button>
+            </DialogClose>
+            <Button variant="destructive" disabled={pending} onClick={() => saveAccess(true)}>
+              {saved.length === 0 ? s.confirmPrivate : s.confirmNarrow}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

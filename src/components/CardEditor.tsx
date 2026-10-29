@@ -45,10 +45,13 @@ export function CardEditor({
   members,
   boardTags,
   boardName,
+  assignable,
   onClose,
 }: {
   card: CardData;
   members: Member[];
+  /** Who may be newly assigned (a private board's audience); everyone when left out. */
+  assignable?: Member[];
   boardTags: Tag[];
   boardName?: string;
   onClose: () => void;
@@ -197,7 +200,7 @@ export function CardEditor({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-y-auto">
-                      {members.map((m) => (
+                      {members.filter((m) => !assignable || assignable.includes(m) || assigneeIds.includes(m.id)).map((m) => (
                         <DropdownMenuItem
                           key={m.id}
                           onSelect={(e) => {

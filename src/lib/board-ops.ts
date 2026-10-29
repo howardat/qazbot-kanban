@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { activityEvents, boards, cardAssignees, cards, cardTags, columns, profiles, TAG_COLORS, tags } from "@/db/schema";
 import { CARD_DONE } from "@/lib/activity";
 import { addDays, diffDays, isValidDate, todayISO } from "@/lib/dates";
+import { boardAudience } from "@/lib/board-access";
 import { PRIORITIES } from "@/lib/priority";
 
 // Board and card writes, shared by the server actions (signed-in UI) and the MCP tools (assistant and
@@ -93,7 +94,7 @@ export async function setColumnFlagOp(columnId: string, flag: "done" | "inProgre
 
 /**
  * New cards are due tomorrow (or on their start date, if that's later) unless a due date is given,
- * and start out assigned to the person who created them.
+ * and start out assigned to the person who created them (when they're in the board).
  */
 export async function addCardOp(
   actor: Actor,
@@ -114,7 +115,9 @@ export async function addCardOp(
       .insert(cards)
       .values({ boardId: col.boardId, columnId: cId, title: name.parse(title), startDate, dueDate, position: (top ?? -1) + 1 })
       .returning({ id: cards.id });
-    await tx.insert(cardAssignees).values({ cardId: card.id, profileId: actor.id });
+    // Starts assigned to its creator, unless they aren't in this private board (an admin looking in).
+    const audience = await boardAudience(col.boardId);
+    if (!audience || audience.has(actor.id)) await tx.insert(cardAssignees).values({ cardId: card.id, profileId: actor.id });
     return card.id;
   });
 }
@@ -137,6 +140,13 @@ export async function updateCardOp(cardId: string, data: z.input<typeof cardUpda
     const validPeople = assigneeIds.length
       ? await tx.select({ id: profiles.id }).from(profiles).where(inArray(profiles.id, assigneeIds))
       : [];
+    // A private board only takes new assignees who are in it; people already on the card stay.
+    const audience = await boardAudience(card.boardId);
+    if (audience) {
+      const current = await tx.select({ id: cardAssignees.profileId }).from(cardAssignees).where(eq(cardAssignees.cardId, cId));
+      const outsider = validPeople.find((p) => !audience.has(p.id) && !current.some((c) => c.id === p.id));
+      if (outsider) throw new Error("Only people in this board can be assigned to its cards.");
+    }
     await tx.delete(cardTags).where(eq(cardTags.cardId, cId));
     if (validTags.length) await tx.insert(cardTags).values(validTags.map((t) => ({ cardId: cId, tagId: t.id })));
     // People already on the card keep their assigned_at (it places them on the workers view); only

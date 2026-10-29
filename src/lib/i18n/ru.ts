@@ -557,6 +557,15 @@ export const ru: Dict = {
     owner: "Владелец",
     onlyOwner: "Менять доступ может только владелец доски или админ.",
     saveFailed: "Не удалось сохранить настройки доски.",
+    saveAccess: "Сохранить доступ",
+    reset: "Сбросить",
+    cancel: "Отмена",
+    confirmPrivateTitle: "Сделать доску закрытой?",
+    confirmNarrowTitle: "Убрать доступ?",
+    confirmBody: (cards: number, people: string[]) =>
+      `${people.join(", ")} больше не будут в доске и будут сняты с открытых карточек (${cards}). Карточки в «Готово» сохранят исполнителей.`,
+    confirmPrivate: "Сделать закрытой",
+    confirmNarrow: "Убрать доступ",
   },
 
   rooms: {
