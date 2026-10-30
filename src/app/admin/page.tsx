@@ -7,6 +7,7 @@ import { Avatar, PageHeader, Panel } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InviteManager } from "@/components/InviteManager";
+import { ResetPasswordButton } from "@/components/ResetPasswordButton";
 import { RobotManager } from "@/components/RobotManager";
 import { getT } from "@/lib/i18n/server";
 import { track } from "@/lib/activity";
@@ -63,6 +64,7 @@ export default async function AdminPage() {
                     <Badge variant="secondary">{t.admin.you}</Badge>
                   ) : (
                     <>
+                      {u && <ResetPasswordButton profileId={u.id} name={displayName(u)} />}
                       {u && (
                         <form
                           action={async () => {
