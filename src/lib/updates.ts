@@ -15,6 +15,20 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-10-30-admin-password-reset",
+    date: "2026-10-30",
+    title: { en: "Reset a forgotten password", ru: "Сброс забытого пароля" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Admins can give someone a new password on the Access page: press Reset password next to their name, then copy the new password and send it to them.",
+          ru: "Админы могут выдать человеку новый пароль на странице «Доступ»: нажмите «Сбросить пароль» рядом с его именем, скопируйте новый пароль и передайте его.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-29-profile-photos",
     date: "2026-10-29",
     title: { en: "Profile photos", ru: "Фото профиля" },
