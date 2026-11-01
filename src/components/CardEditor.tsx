@@ -2,20 +2,22 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { CalendarClock, CalendarDays, Check, ChevronDown, Hexagon, MoreHorizontal, PanelRightClose, Flag, Tag as TagIcon, Trash2, UserPen, UserPlus, Users } from "lucide-react";
+import { AlignLeft, CalendarClock, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Hexagon, MoreHorizontal, Flag, Tag as TagIcon, Trash2, UserPen, UserPlus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { createTag, deleteCard, updateCard } from "@/app/actions";
-import { Avatar, AvatarStack, PEOPLE_MENU } from "@/components/atoms";
+import { Avatar, AvatarStack, halfRow, PEOPLE_MENU } from "@/components/atoms";
 import { CreatorMark } from "@/components/BoardCard";
+import { CardComments } from "@/components/CardComments";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { DatePicker } from "@/components/DatePicker";
 import { useT } from "@/components/I18nProvider";
+import { useLabelMenu } from "@/components/TagManager";
 import { TagSelect } from "@/components/TagSelect";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
-import { STORY_POINTS, viaClaude } from "@/lib/card-source";
+import { pointsTone, STORY_POINTS, viaClaude } from "@/lib/card-source";
 import { PRIORITIES, type Priority } from "@/lib/priority";
 import { TAG_COLORS } from "@/lib/tag-colors";
 import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
@@ -38,6 +40,20 @@ function Property({ icon: Icon, label, children }: { icon: React.ComponentType<{
   );
 }
 
+/** The description as a property value: shown in full, edited in place. */
+function Description({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useT();
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={t.editor.descriptionPlaceholder}
+      aria-label={t.editor.description}
+      className="field-sizing-content block min-h-8 w-full resize-none rounded-md bg-transparent px-2 py-1.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground hover:bg-accent/60 focus:bg-accent/60"
+    />
+  );
+}
+
 /**
  * Plane's "side peek": the card opens in a panel on the right half of the screen, over the board,
  * which stays visible. Title and description on top, then the properties list. Changes save on
@@ -49,9 +65,12 @@ export function CardEditor({
   boardTags,
   boardName,
   assignable,
+  nav,
   onClose,
 }: {
   card: CardData;
+  /** Where the card sits among the ones on screen, to step to its neighbours from the header. */
+  nav?: { index: number; total: number; prev?: () => void; next?: () => void };
   members: Member[];
   /** Who may be newly assigned (a private board's audience); everyone when left out. */
   assignable?: Member[];
@@ -68,7 +87,10 @@ export function CardEditor({
   const [tagIds, setTagIds] = useState<string[]>(card.tagIds);
   const [priority, setPriority] = useState<Priority | null>(card.priority);
   const [storyPoints, setStoryPoints] = useState<number | null>(card.storyPoints);
-  const [tags, setTags] = useState<Tag[]>(boardTags);
+  // Labels made here, until the board's list (which follows renames and deletes) has them.
+  const [madeTags, setMadeTags] = useState<Tag[]>([]);
+  const tags = [...boardTags, ...madeTags.filter((m) => !boardTags.some((x) => x.id === m.id))];
+  const labelMenu = useLabelMenu(tags);
   const [confirming, setConfirming] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -86,7 +108,8 @@ export function CardEditor({
     startDate: startDate || null,
     dueDate: dueDate || null,
     assigneeIds,
-    tagIds,
+    // A label deleted from its "…" menu while the card is open drops off here.
+    tagIds: tagIds.filter((id) => tags.some((x) => x.id === id)),
     priority,
     storyPoints,
   });
@@ -112,6 +135,9 @@ export function CardEditor({
     return () => clearTimeout(timer);
   }, [snapshot, flush]);
 
+  // Leaving the card (closing, or stepping to another one) saves what's still waiting.
+  useEffect(() => flush, [flush]);
+
   const close = () => {
     flush();
     onClose();
@@ -122,7 +148,7 @@ export function CardEditor({
   function addTag(name: string) {
     startTransition(async () => {
       const tag = await createTag(card.boardId, { name, color: TAG_COLORS[tags.length % TAG_COLORS.length] });
-      setTags((list) => [...list, tag]);
+      setMadeTags((list) => [...list, tag]);
       setTagIds((ids) => [...ids, tag.id]);
     });
   }
@@ -142,20 +168,43 @@ export function CardEditor({
         >
           <div className="flex min-h-0 flex-1 flex-col">
             {/* Header bar: close on the left, board name, card menu on the right */}
-            <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+            <header className="flex h-12 shrink-0 items-center gap-2 border-b px-5">
+              <span className="text-sm font-medium">{t.editor.panelTitle}</span>
+              <DialogPrimitive.Description className="min-w-0 truncate text-xs text-muted-foreground">{boardName ?? <span className="sr-only">{t.editor.heading}</span>}</DialogPrimitive.Description>
+              {nav && nav.total > 1 && (
+                <span className="ml-auto flex items-center gap-1">
+                  <Button type="button" variant="outline" size="icon-xs" className="rounded-full" disabled={!nav.prev} onClick={nav.prev} aria-label={t.editor.prevCard} title={t.editor.prevCard}>
+                    <ChevronLeft />
+                  </Button>
+                  <Button type="button" variant="outline" size="icon-xs" className="rounded-full" disabled={!nav.next} onClick={nav.next} aria-label={t.editor.nextCard} title={t.editor.nextCard}>
+                    <ChevronRight />
+                  </Button>
+                  <span className="ml-1 text-xs text-muted-foreground tabular-nums">{t.editor.position(nav.index + 1, nav.total)}</span>
+                </span>
+              )}
               <DialogPrimitive.Close asChild>
-                <Button type="button" variant="ghost" size="icon-sm" aria-label={t.common.close} title={t.common.close}>
-                  <PanelRightClose />
+                <Button type="button" variant="ghost" size="icon-sm" className={cn(!(nav && nav.total > 1) && "ml-auto")} aria-label={t.common.close} title={t.common.close}>
+                  <X />
                 </Button>
               </DialogPrimitive.Close>
-              {boardName ? (
-                <DialogPrimitive.Description className="truncate text-xs text-muted-foreground">{boardName}</DialogPrimitive.Description>
-              ) : (
-                <DialogPrimitive.Description className="sr-only">{t.editor.heading}</DialogPrimitive.Description>
-              )}
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              <DialogPrimitive.Title className="sr-only">{t.editor.heading}</DialogPrimitive.Title>
+              <div className="flex items-start gap-2">
+                <textarea
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                  required
+                  maxLength={200}
+                  rows={1}
+                  aria-label={t.editor.title}
+                  className="field-sizing-content -mx-2 block min-w-0 flex-1 resize-none rounded-md bg-transparent px-2 py-1 text-xl font-semibold outline-none hover:bg-accent focus:bg-accent"
+                />
               <DropdownMenu onOpenChange={(open) => !open && setConfirming(false)}>
                 <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon-sm" className="ml-auto" aria-label={t.card.actionsFor(card.title)}>
+                  <Button type="button" variant="outline" size="icon-sm" className="mt-1 shrink-0" aria-label={t.card.actionsFor(card.title)}>
                     <MoreHorizontal />
                   </Button>
                 </DropdownMenuTrigger>
@@ -180,30 +229,9 @@ export function CardEditor({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </header>
+              </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-8 py-5">
-              <DialogPrimitive.Title className="sr-only">{t.editor.heading}</DialogPrimitive.Title>
-              <textarea
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                required
-                maxLength={200}
-                rows={1}
-                aria-label={t.editor.title}
-                className="field-sizing-content -mx-2 block w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-xl font-semibold outline-none hover:bg-accent focus:bg-accent"
-              />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t.editor.descriptionPlaceholder}
-                aria-label={t.editor.description}
-                className="field-sizing-content -mx-2 mt-2 block min-h-24 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1.5 leading-relaxed outline-none placeholder:text-muted-foreground hover:bg-accent/60 focus:bg-accent/60"
-              />
-
-              <h3 className="mt-6 text-xs font-medium">{t.editor.properties}</h3>
-              <div className="mt-3 space-y-1">
+              <div className="mt-4 space-y-1">
                 {/* Read-only: who made the card (and whether through Claude), and when. */}
                 <Property icon={UserPen} label={t.editor.creator}>
                   <div className="flex h-8 min-w-0 items-center gap-2 px-2">
@@ -233,7 +261,7 @@ export function CardEditor({
                         <ChevronDown className="size-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className={cn(PEOPLE_MENU, "w-(--radix-dropdown-menu-trigger-width) min-w-56")}>
+                    <DropdownMenuContent ref={halfRow(5)} align="start" className={cn(PEOPLE_MENU, "w-(--radix-dropdown-menu-trigger-width) min-w-56")}>
                       {members.filter((m) => !assignable || assignable.includes(m) || assigneeIds.includes(m.id)).map((m) => (
                         <DropdownMenuItem
                           key={m.id}
@@ -275,7 +303,7 @@ export function CardEditor({
                     <SelectContent>
                       <SelectItem value={NONE}>{t.cardMeta.noPoints}</SelectItem>
                       {STORY_POINTS.map((n) => (
-                        <SelectItem key={n} value={String(n)}>
+                        <SelectItem key={n} value={String(n)} className={cn("font-medium tabular-nums", pointsTone(n))}>
                           {n}
                         </SelectItem>
                       ))}
@@ -299,10 +327,17 @@ export function CardEditor({
                     onToggle={(id) => toggle(tagIds, setTagIds, id)}
                     onCreate={addTag}
                     labels={{ placeholder: t.editor.addTags, search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+                    optionMenu={labelMenu}
                     className="w-auto max-w-full border-transparent bg-transparent hover:bg-accent [&>svg:last-child]:hidden"
                   />
                 </Property>
+
+                <Property icon={AlignLeft} label={t.editor.description}>
+                  <Description value={description} onChange={setDescription} />
+                </Property>
               </div>
+
+              <CardComments cardId={card.id} members={members} />
             </div>
 
           </div>

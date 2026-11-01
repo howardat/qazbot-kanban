@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { boards, cardAssignees, cards, cardTags, columns, profiles, tags } from "@/db/schema";
+import { boards, cardAssignees, cardComments, cards, cardTags, columns, profiles, tags } from "@/db/schema";
 import { onVisible, visibleBoardIds, type Viewer } from "@/lib/board-access";
 import type { CardRow, Member, Tag, TimelineColumn } from "@/lib/types";
 
@@ -37,10 +37,16 @@ export async function loadCards(viewer: Viewer, boardId?: string): Promise<CardR
   if (rows.length === 0) return [];
 
   const ids = rows.map((r) => r.card.id);
-  const [assignees, cardTagRows] = await Promise.all([
+  const [assignees, cardTagRows, commentCounts] = await Promise.all([
     db.select().from(cardAssignees).where(inArray(cardAssignees.cardId, ids)),
     db.select().from(cardTags).where(inArray(cardTags.cardId, ids)),
+    db
+      .select({ cardId: cardComments.cardId, n: count() })
+      .from(cardComments)
+      .where(inArray(cardComments.cardId, ids))
+      .groupBy(cardComments.cardId),
   ]);
+  const comments = new Map(commentCounts.map((c) => [c.cardId, c.n]));
   const group = <T extends { cardId: string }>(list: T[], pick: (x: T) => string) => {
     const m = new Map<string, string[]>();
     for (const x of list) m.set(x.cardId, [...(m.get(x.cardId) ?? []), pick(x)]);
@@ -64,6 +70,7 @@ export async function loadCards(viewer: Viewer, boardId?: string): Promise<CardR
     createdBy: card.createdBy,
     createdVia: card.createdVia,
     createdAt: card.createdAt.toISOString(),
+    commentCount: comments.get(card.id) ?? 0,
     boardName,
     columnName,
     done,

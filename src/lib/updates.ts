@@ -15,6 +15,69 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-01-card-comments",
+    date: "2026-11-01",
+    title: { en: "Comments, a new card panel and your profile", ru: "Комментарии, новая панель карточки и профиль" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Comment on cards: open a card and write under the description. Press Reply to answer someone in a thread; edit or delete your own comments from the ⋯ menu. Cards with comments show a speech bubble with the count.",
+          ru: "Комментарии к карточкам: откройте карточку и пишите под описанием. «Ответить» — ответ в ветке; свои комментарии можно изменить или удалить через меню ⋯. На карточках с комментариями виден значок с их числом.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "The Avatar page is now Profile: change your name, the email you sign in with and your password there, as well as your photo and avatar.",
+          ru: "Страница «Аватар» теперь «Профиль»: там можно сменить имя, почту для входа и пароль, а также фото и аватар.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "Rename, recolour or delete a label right where you pick it: hover a label in the list and press ⋯.",
+          ru: "Метку можно переименовать, перекрасить или удалить прямо в списке выбора: наведите на неё и нажмите ⋯.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "The card panel has a new layout: all fields in one list with the description, comments below, and arrows at the top to step to the previous or next card. Changes save on their own; there's no Save button.",
+          ru: "У панели карточки новый вид: все поля одним списком вместе с описанием, ниже комментарии, а стрелки сверху переходят к предыдущей и следующей карточке. Изменения сохраняются сами, кнопки «Сохранить» больше нет.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "A new card looks like a real card while you type it, and you can give it labels and story points straight away.",
+          ru: "Новая карточка сразу выглядит как настоящая, и ей можно задать метки и стори-поинты ещё до сохранения.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Password resets are now links: an admin creates a one-time link on the Access page and sends it, and the person opens it to choose a new password.",
+          ru: "Сброс пароля теперь по ссылке: админ создаёт одноразовую ссылку на странице «Доступ» и отправляет её, а человек открывает её и придумывает новый пароль.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Story points are colour-coded by size, label colours are brighter, and card titles are more compact.",
+          ru: "Стори-поинты окрашены по размеру, цвета меток стали ярче, а заголовки карточек — компактнее.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Filter by people from a searchable list with Show everyone at the top, and see who created each card in its properties.",
+          ru: "Фильтр по людям — список с поиском и пунктом «Показать всех» сверху, а в свойствах карточки видно, кто её создал.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-10-30-admin-password-reset",
     date: "2026-10-30",
     title: { en: "Reset a forgotten password", ru: "Сброс забытого пароля" },

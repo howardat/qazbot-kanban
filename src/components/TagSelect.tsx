@@ -5,7 +5,8 @@
 // and when nothing matches a `+ Add "query"` row creates one from what was typed (Enter does the same).
 // TagPicker is that panel on its own; TagSelect puts it in a popover under a pill showing what's picked.
 import { useState } from "react";
-import { Check, ChevronDown, Plus, Search, Tag } from "lucide-react";
+import { Check, ChevronDown, MoreHorizontal, Plus, Search, Tag } from "lucide-react";
+import { halfRow } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,9 @@ import { cn } from "@/lib/utils";
 export type TagOption = { id: string; name: string; color?: string; dotClassName?: string; icon?: React.ReactNode };
 
 type PickerLabels = { search: string; add: (name: string) => string; empty: string };
+
+/** A "…" button on each option that opens `render`'s panel (the board's labels: rename, recolour, delete). */
+export type OptionMenu = { label: (option: TagOption) => string; render: (option: TagOption) => React.ReactNode };
 
 function Dot({ option }: { option: TagOption }) {
   if (option.icon) return option.icon;
@@ -42,6 +46,7 @@ export function TagPicker({
   onPicked,
   labels,
   autoFocus,
+  optionMenu,
 }: {
   options: TagOption[];
   /** Ids of the picked options. */
@@ -53,6 +58,7 @@ export function TagPicker({
   onPicked?: () => void;
   labels: PickerLabels;
   autoFocus?: boolean;
+  optionMenu?: OptionMenu;
 }) {
   const t = useT();
   const [query, setQuery] = useState("");
@@ -90,19 +96,39 @@ export function TagPicker({
           className="h-9 w-full bg-transparent text-sm text-foreground outline-none"
         />
       </label>
-      <ul className="max-h-60 overflow-y-auto">
+      {/* 7½ rows (the same 240px as before), cut through a row so it shows the list scrolls. */}
+      <ul ref={halfRow(7)} className="max-h-60 overflow-y-auto">
         {matches.map((o, i) => (
-          <li key={o.id}>
+          <li key={o.id} className="relative" onMouseEnter={() => setHi(i)}>
             <button
               type="button"
               onClick={() => pick(o.id)}
-              onMouseEnter={() => setHi(i)}
-              className={cn("flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm", i === hi && "bg-accent")}
+              className={cn("flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm", i === hi && "bg-accent", optionMenu && "pr-9")}
             >
               <Dot option={o} />
               <span className="flex-1 truncate">{o.name}</span>
               {selected.includes(o.id) && <Check className="size-3.5 text-muted-foreground" />}
             </button>
+            {optionMenu && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={optionMenu.label(o)}
+                    title={optionMenu.label(o)}
+                    className={cn(
+                      "absolute top-1/2 right-1 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-muted-foreground outline-none hover:bg-foreground/10 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100",
+                      i === hi ? "opacity-100" : "opacity-0",
+                    )}
+                  >
+                    <MoreHorizontal className="size-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="right" align="start" className="w-60 p-2.5">
+                  {optionMenu.render(o)}
+                </PopoverContent>
+              </Popover>
+            )}
           </li>
         ))}
         {canCreate && (
@@ -133,6 +159,7 @@ export function TagSelect({
   multiple = false,
   labels,
   className,
+  optionMenu,
 }: {
   options: TagOption[];
   selected: string[];
@@ -141,6 +168,7 @@ export function TagSelect({
   multiple?: boolean;
   labels: PickerLabels & { placeholder: string };
   className?: string;
+  optionMenu?: OptionMenu;
 }) {
   const [open, setOpen] = useState(false);
   const picked = options.filter((o) => selected.includes(o.id));
@@ -181,6 +209,7 @@ export function TagSelect({
           onCreate={onCreate}
           onPicked={multiple ? undefined : () => setOpen(false)}
           labels={labels}
+          optionMenu={optionMenu}
         />
       </PopoverContent>
     </Popover>

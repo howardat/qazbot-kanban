@@ -1,12 +1,11 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { allowedEmails, boards, columns, employeeNotes, invites, profiles, robots, tags } from "@/db/schema";
+import { allowedEmails, boards, cardComments, columns, employeeNotes, invites, profiles, robots, tags } from "@/db/schema";
 import { normalizeEmail } from "@/lib/access";
 import { track } from "@/lib/activity";
 import {
@@ -30,10 +29,10 @@ import {
 } from "@/lib/board-ops";
 import { getT } from "@/lib/i18n/server";
 import { newInviteToken } from "@/lib/invites";
+import { createReset } from "@/lib/password-resets";
 import { WORK_ROOMS, ROBOT_MODELS } from "@/lib/rooms";
 import { accessImpact, applyBoardAccess, assertBoard, assertCard, assertColumn, assertTag, canManageBoard, type AccessImpact } from "@/lib/board-access";
 import { requireAdmin, requireUser } from "@/lib/session";
-import { adminClient } from "@/lib/supabase/admin";
 
 // Dashboard, calendar, timeline and boards all read the same cards.
 function refreshAll() {
@@ -189,7 +188,7 @@ type QuickFields = Partial<Pick<z.input<typeof cardUpdate>, "dueDate" | "assigne
 
 /**
  * Quick add from a column, a calendar day or a timeline row; `dates` pre-fills the schedule and
- * `fields` carries what was picked on the board's draft card (deadline, priority, people).
+ * `fields` carries what was picked on the board's draft card (priority, labels, people, points, deadline).
  */
 export async function addCard(columnId: string, title: string, dates?: { startDate?: string | null; dueDate?: string | null }, fields?: QuickFields) {
   const user = await requireUser();
@@ -322,18 +321,16 @@ export async function setRole(profileId: string, role: "admin" | "member") {
 }
 
 /**
- * Give someone a new temporary password, since nothing is ever emailed. Returns it once for the
- * admin to pass on; it isn't stored anywhere. Admins change their own password elsewhere, not here.
+ * Make a one-time link for someone to set a new password, since nothing is ever emailed. Returns the
+ * token once for the admin to pass on. Their old password keeps working until they use the link.
+ * Admins change their own password on the profile page, not here.
  */
-export async function resetPassword(profileId: string) {
+export async function createPasswordResetLink(profileId: string) {
   const admin = await requireAdmin();
   await track(admin.id, "access.resetPassword");
   const id = z.string().uuid().parse(profileId);
   if (id === admin.id) throw new Error("You can't reset your own password here.");
-  const password = randomBytes(12).toString("base64url");
-  const { error } = await adminClient().auth.admin.updateUserById(id, { password });
-  if (error) throw new Error(`Couldn't reset the password: ${error.message}`);
-  return password;
+  return createReset(id, admin.id);
 }
 
 // ---------- Admin: invite links ----------
@@ -360,6 +357,86 @@ export async function revokeInvite(inviteId: string) {
   await track(admin.id, "invite.revoke");
   await db.update(invites).set({ revokedAt: new Date() }).where(eq(invites.id, id.parse(inviteId)));
   revalidatePath("/admin");
+}
+
+// ---------- Card comments ----------
+
+const commentBody = z.string().trim().min(1).max(5000);
+
+export type CardComment = {
+  id: string;
+  authorId: string | null;
+  /** The comment whose thread this reply is in; null for a top-level comment. */
+  parentId: string | null;
+  body: string;
+  /** ISO timestamps. */
+  createdAt: string;
+  editedAt: string | null;
+  /** The viewer wrote it, so may edit it. */
+  mine: boolean;
+  /** The viewer may delete it: its author, or an admin. */
+  canDelete: boolean;
+};
+
+/** A card's comments, oldest first (the editor puts threads newest first), and who is asking. */
+export async function listComments(cardId: string): Promise<{ me: string; comments: CardComment[] }> {
+  const user = await requireUser();
+  const cId = id.parse(cardId);
+  await assertCard(user, cId);
+  const rows = await db.select().from(cardComments).where(eq(cardComments.cardId, cId)).orderBy(asc(cardComments.createdAt));
+  const comments = rows.map((c) => ({
+    id: c.id,
+    authorId: c.authorId,
+    parentId: c.parentId,
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+    editedAt: c.editedAt?.toISOString() ?? null,
+    mine: c.authorId === user.id,
+    canDelete: c.authorId === user.id || user.role === "admin",
+  }));
+  return { me: user.id, comments };
+}
+
+/** A comment, or with `replyTo` a reply: replying to a reply joins the thread of the comment it's in. */
+export async function addComment(cardId: string, body: string, replyTo?: string) {
+  const user = await requireUser();
+  const cId = id.parse(cardId);
+  await track(user.id, "comment.add", { cardId: cId });
+  await assertCard(user, cId);
+  let parentId: string | null = null;
+  if (replyTo) {
+    const [target] = await db
+      .select({ id: cardComments.id, parentId: cardComments.parentId })
+      .from(cardComments)
+      .where(and(eq(cardComments.id, id.parse(replyTo)), eq(cardComments.cardId, cId)));
+    if (!target) throw new Error("Comment not found.");
+    parentId = target.parentId ?? target.id;
+  }
+  await db.insert(cardComments).values({ cardId: cId, authorId: user.id, parentId, body: commentBody.parse(body) });
+  refreshAll();
+}
+
+/** Only the author may change their words. */
+export async function editComment(commentId: string, body: string) {
+  const user = await requireUser();
+  await track(user.id, "comment.edit");
+  const [row] = await db
+    .update(cardComments)
+    .set({ body: commentBody.parse(body), editedAt: new Date() })
+    .where(and(eq(cardComments.id, id.parse(commentId)), eq(cardComments.authorId, user.id)))
+    .returning({ id: cardComments.id });
+  if (!row) throw new Error("Comment not found.");
+}
+
+/** The author or an admin may delete a comment. */
+export async function deleteComment(commentId: string) {
+  const user = await requireUser();
+  await track(user.id, "comment.delete");
+  const cId = id.parse(commentId);
+  const mine = user.role === "admin" ? undefined : eq(cardComments.authorId, user.id);
+  const [row] = await db.delete(cardComments).where(and(eq(cardComments.id, cId), mine)).returning({ id: cardComments.id });
+  if (!row) throw new Error("Comment not found.");
+  refreshAll();
 }
 
 // ---------- Admin: employee notes ----------

@@ -17,6 +17,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLabelMenu } from "@/components/TagManager";
 import { TagPicker } from "@/components/TagSelect";
 import { defaultDesc, MANUAL, SORT_KEYS, type Sort } from "@/lib/card-sort";
 import { TAG_DOT } from "@/lib/colors";
@@ -52,6 +53,8 @@ export function FiltersTrigger({ count, ...props }: { count: number } & React.Co
 }
 
 /** Plane's "Filters" button: one menu with a section per property, several picks per section. */
+const EVERYONE = "everyone";
+
 export function FiltersMenu({
   value,
   onChange,
@@ -67,6 +70,7 @@ export function FiltersMenu({
 }) {
   const t = useT();
   const b = t.board;
+  const labelMenu = useLabelMenu(tags);
   const count = value.people.length + value.tags.length + value.priorities.length;
   // Keep the menu open while ticking several boxes.
   const keepOpen = (e: Event) => e.preventDefault();
@@ -87,13 +91,17 @@ export function FiltersMenu({
           <DropdownMenuSubContent className="w-60 p-1">
             <TagPicker
               autoFocus
-              options={[...(me ? [me] : []), ...others].map((m) => ({
-                id: m.id,
-                name: m === me ? b.me : displayName(m),
-                icon: <Avatar member={m} size={18} className="ring-0" />,
-              }))}
-              selected={value.people}
-              onToggle={(id) => onChange({ ...value, people: flip(value.people, id) })}
+              // "Show everyone" first: picking it clears the people filter, and it's ticked while none is set.
+              options={[
+                { id: EVERYONE, name: b.everyone, icon: <span /> },
+                ...[...(me ? [me] : []), ...others].map((m) => ({
+                  id: m.id,
+                  name: m === me ? b.me : displayName(m),
+                  icon: <Avatar member={m} size={18} className="ring-0" />,
+                })),
+              ]}
+              selected={value.people.length ? value.people : [EVERYONE]}
+              onToggle={(id) => onChange({ ...value, people: id === EVERYONE ? [] : flip(value.people, id) })}
               labels={{ search: b.searchPeople, add: () => "", empty: b.noPeople }}
             />
           </DropdownMenuSubContent>
@@ -121,6 +129,7 @@ export function FiltersMenu({
                   selected={value.tags}
                   onToggle={(id) => onChange({ ...value, tags: flip(value.tags, id) })}
                   labels={{ search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+                  optionMenu={labelMenu}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>

@@ -25,6 +25,7 @@ const card = (id: string, startDate: string | null, dueDate: string | null, extr
   createdBy: null,
   createdVia: "app",
   createdAt: "2026-10-01T00:00:00Z",
+  commentCount: 0,
   boardName: "Board",
   columnName: "Todo",
   done: false,

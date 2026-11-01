@@ -127,6 +127,27 @@
       "when": 1793275903316,
       "tag": "0017_board_rooms_by_name",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793549257592,
+      "tag": "0018_card_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793550402623,
+      "tag": "0019_password_reset_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793550684865,
+      "tag": "0020_comment_replies",
+      "breakpoints": true
     }
   ]
 }

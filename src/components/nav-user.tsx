@@ -69,7 +69,7 @@ export function NavUser({ user, isAdmin }: { user: Member; isAdmin: boolean }) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/avatar">
+                <Link href="/profile">
                   <Settings /> {t.nav.settings}
                 </Link>
               </DropdownMenuItem>

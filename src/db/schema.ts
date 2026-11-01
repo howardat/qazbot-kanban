@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -187,6 +188,25 @@ export const cardTags = pgTable(
   (t) => [primaryKey({ columns: [t.cardId, t.tagId] }), index("card_tag_tag_idx").on(t.tagId)],
 ).enableRLS();
 
+// Comments on a card, as in Trello: anyone who can see the card can comment; authors edit and delete their own.
+// A reply points at the comment that starts its thread (one level deep); deleting that comment deletes its replies.
+export const cardComments = pgTable(
+  "card_comment",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cardId: uuid("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => profiles.id, { onDelete: "set null" }),
+    parentId: uuid("parent_id").references((): AnyPgColumn => cardComments.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // Set when the author changes the text, to show "edited".
+    editedAt: timestamp("edited_at", { mode: "date" }),
+  },
+  (t) => [index("card_comment_card_idx").on(t.cardId, t.createdAt)],
+).enableRLS();
+
 // ---------- AI assistant ----------
 
 // One row per OpenRouter request the assistant makes, with its cost, for the usage page.
@@ -314,6 +334,25 @@ export const invites = pgTable("invite", {
   revokedAt: timestamp("revoked_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 }).enableRLS();
+
+// One-time links an admin makes for someone to set a new password: /reset/<token>. Like invites, only
+// the token's hash is stored. A link works once, until it expires; a newer link for the same person
+// replaces it.
+export const passwordResets = pgTable(
+  "password_reset",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull().unique(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+    usedAt: timestamp("used_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("password_reset_profile_idx").on(t.profileId)],
+).enableRLS();
 
 // ---------- Expenses ----------
 // Company expenses in whole tenge. Category is free text: the starter set plus any the team adds.

@@ -128,7 +128,8 @@ type Ctx = {
   patch: (cardId: string, patch: QuickPatch) => void;
   /** The board's labels, including ones just made from a card. */
   tags: Tag[];
-  createLabel: (card: CardData, name: string) => void;
+  /** Makes a label, then hands its id to `attach` to put it on a card (or a new card's draft). */
+  createLabel: (name: string, attach: (tagId: string) => void) => void;
   /** People who may be newly assigned here: everyone, or a private board's audience. */
   assignable: Member[];
 };
@@ -249,12 +250,12 @@ export function Board({
     });
   }
   /** A label typed into a card's picker: create it with the next palette colour and put it on the card. */
-  function createLabel(card: CardData, name: string) {
+  function createLabel(name: string, attach: (tagId: string) => void) {
     startTransition(async () => {
       try {
         const tag = await createTag(board.id, { name, color: TAG_COLORS[allTags.length % TAG_COLORS.length] });
         setMadeTags((list) => [...list, tag]);
-        patch(card.id, { tagIds: [...card.tagIds, tag.id] });
+        attach(tag.id);
       } catch {
         toast.error(t.quick.saveFailed);
       }
@@ -293,6 +294,18 @@ export function Board({
     return m ? displayName(m) : "";
   };
   const visibleCols = sort.key === "manual" ? shownCols : shownCols.map((c) => ({ ...c, cards: sortCards(c.cards, sort, nameOf) }));
+  // The open card's place among the cards on screen, in reading order, for the panel's previous / next.
+  const onScreen = visibleCols.flatMap((c) => c.cards);
+  const at = editing ? onScreen.findIndex((c) => c.id === editing.id) : -1;
+  const editorNav =
+    at < 0
+      ? undefined
+      : {
+          index: at,
+          total: onScreen.length,
+          prev: at > 0 ? () => setEditing(onScreen[at - 1]) : undefined,
+          next: at < onScreen.length - 1 ? () => setEditing(onScreen[at + 1]) : undefined,
+        };
   const cardCount = cols.reduce((n, c) => n + c.cards.length, 0);
 
   function columnOf(key: string, list = cols) {
@@ -440,7 +453,18 @@ export function Board({
       </div>
       )}
 
-      {editing && <CardEditor card={editing} members={members} assignable={assignable} boardTags={allTags} onClose={() => setEditing(null)} />}
+      {editing && (
+        <CardEditor
+          // A fresh panel per card, so stepping to the next one starts from its own fields.
+          key={editing.id}
+          card={editing}
+          members={members}
+          assignable={assignable}
+          boardTags={allTags}
+          nav={editorNav}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </main>
   );
 }
@@ -783,20 +807,22 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
       overlay={overlay}
       show={ctx.display}
       onPatch={(p) => ctx.patch(card.id, p)}
-      onCreateTag={(name) => ctx.createLabel(card, name)}
+      onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }))}
     />
   );
 }
 
 /**
  * Quick-add rules shared by the board and list layouts. The draft is a card like any other (title plus
- * the same priority, deadline and people chips) that only exists here until it has a title. Enter saves
+ * the same priority, labels, people, points and deadline) that only exists here until it has a title. Enter saves
  * and starts a fresh draft, moving focus away saves it (a blank draft is just dropped), Esc discards.
  */
 function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => void) {
   // The same defaults the server gives a new card: due tomorrow, assigned to whoever adds it.
-  const fresh = (): Required<Pick<CardData, "priority" | "dueDate" | "assigneeIds">> => ({
+  const fresh = (): Required<Pick<CardData, "priority" | "dueDate" | "assigneeIds" | "tagIds" | "storyPoints">> => ({
     priority: null,
+    tagIds: [],
+    storyPoints: null,
     dueDate: addDays(ctx.today, 1),
     // New cards go to whoever adds them, if they may be assigned on this board.
     assigneeIds: ctx.assignable.some((m) => m.id === ctx.currentUserId) ? [ctx.currentUserId] : [],
@@ -841,19 +867,17 @@ function useQuickAdd(column: ColumnData, ctx: Ctx, setOpen: (open: boolean) => v
     title,
     description: "",
     startDate: null,
-    storyPoints: null,
     createdBy: ctx.currentUserId,
     createdVia: "app",
     createdAt: new Date(0).toISOString(),
-    tagIds: [],
+    commentCount: 0,
     ...props,
   };
 
   return {
     draft,
     pending,
-    // The draft has no labels chip, so only priority, deadline and people come through here.
-    onPatch: (p: Omit<QuickPatch, "tagIds">) => setProps((prev) => ({ ...prev, ...p })),
+    onPatch: (p: QuickPatch) => setProps((prev) => ({ ...prev, ...p })),
     // On the draft's wrapper: focus moving to its own chips, or into their menus and pickers (portalled),
     // still counts as being on the draft.
     draftProps: {
@@ -912,20 +936,29 @@ function AddCard({ column, ctx, open, setOpen }: { column: ColumnData; ctx: Ctx;
       </button>
     );
   }
-  // The same shell and chips as CardView, with the title as a field.
+  // The same card as CardView, with the title as a field.
   return (
-    <div
-      ref={draftRef}
-      {...draftProps}
-      className={cn("shrink-0 rounded-lg border border-primary bg-card p-3 text-[13px] shadow-xs ring-1 ring-primary", pending && "opacity-70")}
-    >
-      <input
-        {...inputProps}
-        placeholder={t.column.addPlaceholder}
-        aria-label={t.column.addCard}
-        className="w-full bg-transparent text-[14px] leading-5 font-medium outline-none placeholder:text-muted-foreground"
+    <div ref={draftRef} {...draftProps} className={cn("shrink-0", pending && "opacity-70")}>
+      <BoardCard
+        card={draft}
+        done={column.isDone}
+        members={ctx.memberById}
+        assignable={ctx.assignable}
+        tags={ctx.tags}
+        today={ctx.today}
+        selected
+        show={ctx.display}
+        onPatch={onPatch}
+        onCreateTag={(name) => ctx.createLabel(name, (id) => onPatch({ tagIds: [...draft.tagIds, id] }))}
+        titleField={
+          <input
+            {...inputProps}
+            placeholder={t.column.addPlaceholder}
+            aria-label={t.column.addCard}
+            className="mt-2 w-full bg-transparent pr-6 text-[14px] leading-5 font-medium outline-none placeholder:text-muted-foreground"
+          />
+        }
       />
-      <CardQuickProps card={draft} members={[...ctx.memberById.values()]} assignable={ctx.assignable} today={ctx.today} done={column.isDone} show={ctx.display} onPatch={onPatch} />
     </div>
   );
 }
@@ -1035,7 +1068,7 @@ function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean 
         {show.description && card.description && <span className="hidden truncate text-xs text-muted-foreground lg:inline">{card.description}</span>}
       </span>
       <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
-        <CardQuickProps card={card} members={[...ctx.memberById.values()]} assignable={ctx.assignable} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(card, name)}>
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} assignable={ctx.assignable} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }))}>
           <LabelChips tags={cardTags} />
         </CardQuickProps>
         <CardMenu card={card} ctx={ctx} className="static" />

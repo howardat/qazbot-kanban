@@ -18,6 +18,20 @@ const AVATAR_COUNT = AVATARS.length;
 
 export type KeyState = { error?: string; saved?: boolean };
 
+export type DetailsState = { error?: string; saved?: boolean };
+
+/** Your name, as it shows on boards, cards and in the team. */
+export async function saveDetails(_prev: DetailsState, formData: FormData): Promise<DetailsState> {
+  const user = await requireUser();
+  const s = (await getT()).settings;
+  const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: s.nameRequired };
+  await track(user.id, "profile.rename");
+  await db.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
+  revalidatePath("/", "layout");
+  return { saved: true };
+}
+
 /** Save the signed-in person's own OpenRouter key, after checking OpenRouter accepts it. */
 export async function savePersonalKey(_prev: KeyState, formData: FormData): Promise<KeyState> {
   const user = await requireUser();

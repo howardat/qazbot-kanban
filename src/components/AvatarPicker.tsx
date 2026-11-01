@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
-import { setAvatar } from "@/app/avatar/actions";
+import { setAvatar } from "@/app/profile/actions";
 import { useT } from "@/components/I18nProvider";
 import { AVATARS, lookOf } from "@/components/office/look";
 import { LookIcon } from "@/components/PersonIcon";

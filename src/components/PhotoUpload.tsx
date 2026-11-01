@@ -3,7 +3,7 @@
 import { useRef, useTransition } from "react";
 import { Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { removePhoto, uploadPhoto } from "@/app/avatar/actions";
+import { removePhoto, uploadPhoto } from "@/app/profile/actions";
 import { Avatar } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
