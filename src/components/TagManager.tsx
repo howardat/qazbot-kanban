@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Plus, Tag as TagIcon, Trash2 } from "lucide-react";
 import { createTag, deleteTag, updateTag } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
+import type { OptionMenu } from "@/components/TagSelect";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TAG_DOT } from "@/lib/colors";
@@ -172,4 +173,61 @@ export function ColorPicker({ value, onChange }: { value: TagColor; onChange: (c
       ))}
     </div>
   );
+}
+
+/** A label's "…" menu in the label pickers: rename (Enter or leaving the field saves), recolour, delete. */
+export function TagEditPanel({ tag }: { tag: Tag }) {
+  const t = useT();
+  const [name, setName] = useState(tag.name);
+  const [color, setColor] = useState(tag.color);
+  const [confirming, setConfirming] = useState(false);
+  const rename = () => (name.trim() && name !== tag.name ? updateTag(tag.id, { name, color }) : setName(tag.name));
+  return (
+    // Keys stay here, so the picker and menus around it don't take them.
+    <div className="space-y-2.5" onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()}>
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={rename}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        maxLength={40}
+        aria-label={t.tags.rename(tag.name)}
+        className="h-8 w-full rounded-md border bg-card px-2 text-[13px] outline-none focus:ring-1 focus:ring-border-strong"
+      />
+      <ColorPicker
+        value={color}
+        onChange={(c) => {
+          setColor(c);
+          updateTag(tag.id, { name: tag.name, color: c });
+        }}
+      />
+      {confirming ? (
+        <div className="flex justify-end gap-1">
+          <Button size="xs" variant="ghost" onClick={() => setConfirming(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button size="xs" variant="destructive" onClick={() => deleteTag(tag.id)}>
+            {t.tags.removeEverywhere}
+          </Button>
+        </div>
+      ) : (
+        <Button size="xs" variant="ghost" onClick={() => setConfirming(true)} className="w-full justify-start text-muted-foreground hover:text-destructive">
+          <Trash2 /> {t.tags.delete}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** The "…" menu for a board's labels in a TagPicker or TagSelect. */
+export function useLabelMenu(tags: Tag[]): OptionMenu {
+  const t = useT();
+  return {
+    label: (o) => t.tags.edit(o.name),
+    render: (o) => {
+      const tag = tags.find((x) => x.id === o.id);
+      return tag && <TagEditPanel key={`${tag.name}:${tag.color}`} tag={tag} />;
+    },
+  };
 }

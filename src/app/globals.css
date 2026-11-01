@@ -53,11 +53,15 @@
   --warning-soft: oklch(0.9617 0.0592 95.89);  /* amber-200 */
   --success: oklch(0.5883 0.1413 149.06);      /* green-800 */
 
-  --tag-sky-bg: #e3f4fc;    --tag-sky-fg: #0369a1;
-  --tag-gold-bg: #fdf2d8;   --tag-gold-fg: #92400e;
-  --tag-green-bg: #e3f5e9;  --tag-green-fg: #15803d;
-  --tag-red-bg: #fde8e8;    --tag-red-fg: #b91c1c;
-  --tag-violet-bg: #efe9fd; --tag-violet-fg: #6d28d9;
+  /* Labels: a tinted pill, readable text and a vivid dot, in eight bright, distinct hues. */
+  --tag-sky-bg: #e0f2fe; --tag-sky-fg: #0369a1; --tag-sky-dot: #0ea5e9;
+  --tag-gold-bg: #fef3c7; --tag-gold-fg: #a16207; --tag-gold-dot: #f59e0b;
+  --tag-green-bg: #dcfce7; --tag-green-fg: #15803d; --tag-green-dot: #22c55e;
+  --tag-red-bg: #fee2e2; --tag-red-fg: #b91c1c; --tag-red-dot: #ef4444;
+  --tag-violet-bg: #ede9fe; --tag-violet-fg: #6d28d9; --tag-violet-dot: #8b5cf6;
+  --tag-orange-bg: #ffedd5; --tag-orange-fg: #c2410c; --tag-orange-dot: #f97316;
+  --tag-pink-bg: #fce7f3; --tag-pink-fg: #be185d; --tag-pink-dot: #ec4899;
+  --tag-slate-bg: #f1f5f9; --tag-slate-fg: #475569; --tag-slate-dot: #64748b;
 
   /* Data tones: one hue per metric, used only in small doses (tick meters, chart highlights, deltas).
      Each has a lighter "-from" stop for its vertical gradient. */
@@ -66,9 +70,6 @@
   --tone-orange: oklch(0.7 0.18 48);    --tone-orange-from: oklch(0.8 0.13 62);
   --tone-green: oklch(0.66 0.15 155);   --tone-green-from: oklch(0.78 0.12 158);
   --tone-rose: oklch(0.62 0.2 15);      --tone-rose-from: oklch(0.74 0.14 18);
-  --tag-orange-bg: #fdebdd; --tag-orange-fg: #c2410c;
-  --tag-pink-bg: #fce7f3;   --tag-pink-fg: #be185d;
-  --tag-slate-bg: #eeeeec;  --tag-slate-fg: #52525b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -111,20 +112,20 @@
     --warning-soft: oklch(0.3042 0.0853 45.16);
     --success: oklch(0.7785 0.1398 151.07);
 
-    --tag-sky-bg: #0c2a3a;    --tag-sky-fg: #7dd3fc;
-    --tag-gold-bg: #33270b;   --tag-gold-fg: #fcd34d;
-    --tag-green-bg: #0f2a19;  --tag-green-fg: #86efac;
-    --tag-red-bg: #3a1414;    --tag-red-fg: #fca5a5;
-    --tag-violet-bg: #251a45; --tag-violet-fg: #c4b5fd;
+    --tag-sky-bg: rgb(14 165 233 / 0.2); --tag-sky-fg: #7dd3fc; --tag-sky-dot: #38bdf8;
+    --tag-gold-bg: rgb(245 158 11 / 0.2); --tag-gold-fg: #fcd34d; --tag-gold-dot: #fbbf24;
+    --tag-green-bg: rgb(34 197 94 / 0.2); --tag-green-fg: #86efac; --tag-green-dot: #4ade80;
+    --tag-red-bg: rgb(239 68 68 / 0.22); --tag-red-fg: #fca5a5; --tag-red-dot: #f87171;
+    --tag-violet-bg: rgb(139 92 246 / 0.24); --tag-violet-fg: #c4b5fd; --tag-violet-dot: #a78bfa;
+    --tag-orange-bg: rgb(249 115 22 / 0.22); --tag-orange-fg: #fdba74; --tag-orange-dot: #fb923c;
+    --tag-pink-bg: rgb(236 72 153 / 0.22); --tag-pink-fg: #f9a8d4; --tag-pink-dot: #f472b6;
+    --tag-slate-bg: rgb(100 116 139 / 0.28); --tag-slate-fg: #cbd5e1; --tag-slate-dot: #94a3b8;
 
     --tone-sky: oklch(0.7 0.13 236);     --tone-sky-from: oklch(0.8 0.1 228);
     --tone-violet: oklch(0.68 0.17 320); --tone-violet-from: oklch(0.78 0.12 322);
     --tone-orange: oklch(0.74 0.16 50);  --tone-orange-from: oklch(0.82 0.12 64);
     --tone-green: oklch(0.72 0.14 155);  --tone-green-from: oklch(0.82 0.11 158);
     --tone-rose: oklch(0.68 0.18 15);    --tone-rose-from: oklch(0.78 0.13 18);
-    --tag-orange-bg: #3a1e0c; --tag-orange-fg: #fdba74;
-    --tag-pink-bg: #3a1229;   --tag-pink-fg: #f9a8d4;
-    --tag-slate-bg: #26262a;  --tag-slate-fg: #d4d4d8;
   }
 }
 

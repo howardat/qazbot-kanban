@@ -7,6 +7,31 @@ import { useT } from "@/components/I18nProvider";
 import { dueState, type ISODate } from "@/lib/dates";
 import { displayName, type Member, type Tag } from "@/lib/types";
 
+// People pickers: tall enough for 5½ rows (28px items under the menu's 4px padding), so the half-cut last
+// row shows the list scrolls. halfRow then fits it to the real rows and the room on screen.
+export const PEOPLE_MENU = "max-h-[158px] overflow-y-auto";
+
+/**
+ * Ref for a scrolling list (a menu, or a <ul>): once it opens, cut its height through the middle of the
+ * last row that fits, at most `rows` + ½, so a half row always shows there's more. When the menu is
+ * squeezed against the screen edge, fewer rows fit and the cut moves up with them.
+ */
+export function halfRow(rows: number) {
+  return (el: HTMLElement | null) => {
+    if (!el) return;
+    requestAnimationFrame(() => {
+      const items = el.querySelectorAll<HTMLElement>(":scope > [role=menuitem], :scope > li");
+      if (!items.length) return;
+      const h = items[0].offsetHeight;
+      const style = getComputedStyle(el);
+      const pad = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const room = parseFloat(style.getPropertyValue("--radix-dropdown-menu-content-available-height")) || Infinity;
+      const fit = Math.max(1, Math.min(rows, Math.floor((room - pad) / h - 0.5)));
+      el.style.maxHeight = items.length > fit ? `${pad + (fit + 0.5) * h}px` : "";
+    });
+  };
+}
+
 export function Avatar({ member, size = 24, className }: { member: Member; size?: number; className?: string }) {
   const label = displayName(member);
   const initials = label

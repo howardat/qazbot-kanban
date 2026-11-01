@@ -31,6 +31,8 @@ export type CardData = {
   createdVia: CardSource;
   /** ISO timestamp. */
   createdAt: string;
+  /** How many comments it has, for the board card's speech-bubble count. */
+  commentCount: number;
 };
 
 /** A kanban column as the timeline groups cards by it. */

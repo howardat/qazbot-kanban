@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
 import { CalendarPlus, Check, Flag, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, DueBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, DueBadge, halfRow, PEOPLE_MENU } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
+import { useLabelMenu } from "@/components/TagManager";
 import { TagPicker } from "@/components/TagSelect";
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -64,6 +65,7 @@ export function CardQuickProps({
 }) {
   const t = useT();
   const [dateOpen, setDateOpen] = useState(false);
+  const labelMenu = useLabelMenu(tags ?? []);
   // Keep the chips' own clicks (and their portaled menus') from opening or dragging the card; a click on
   // the empty part of the row still falls through to the card.
   const stop = (e: React.SyntheticEvent) => {
@@ -177,6 +179,7 @@ export function CardQuickProps({
               onToggle={(id) => onPatch({ tagIds: card.tagIds.includes(id) ? card.tagIds.filter((x) => x !== id) : [...card.tagIds, id] })}
               onCreate={onCreateTag}
               labels={{ search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+              optionMenu={labelMenu}
             />
           </PopoverContent>
         </Popover>
@@ -199,7 +202,7 @@ export function CardQuickProps({
               </button>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto" onClick={stop}>
+          <DropdownMenuContent ref={halfRow(5)} align="end" className={cn(PEOPLE_MENU, "w-56")} onClick={stop}>
             {members.filter((m) => !assignable || assignable.includes(m) || card.assigneeIds.includes(m.id)).map((m) => (
               <DropdownMenuItem
                 key={m.id}

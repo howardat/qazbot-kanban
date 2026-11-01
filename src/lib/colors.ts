@@ -13,14 +13,14 @@ export const TAG_STYLE: Record<TagColor, string> = {
 };
 
 export const TAG_DOT: Record<TagColor, string> = {
-  sky: "bg-[var(--tag-sky-fg)]",
-  gold: "bg-[var(--tag-gold-fg)]",
-  green: "bg-[var(--tag-green-fg)]",
-  red: "bg-[var(--tag-red-fg)]",
-  violet: "bg-[var(--tag-violet-fg)]",
-  orange: "bg-[var(--tag-orange-fg)]",
-  pink: "bg-[var(--tag-pink-fg)]",
-  slate: "bg-[var(--tag-slate-fg)]",
+  sky: "bg-[var(--tag-sky-dot)]",
+  gold: "bg-[var(--tag-gold-dot)]",
+  green: "bg-[var(--tag-green-dot)]",
+  red: "bg-[var(--tag-red-dot)]",
+  violet: "bg-[var(--tag-violet-dot)]",
+  orange: "bg-[var(--tag-orange-dot)]",
+  pink: "bg-[var(--tag-pink-dot)]",
+  slate: "bg-[var(--tag-slate-dot)]",
 };
 
 const AVATAR_HUES = [195, 42, 150, 265, 20, 330, 220, 95];

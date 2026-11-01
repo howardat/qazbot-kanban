@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Copy, KeyRound } from "lucide-react";
-import { resetPassword } from "@/app/actions";
+import { createPasswordResetLink } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,12 +16,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/** Admin row action: confirm, set a random new password, then show it once to copy and pass on. */
+/** Admin row action: confirm, make a one-time reset link, then show it once to copy and pass on. */
 export function ResetPasswordButton({ profileId, name }: { profileId: string; name: string }) {
   const t = useT();
   const v = t.admin;
   const [pending, startTransition] = useTransition();
-  const [password, setPassword] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -29,7 +29,7 @@ export function ResetPasswordButton({ profileId, name }: { profileId: string; na
     startTransition(async () => {
       setError(false);
       try {
-        setPassword(await resetPassword(profileId));
+        setLink(`${window.location.origin}/reset/${await createPasswordResetLink(profileId)}`);
       } catch {
         setError(true);
       }
@@ -39,7 +39,7 @@ export function ResetPasswordButton({ profileId, name }: { profileId: string; na
     <Dialog
       onOpenChange={(open) => {
         if (open) return;
-        setPassword(null);
+        setLink(null);
         setError(false);
         setCopied(false);
       }}
@@ -52,16 +52,16 @@ export function ResetPasswordButton({ profileId, name }: { profileId: string; na
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{v.resetTitle(name)}</DialogTitle>
-          <DialogDescription>{password ? v.resetCopyNow : v.resetConfirm}</DialogDescription>
+          <DialogDescription>{link ? v.resetCopyNow : v.resetConfirm}</DialogDescription>
         </DialogHeader>
-        {password && (
+        {link && (
           <div className="flex gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-md border bg-card px-2 py-1.5 text-sm">{password}</code>
+            <code className="min-w-0 flex-1 truncate rounded-md border bg-card px-2 py-1.5 text-sm">{link}</code>
             <Button
               size="sm"
               variant="outline"
               onClick={async () => {
-                await navigator.clipboard.writeText(password);
+                await navigator.clipboard.writeText(link);
                 setCopied(true);
               }}
             >
@@ -76,7 +76,7 @@ export function ResetPasswordButton({ profileId, name }: { profileId: string; na
               {t.common.close}
             </Button>
           </DialogClose>
-          {!password && (
+          {!link && (
             <Button onClick={reset} disabled={pending}>
               {v.resetDo}
             </Button>

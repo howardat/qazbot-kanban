@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Flag, Hexagon, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, DUE_TEXT, TagBadge } from "@/components/atoms";
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Flag, Hexagon, MessageSquare, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
+import { Avatar, AvatarStack, DUE_TEXT, halfRow, PEOPLE_MENU, TagBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import type { QuickPatch } from "@/components/CardQuickProps";
 import { useT } from "@/components/I18nProvider";
 import { ModelIcon } from "@/components/ModelIcon";
+import { useLabelMenu } from "@/components/TagManager";
 import { TagPicker } from "@/components/TagSelect";
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { STORY_POINTS, viaClaude } from "@/lib/card-source";
+import { pointsTone, STORY_POINTS, viaClaude } from "@/lib/card-source";
 import { TAG_DOT } from "@/lib/colors";
 import { dueState, type ISODate } from "@/lib/dates";
 import { PRIORITIES, type Priority } from "@/lib/priority";
@@ -94,6 +95,7 @@ export function BoardCard({
   show,
   onPatch,
   onCreateTag,
+  titleField,
 }: {
   card: CardData;
   done: boolean;
@@ -110,9 +112,12 @@ export function BoardCard({
   show: { priority: boolean; dates: boolean; assignees: boolean; tags: boolean; description: boolean };
   onPatch: (patch: QuickPatch) => void;
   onCreateTag: (name: string) => void;
+  /** A new card's draft: the title is this field instead of text. */
+  titleField?: React.ReactNode;
 }) {
   const t = useT();
   const [dateOpen, setDateOpen] = useState(false);
+  const labelMenu = useLabelMenu(tags);
   const desc = show.description ? firstLine(card.description) : "";
   const cardTags = card.tagIds.map((id) => tags.find((x) => x.id === id)).filter((x): x is Tag => !!x);
   const people = card.assigneeIds.map((id) => members.get(id)).filter((m): m is Member => !!m);
@@ -196,6 +201,7 @@ export function BoardCard({
                     onToggle={(id) => onPatch({ tagIds: flip(card.tagIds, id) })}
                     onCreate={onCreateTag}
                     labels={{ search: t.editor.searchTags, add: t.editor.addTag, empty: t.editor.noTags }}
+                    optionMenu={labelMenu}
                   />
                 </PopoverContent>
               </Popover>
@@ -203,15 +209,17 @@ export function BoardCard({
           </div>
         )}
 
-        <h3
-          title={card.title}
-          className={cn(
-            "mt-2 line-clamp-2 pr-6 text-[14px] leading-6 font-medium break-words",
-            done && "text-muted-foreground line-through decoration-muted-foreground/60",
-          )}
-        >
-          {card.title}
-        </h3>
+        {titleField ?? (
+          <h3
+            title={card.title}
+            className={cn(
+              "mt-2 line-clamp-2 pr-6 text-[14px] leading-5 font-medium break-words",
+              done && "text-muted-foreground line-through decoration-muted-foreground/60",
+            )}
+          >
+            {card.title}
+          </h3>
+        )}
         {desc && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{desc}</p>}
       </div>
 
@@ -238,7 +246,7 @@ export function BoardCard({
                   </button>
                 )}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-72 w-56 overflow-y-auto">
+              <DropdownMenuContent ref={halfRow(5)} align="start" className={cn(PEOPLE_MENU, "w-56")}>
                 {pickable.map((m) => (
                   <DropdownMenuItem
                     key={m.id}
@@ -258,10 +266,16 @@ export function BoardCard({
         )}
 
         <span className="ml-auto flex items-center gap-1">
+          {/* Comments: a count only, a click opens the card like the rest of the row */}
+          {card.commentCount > 0 && (
+            <span title={t.comments.count(card.commentCount)} aria-label={t.comments.count(card.commentCount)} className="inline-flex items-center gap-1 px-1 text-muted-foreground tabular-nums">
+              <MessageSquare className="size-3.5" /> {card.commentCount}
+            </span>
+          )}
           {/* Story points */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={overlay}>
-              <button type="button" title={t.cardMeta.points} aria-label={t.cardMeta.points} className={cn(card.storyPoints == null ? ghost : cn(hit, "text-muted-foreground"), "tabular-nums")}>
+              <button type="button" title={t.cardMeta.points} aria-label={t.cardMeta.points} className={cn(card.storyPoints == null ? ghost : cn(hit, "font-medium", pointsTone(card.storyPoints)), "tabular-nums")}>
                 <Hexagon className="size-3.5" /> {card.storyPoints ?? ""}
               </button>
             </DropdownMenuTrigger>
@@ -269,7 +283,7 @@ export function BoardCard({
               <DropdownMenuLabel className="text-xs text-muted-foreground">{t.cardMeta.points}</DropdownMenuLabel>
               <div className="grid grid-cols-3 gap-1 p-1">
                 {STORY_POINTS.map((n) => (
-                  <DropdownMenuItem key={n} onSelect={() => onPatch({ storyPoints: n })} className={cn("justify-center tabular-nums", card.storyPoints === n && "bg-brand-soft text-primary")}>
+                  <DropdownMenuItem key={n} onSelect={() => onPatch({ storyPoints: n })} className={cn("justify-center font-medium tabular-nums", pointsTone(n), card.storyPoints === n && "bg-accent")}>
                     {n}
                   </DropdownMenuItem>
                 ))}

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useTransition } from "react";
 import { CheckCircle2, Trash2 } from "lucide-react";
-import { removePersonalKey, removeSonioxKey, savePersonalKey, saveSonioxKey, type KeyState } from "@/app/avatar/actions";
+import { removePersonalKey, removeSonioxKey, savePersonalKey, saveSonioxKey, type KeyState } from "@/app/profile/actions";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
