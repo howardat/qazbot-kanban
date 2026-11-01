@@ -37,6 +37,7 @@ export const FEATURES = [
   "profile.photo",
   "access.remove",
   "access.role",
+  "access.resetPassword",
   "invite.create",
   "invite.revoke",
   "note.add",

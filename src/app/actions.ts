@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -32,6 +33,7 @@ import { newInviteToken } from "@/lib/invites";
 import { WORK_ROOMS, ROBOT_MODELS } from "@/lib/rooms";
 import { accessImpact, applyBoardAccess, assertBoard, assertCard, assertColumn, assertTag, canManageBoard, type AccessImpact } from "@/lib/board-access";
 import { requireAdmin, requireUser } from "@/lib/session";
+import { adminClient } from "@/lib/supabase/admin";
 
 // Dashboard, calendar, timeline and boards all read the same cards.
 function refreshAll() {
@@ -317,6 +319,21 @@ export async function setRole(profileId: string, role: "admin" | "member") {
   if (id === admin.id) throw new Error("You can't change your own role.");
   await db.update(profiles).set({ role: value }).where(eq(profiles.id, id));
   revalidatePath("/admin");
+}
+
+/**
+ * Give someone a new temporary password, since nothing is ever emailed. Returns it once for the
+ * admin to pass on; it isn't stored anywhere. Admins change their own password elsewhere, not here.
+ */
+export async function resetPassword(profileId: string) {
+  const admin = await requireAdmin();
+  await track(admin.id, "access.resetPassword");
+  const id = z.string().uuid().parse(profileId);
+  if (id === admin.id) throw new Error("You can't reset your own password here.");
+  const password = randomBytes(12).toString("base64url");
+  const { error } = await adminClient().auth.admin.updateUserById(id, { password });
+  if (error) throw new Error(`Couldn't reset the password: ${error.message}`);
+  return password;
 }
 
 // ---------- Admin: invite links ----------

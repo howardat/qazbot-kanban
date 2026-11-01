@@ -1,7 +1,8 @@
 import "server-only";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import { INVOICE_TYPES, MAX_INVOICE_BYTES } from "@/lib/invoice-files";
 import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/photo-files";
+import { adminClient as admin } from "@/lib/supabase/admin";
 
 // Supabase Storage for expense invoices and profile photos, from the server with the secret key (Storage RLS doesn't apply).
 // Callers check the signed-in user first. The bucket is private: files are only reachable through
@@ -9,12 +10,6 @@ import { MAX_PHOTO_BYTES, PHOTO_TYPES } from "@/lib/photo-files";
 
 export const INVOICE_BUCKET = "invoices";
 export { INVOICE_TYPES, MAX_INVOICE_BYTES } from "@/lib/invoice-files";
-
-function admin() {
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!key) throw new Error("SUPABASE_SECRET_KEY is not set, so invoices can't be stored.");
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
 
 let bucketReady: Promise<void> | null = null;
 
