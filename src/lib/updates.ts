@@ -15,6 +15,20 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-09-rename-board",
+    date: "2026-11-09",
+    title: { en: "Rename a board", ru: "Переименование доски" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "Rename a board from its ⋯ menu: press Rename board and type the new name. You can still click the name at the top of the board to edit it there.",
+          ru: "Доску можно переименовать через меню ⋯: выберите «Переименовать доску» и введите новое название. По-прежнему можно нажать на название вверху доски и изменить его там.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-11-01-card-comments",
     date: "2026-11-01",
     title: { en: "Comments, a new card panel and your profile", ru: "Комментарии, новая панель карточки и профиль" },

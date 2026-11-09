@@ -33,6 +33,7 @@ import {
   FoldHorizontal,
   GripVertical,
   MoreHorizontal,
+  Pencil,
   Plus,
   Settings2,
   SquarePen,
@@ -474,16 +475,35 @@ function BoardMark({ id, name }: { id: string; name: string }) {
   return <BoardIcon board={{ id, name }} size={20} />;
 }
 
-function BoardTitle({ board }: { board: { id: string; name: string } }) {
+export function BoardTitle({ board }: { board: { id: string; name: string } }) {
   const t = useT();
   const [name, setName] = useState(board.name);
   useEffect(() => setName(board.name), [board.name]);
+  // Escape leaves through blur too, and must not save what was typed.
+  const discard = useRef(false);
+  const save = () => {
+    const next = name.trim();
+    if (discard.current || !next || next === board.name) {
+      discard.current = false;
+      setName(board.name);
+      return;
+    }
+    setName(next);
+    renameBoard(board.id, next).catch(() => {
+      setName(board.name);
+      toast.error(t.board.renameFailed);
+    });
+  };
   return (
     <input
       value={name}
       onChange={(e) => setName(e.target.value)}
-      onBlur={() => name.trim() && name !== board.name && renameBoard(board.id, name)}
-      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") discard.current = true;
+        if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+      }}
+      maxLength={200}
       size={Math.max(8, name.length)}
       className="max-w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-sm font-semibold outline-none hover:bg-accent focus:bg-accent"
       aria-label={t.board.nameAria}
@@ -491,11 +511,54 @@ function BoardTitle({ board }: { board: { id: string; name: string } }) {
   );
 }
 
-/** The board's "…" menu: settings for everyone who sees it, delete for its creator and admins. */
-function BoardMenu({ board, members, canDelete }: { board: BoardInfo; members: Member[]; canDelete: boolean }) {
+/** Rename from the board's "…" menu. Mounted per opening, so it starts from the current name. */
+function RenameBoardDialog({ board, onClose }: { board: { id: string; name: string }; onClose: () => void }) {
+  const t = useT();
+  const [name, setName] = useState(board.name);
+  const [pending, startTransition] = useTransition();
+  const next = name.trim();
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!next || pending) return;
+    if (next === board.name) return onClose();
+    startTransition(async () => {
+      try {
+        await renameBoard(board.id, next);
+        onClose();
+      } catch {
+        toast.error(t.board.renameFailed);
+      }
+    });
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{t.board.rename}</DialogTitle>
+            <DialogDescription>{t.board.renameBody}</DialogDescription>
+          </DialogHeader>
+          <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} autoFocus aria-label={t.board.nameAria} />
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {t.common.cancel}
+              </Button>
+            </DialogClose>
+            <Button disabled={!next || pending}>{t.board.renameSave}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The board's "…" menu: rename and settings for everyone who sees it, delete for its creator and admins. */
+export function BoardMenu({ board, members, canDelete }: { board: BoardInfo; members: Member[]; canDelete: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [pending, startTransition] = useTransition();
   return (
     <>
@@ -506,6 +569,9 @@ function BoardMenu({ board, members, canDelete }: { board: BoardInfo; members: M
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onSelect={() => setRenaming(true)}>
+            <Pencil /> {t.board.rename}
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setSettings(true)}>
             <Settings2 /> {t.board.settings}
           </DropdownMenuItem>
@@ -520,6 +586,7 @@ function BoardMenu({ board, members, canDelete }: { board: BoardInfo; members: M
         </DropdownMenuContent>
       </DropdownMenu>
       <BoardSettings board={board} members={members} open={settings} onOpenChange={setSettings} />
+      {renaming && <RenameBoardDialog board={board} onClose={() => setRenaming(false)} />}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
