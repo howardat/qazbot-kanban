@@ -39,4 +39,6 @@ async function handle(req: Request) {
   }
 }
 
-export { handle as GET, handle as POST, handle as DELETE };
+// No GET: a stateless server has nothing to push, and a stream closed at once makes clients reconnect every second.
+// The 405 Next.js returns instead tells them not to open one.
+export { handle as POST, handle as DELETE };
