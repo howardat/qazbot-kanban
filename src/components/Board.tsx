@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   closestCorners,
   DndContext,
@@ -55,7 +55,7 @@ import {
   setColumnDone,
   setColumnInProgress,
 } from "@/app/actions";
-import { TagBadge, BoardIcon } from "@/components/atoms";
+import { TagBadge, BoardIcon, ColumnsCanvas } from "@/components/atoms";
 import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
 import { useT } from "@/components/I18nProvider";
@@ -63,6 +63,7 @@ import { AppliedFilters, DisplayMenu, FiltersMenu, hasFilters, matches, NO_FILTE
 import { BoardCard } from "@/components/BoardCard";
 import { BoardSettings, type BoardInfo } from "@/components/BoardSettings";
 import { TagManager } from "@/components/TagManager";
+import { BoardFilter } from "@/components/BoardFilter";
 import { ViewBar } from "@/components/ViewTabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,6 +95,20 @@ import { displayName, type CardData, type Member, type Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type ColumnData = { id: string; name: string; isDone: boolean; isInProgress: boolean; cards: CardData[] };
+
+/**
+ * All tasks: every board's cards on one board. Columns are merged by name, so each stands for a real
+ * column on some of the boards; a card can only go where its own board has that column.
+ */
+export type CrossBoards = {
+  /** Merged column id → board id → that board's column id. */
+  columnFor: Record<string, Record<string, string>>;
+  /** Who may be assigned on each private board; boards open to all are missing. */
+  audiences: Record<string, string[]>;
+};
+
+/** All tasks' header: its title, view tabs and board picker instead of the board's own. */
+export type AllTasks = { boards: { id: string; name: string }[]; picked: string | null; cross?: CrossBoards };
 
 const colKey = (id: string) => `col:${id}`;
 const cardKey = (id: string) => `card:${id}`;
@@ -129,10 +144,17 @@ type Ctx = {
   patch: (cardId: string, patch: QuickPatch) => void;
   /** The board's labels, including ones just made from a card. */
   tags: Tag[];
-  /** Makes a label, then hands its id to `attach` to put it on a card (or a new card's draft). */
-  createLabel: (name: string, attach: (tagId: string) => void) => void;
+  /** Makes a label (on `boardId`, else this board), then hands its id to `attach` to put it on a card (or a new card's draft). */
+  createLabel: (name: string, attach: (tagId: string) => void, boardId?: string) => void;
   /** People who may be newly assigned here: everyone, or a private board's audience. */
   assignable: Member[];
+  /** The labels and assignable people for a card on the given board (differs per board on All tasks). */
+  tagsOf: (boardId: string) => Tag[];
+  assignableOf: (boardId: string) => Member[];
+  /** Columns a card may move to: all of them, or on All tasks the ones its board has. */
+  columnsFor: (card: CardData) => { id: string; name: string; isDone: boolean }[];
+  /** All tasks across boards: board names for the cards; columns are read-only and there's no adding. */
+  cross: { boardName: (id: string) => string } | null;
 };
 
 // Collapsed columns are a per-viewer preference, remembered per board in this browser only.
@@ -167,6 +189,7 @@ export function Board({
   canDelete,
   assignableIds,
   layout = "board",
+  allTasks,
 }: {
   board: BoardInfo;
   columns: ColumnData[];
@@ -179,7 +202,12 @@ export function Board({
   assignableIds: string[] | null;
   /** Kanban columns, or Plane's list: one section per column with a row per card. */
   layout?: "board" | "list";
+  /** Shown as All tasks: its header, and across every board when `cross` is set. */
+  allTasks?: AllTasks;
 }) {
+  const cross = allTasks?.cross ?? null;
+  /** The real column for a card of `boardId` dropped on `columnId` (on All tasks, a merged column). */
+  const realColumn = (columnId: string, boardId: string) => (cross ? cross.columnFor[columnId]?.[boardId] : columnId);
   const t = useT();
   const dndId = useId();
   const [cols, setCols] = useState(initial);
@@ -195,14 +223,17 @@ export function Board({
 
   // ?card=<id> (from search) opens that card's panel, then leaves the URL clean.
   const params = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
   const wanted = params.get("card");
   useEffect(() => {
     if (!wanted) return;
     const card = initial.flatMap((c) => c.cards).find((c) => c.id === wanted);
     if (card) setEditing(card);
-    router.replace(layout === "list" ? `/boards/${board.id}/list` : `/boards/${board.id}`, { scroll: false });
-  }, [wanted, initial, router, board.id, layout]);
+    const rest = new URLSearchParams(params);
+    rest.delete("card");
+    router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });
+  }, [wanted, initial, router, pathname, params]);
 
   // Server data wins whenever it changes (after revalidation), unless a drag is in progress.
   useEffect(() => {
@@ -235,7 +266,9 @@ export function Board({
         return c.id === columnId ? { ...c, cards: [...rest, { ...card, columnId }] } : { ...c, cards: rest };
       });
     });
-    startTransition(() => moveCard(cardId, columnId, 1_000_000));
+    const card = cols.flatMap((c) => c.cards).find((c) => c.id === cardId);
+    const target = card && realColumn(columnId, card.boardId);
+    if (target) startTransition(() => moveCard(cardId, target, 1_000_000));
   }
   /** Quick buttons on a card: show the change at once, save it, and roll back if saving fails. */
   function patch(cardId: string, change: QuickPatch) {
@@ -251,10 +284,10 @@ export function Board({
     });
   }
   /** A label typed into a card's picker: create it with the next palette colour and put it on the card. */
-  function createLabel(name: string, attach: (tagId: string) => void) {
+  function createLabel(name: string, attach: (tagId: string) => void, boardId = board.id) {
     startTransition(async () => {
       try {
-        const tag = await createTag(board.id, { name, color: TAG_COLORS[allTags.length % TAG_COLORS.length] });
+        const tag = await createTag(boardId, { name, color: TAG_COLORS[allTags.length % TAG_COLORS.length] });
         setMadeTags((list) => [...list, tag]);
         attach(tag.id);
       } catch {
@@ -281,12 +314,22 @@ export function Board({
     remove,
     patch,
     assignable,
+    tagsOf: (id) => (cross ? allTags.filter((x) => x.boardId === id) : allTags),
+    assignableOf: (id) => (cross?.audiences[id] ? members.filter((m) => cross.audiences[id].includes(m.id)) : cross ? members : assignable),
+    columnsFor: (card) => cols.filter((c) => !!realColumn(c.id, card.boardId)).map(({ id, name, isDone }) => ({ id, name, isDone })),
+    cross: cross && { boardName: (id) => allTasks?.boards.find((b) => b.id === id)?.name ?? "" },
   };
 
   // Filters only hide cards. Drag handlers look cards up by id in the full `cols`, so a move while
   // filtering lands at the right spot among the hidden cards too.
+  // On All tasks boards can each have a label of the same name: the menu lists the name once, and
+  // picking it matches that label on every board.
+  const labelKey = (tag: Tag) => tag.name.trim().toLowerCase();
+  const filterTags = cross ? [...new Map(allTags.map((x) => [labelKey(x), x])).values()].sort((a, b) => a.name.localeCompare(b.name)) : allTags;
+  const picked = new Set(filters.tags.map((id) => maps.tagById.get(id)).filter((x): x is Tag => !!x).map(labelKey));
+  const matchFilters = cross ? { ...filters, tags: allTags.filter((x) => picked.has(labelKey(x))).map((x) => x.id) } : filters;
   const filtering = hasFilters(filters);
-  const filteredCols = filtering ? cols.map((c) => ({ ...c, cards: c.cards.filter((card) => matches(filters, card)) })) : cols;
+  const filteredCols = filtering ? cols.map((c) => ({ ...c, cards: c.cards.filter((card) => matches(matchFilters, card)) })) : cols;
   // "Show empty columns" off hides columns with nothing to show (never the one a drag is passing over).
   const shownCols = display.emptyColumns ? filteredCols : filteredCols.filter((c) => c.cards.length > 0);
   // "Order by" only changes what's drawn; the stored (manual) order stays as it is.
@@ -329,6 +372,7 @@ export function Board({
       const to = columnOf(over, prev);
       if (!from || !to || from.id === to.id) return prev;
       const card = from.cards.find((c) => c.id === rawId(active))!;
+      if (!realColumn(to.id, card.boardId)) return prev;
       const overIndex = isCol(over) ? to.cards.length : to.cards.findIndex((c) => c.id === rawId(over));
       const insertAt = overIndex < 0 ? to.cards.length : overIndex;
       return prev.map((c) => {
@@ -353,6 +397,7 @@ export function Board({
     }
 
     if (isCol(active)) {
+      if (cross) return;
       const target = columnOf(over);
       const fromIdx = cols.findIndex((c) => c.id === rawId(active));
       const toIdx = target ? cols.findIndex((c) => c.id === target.id) : -1;
@@ -366,8 +411,11 @@ export function Board({
     if (!col) return;
     // Sorted columns have no manual order to change: a drop in the same column is a no-op, and a
     // drop in another column just moves the card there.
-    if (sort.key !== "manual") {
-      if (col.id !== dragFrom.current) startTransition(() => moveCard(rawId(active), col.id, 1_000_000));
+    // On All tasks a merged column has no order of its own either.
+    if (sort.key !== "manual" || cross) {
+      const card = col.cards.find((c) => c.id === rawId(active));
+      const target = card && realColumn(col.id, card.boardId);
+      if (col.id !== dragFrom.current && target) startTransition(() => moveCard(rawId(active), target, 1_000_000));
       return;
     }
     const fromIdx = col.cards.findIndex((c) => c.id === rawId(active));
@@ -387,6 +435,25 @@ export function Board({
   return (
     <main className="flex h-full flex-col">
       <div className="border-b">
+        {allTasks ? (
+          <ViewBar
+            boardId={null}
+            active={layout}
+            pickedBoard={allTasks.picked}
+            actions={
+              <>
+                <BoardFilter boards={allTasks.boards} value={allTasks.picked} />
+                <FiltersMenu value={filters} onChange={setFilters} members={members} tags={filterTags} currentUserId={currentUserId} />
+                <SortMenu value={sort} onChange={setSort} />
+                <DisplayMenu value={display} onChange={setDisplay} />
+                <TagManager boardId={board.id} tags={cross ? allTags : tags} boards={cross ? allTasks.boards : undefined} />
+              </>
+            }
+          >
+            <h1 className="text-base font-semibold">{t.allTasks.title}</h1>
+            <span className="hidden text-xs text-muted-foreground tabular-nums lg:inline">{t.allTasks.count(cardCount)}</span>
+          </ViewBar>
+        ) : (
         <ViewBar
           boardId={board.id}
           active={layout}
@@ -409,7 +476,8 @@ export function Board({
           </nav>
           <span className="hidden text-xs text-muted-foreground tabular-nums lg:inline">{t.board.summary(cardCount, cols.length)}</span>
         </ViewBar>
-        <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
+        )}
+        <AppliedFilters value={filters} onChange={setFilters} members={members} tags={filterTags} />
       </div>
 
       {layout === "list" ? (
@@ -421,7 +489,6 @@ export function Board({
           onToggleCollapse={toggleCollapsed}
         />
       ) : (
-      <div className="flex-1 overflow-x-auto px-4 py-4 md:px-6">
         <DndContext
           id={dndId}
           sensors={sensors}
@@ -434,7 +501,7 @@ export function Board({
             setCols(initial);
           }}
         >
-          <div className="flex h-full items-start gap-3">
+          <ColumnsCanvas>
             <SortableContext items={visibleCols.map((c) => colKey(c.id))} strategy={horizontalListSortingStrategy}>
               {visibleCols.map((col) => (
                 <Column
@@ -447,11 +514,10 @@ export function Board({
                 />
               ))}
             </SortableContext>
-            <AddColumn boardId={board.id} />
-          </div>
+            {!cross && <AddColumn boardId={board.id} />}
+          </ColumnsCanvas>
           <DragOverlay>{activeCard && <CardView card={activeCard} ctx={ctx} done={activeDone} overlay />}</DragOverlay>
         </DndContext>
-      </div>
       )}
 
       {editing && (
@@ -460,8 +526,8 @@ export function Board({
           key={editing.id}
           card={editing}
           members={members}
-          assignable={assignable}
-          boardTags={allTags}
+          assignable={ctx.assignableOf(editing.boardId)}
+          boardTags={ctx.tagsOf(editing.boardId)}
           nav={editorNav}
           onClose={() => setEditing(null)}
         />
@@ -623,6 +689,8 @@ function Column({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: colKey(column.id),
+    // A merged column on All tasks belongs to several boards: no moving it.
+    disabled: !!ctx.cross,
   });
   const [name, setName] = useState(column.name);
   const [isDone, setIsDone] = useState(column.isDone);
@@ -663,7 +731,25 @@ function Column({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn("flex max-h-full w-[350px] shrink-0 flex-col rounded-xl bg-muted/45 px-2 pb-2 dark:bg-black/15", isDragging && "opacity-50")}
     >
-      {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph. */}
+      {/* Plane-style group header: state glyph, name, count; tools show on hover. The grip is the glyph.
+          On All tasks a column is several boards' columns: name and count only, nothing to edit. */}
+      {ctx.cross ? (
+        <header className="flex shrink-0 items-center gap-1 px-1 py-2">
+          <span className="grid size-5 place-items-center">
+            <StateIcon done={column.isDone} inProgress={column.isInProgress} first={first} />
+          </span>
+          <span className="truncate px-1 py-0.5 text-[13px] font-medium">{column.name}</span>
+          <span className="pl-1 text-[13px] font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-xs" className="ml-auto size-5 [&_svg]:size-3.5" aria-label={t.column.collapseAria} onClick={onToggleCollapse}>
+                <FoldHorizontal />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.column.collapse}</TooltipContent>
+          </Tooltip>
+        </header>
+      ) : (
       <header className="group/col flex shrink-0 items-center gap-1 px-1 py-2">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -753,13 +839,14 @@ function Column({
         </DropdownMenu>
         </span>
       </header>
+      )}
       <div className="-mx-0.5 flex min-h-2 flex-col gap-2 overflow-y-auto p-0.5">
         <SortableContext items={column.cards.map((c) => cardKey(c.id))} strategy={verticalListSortingStrategy}>
           {column.cards.map((card) => (
             <SortableCard key={card.id} card={card} ctx={ctx} done={column.isDone} />
           ))}
         </SortableContext>
-        <AddCard column={column} ctx={ctx} open={adding} setOpen={setAdding} />
+        {!ctx.cross && <AddCard column={column} ctx={ctx} open={adding} setOpen={setAdding} />}
       </div>
     </section>
   );
@@ -834,7 +921,7 @@ function CardMenu({ card, ctx, className }: { card: CardData; ctx: Ctx; classNam
               <ArrowRightLeft /> {t.card.moveTo}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-48">
-              {ctx.columns.map((c) => (
+              {ctx.columnsFor(card).map((c) => (
                 <DropdownMenuItem key={c.id} disabled={c.id === card.columnId} onSelect={() => ctx.moveTo(card.id, c.id)}>
                   {c.isDone && <CircleCheck className="text-success" />}
                   <span className="truncate">{c.name}</span>
@@ -867,14 +954,15 @@ function CardView({ card, ctx, done, overlay }: { card: CardData; ctx: Ctx; done
       card={card}
       done={done}
       members={ctx.memberById}
-      assignable={ctx.assignable}
-      tags={ctx.tags}
+      assignable={ctx.assignableOf(card.boardId)}
+      tags={ctx.tagsOf(card.boardId)}
       today={ctx.today}
       selected={ctx.editingId === card.id}
       overlay={overlay}
       show={ctx.display}
       onPatch={(p) => ctx.patch(card.id, p)}
-      onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }))}
+      onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }), card.boardId)}
+      board={ctx.cross ? { id: card.boardId, name: ctx.cross.boardName(card.boardId) } : undefined}
     />
   );
 }
@@ -1082,6 +1170,7 @@ function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnDat
           <span className="truncate text-[13px] font-medium">{column.name}</span>
           <span className="pl-1 text-[13px] font-medium text-muted-foreground tabular-nums">{column.cards.length}</span>
         </button>
+        {!ctx.cross && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -1099,6 +1188,7 @@ function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnDat
           </TooltipTrigger>
           <TooltipContent>{t.column.addCard}</TooltipContent>
         </Tooltip>
+        )}
       </div>
       {!folded && (
         <>
@@ -1107,7 +1197,7 @@ function ListGroup({ column, ctx, first, folded, onToggle }: { column: ColumnDat
               <ListRow key={card.id} card={card} ctx={ctx} done={column.isDone} />
             ))}
           </ul>
-          <ListQuickAdd column={column} ctx={ctx} open={adding} setOpen={setAdding} />
+          {!ctx.cross && <ListQuickAdd column={column} ctx={ctx} open={adding} setOpen={setAdding} />}
         </>
       )}
     </section>
@@ -1129,13 +1219,19 @@ function ListRow({ card, ctx, done }: { card: CardData; ctx: Ctx; done: boolean 
     >
       <span className="flex min-w-0 flex-1 items-center gap-2">
         {late && <span className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden />}
+        {ctx.cross && (
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <BoardIcon board={{ id: card.boardId, name: ctx.cross.boardName(card.boardId) }} size={14} />
+            <span className="max-w-32 truncate">{ctx.cross.boardName(card.boardId)}</span>
+          </span>
+        )}
         <span title={card.title} className={cn("truncate font-medium", done && "text-muted-foreground line-through decoration-muted-foreground/40")}>
           {card.title}
         </span>
         {show.description && card.description && <span className="hidden truncate text-xs text-muted-foreground lg:inline">{card.description}</span>}
       </span>
       <span className="flex shrink-0 items-center gap-2 [&>div]:pt-0">
-        <CardQuickProps card={card} members={[...ctx.memberById.values()]} assignable={ctx.assignable} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tags} onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }))}>
+        <CardQuickProps card={card} members={[...ctx.memberById.values()]} assignable={ctx.assignableOf(card.boardId)} today={ctx.today} done={done} show={show} onPatch={(p) => ctx.patch(card.id, p)} tags={ctx.tagsOf(card.boardId)} onCreateTag={(name) => ctx.createLabel(name, (id) => ctx.patch(card.id, { tagIds: [...card.tagIds, id] }), card.boardId)}>
           <LabelChips tags={cardTags} />
         </CardQuickProps>
         <CardMenu card={card} ctx={ctx} className="static" />

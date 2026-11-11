@@ -5,6 +5,7 @@ import { ViewBar } from "@/components/ViewTabs";
 import { loadBoards, loadCards, loadColumns, loadMembers, loadTags } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { track } from "@/lib/activity";
+import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 
 export default async function TimelinePage({
@@ -14,6 +15,7 @@ export default async function TimelinePage({
 }) {
   const user = await requireUser();
   await track(user.id, "timeline.view");
+  const t = await getT();
   const sp = await searchParams;
   const today = todayISO();
   const zoom = sp.zoom === "week" || sp.zoom === "quarter" ? sp.zoom : "month";
@@ -24,11 +26,15 @@ export default async function TimelinePage({
   return (
     // The chart gets the page's height below the header at most, so it scrolls in both directions on its own.
     <main className="flex h-full flex-col">
-      {board && (
+      {board ? (
         <ViewBar boardId={board.id} active="timeline">
           <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold hover:underline">
             {board.name}
           </Link>
+        </ViewBar>
+      ) : (
+        <ViewBar boardId={null} active="timeline">
+          <h1 className="text-base font-semibold">{t.allTasks.title}</h1>
         </ViewBar>
       )}
       <TimelineView
@@ -42,6 +48,7 @@ export default async function TimelinePage({
         // Keyed: the chart lists it beside its own controls, and React asks for a key on server elements there.
         filter={<BoardFilter key="board" boards={boards} value={board?.id ?? null} />}
         initialView={zoom}
+        currentUserId={user.id}
       />
     </main>
   );

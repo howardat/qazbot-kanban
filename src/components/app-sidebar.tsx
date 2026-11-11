@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChartGantt, House, Receipt, Search, Sparkles, Users } from "lucide-react";
+import { Columns3, House, Receipt, Search, Sparkles, Users } from "lucide-react";
 import { useT } from "@/components/I18nProvider";
 import { NavMain } from "@/components/nav-main";
 import { NavUpdates } from "@/components/nav-updates";
@@ -94,8 +94,8 @@ export function AppSidebar({
           label={t.nav.workspace}
           items={[
             { title: t.nav.home, url: "/", icon: <House />, isActive: pathname === "/" },
-            { title: t.nav.calendar, url: "/calendar", icon: <CalendarDays />, isActive: on("/calendar") },
-            { title: t.nav.timeline, url: "/timeline", icon: <ChartGantt />, isActive: on("/timeline") },
+            // All tasks holds the cross-board board, calendar and timeline; a picked board lights up in the list instead.
+            { title: t.nav.allTasks, url: "/tasks", icon: <Columns3 />, isActive: on("/tasks") || ((on("/calendar") || on("/timeline")) && !boardId) },
             { title: t.nav.expenses, url: "/expenses", icon: <Receipt />, isActive: on("/expenses") },
             {
               title: t.nav.workers,

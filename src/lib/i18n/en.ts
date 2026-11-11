@@ -35,6 +35,7 @@ export const en = {
     homeAria: "Qazbot Kanban home",
     calendar: "Calendar",
     timeline: "Timeline",
+    allTasks: "All tasks",
     expenses: "Expenses",
     boards: "Boards",
     newBoard: "New board",
@@ -305,6 +306,8 @@ export const en = {
     count: (n: number) => `${n} labels`,
     title: "Board labels",
     hint: "Any card on this board can use these. Click a dot to change its colour.",
+    allTitle: "Labels on all boards",
+    allHint: "Each label belongs to one board; its cards can use it. Click a dot to change its colour.",
     empty: "No labels yet. Add the first one below.",
     newName: "New label",
     add: "Add",
@@ -336,6 +339,12 @@ export const en = {
     cards: "Cards",
     boards: "Boards",
     people: "Teammates",
+  },
+
+  allTasks: {
+    title: "All tasks",
+    count: (n: number) => `${n} ${n === 1 ? "card" : "cards"}`,
+    empty: "No cards match these filters",
   },
 
   views: { aria: "Board views", list: "List", board: "Board", calendar: "Calendar", timeline: "Timeline" },
@@ -520,6 +529,7 @@ export const en = {
       "board.list": "List layout",
       "calendar.view": "Calendar",
       "timeline.view": "Timeline",
+      "tasks.view": "All tasks",
       "workers.view": "Team office",
       "worker.view": "Worker page",
       "usage.view": "Usage page",

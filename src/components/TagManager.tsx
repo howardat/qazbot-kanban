@@ -3,18 +3,24 @@
 import { useEffect, useState, useTransition } from "react";
 import { Plus, Tag as TagIcon, Trash2 } from "lucide-react";
 import { createTag, deleteTag, updateTag } from "@/app/actions";
+import { BoardIcon } from "@/components/atoms";
 import { useT } from "@/components/I18nProvider";
 import type { OptionMenu } from "@/components/TagSelect";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TAG_DOT } from "@/lib/colors";
 import { TAG_COLORS, type TagColor } from "@/lib/tag-colors";
 import type { Tag } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Board labels, as in Plane's label settings: one row per label (colour, name, delete), and one row to add. */
-export function TagManager({ boardId, tags }: { boardId: string; tags: Tag[] }) {
+/**
+ * Board labels, as in Plane's label settings: one row per label (colour, name, delete), and one row to add.
+ * Given `boards` (All tasks), every board's labels, grouped under its name, and the add row picks the board.
+ */
+export function TagManager({ boardId, tags, boards }: { boardId: string; tags: Tag[]; boards?: { id: string; name: string }[] }) {
   const t = useT();
+  const groups = boards ? boards.map((b) => ({ board: b, tags: tags.filter((x) => x.boardId === b.id) })).filter((g) => g.tags.length > 0) : null;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -25,16 +31,27 @@ export function TagManager({ boardId, tags }: { boardId: string; tags: Tag[] }) 
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 overflow-hidden rounded-xl p-0">
         <header className="border-b px-3 py-2.5">
-          <h3 className="text-sm font-medium">{t.tags.title}</h3>
-          <p className="text-xs text-muted-foreground">{t.tags.hint}</p>
+          <h3 className="text-sm font-medium">{groups ? t.tags.allTitle : t.tags.title}</h3>
+          <p className="text-xs text-muted-foreground">{groups ? t.tags.allHint : t.tags.hint}</p>
         </header>
         <ul className="max-h-72 overflow-y-auto p-1">
-          {tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} />
-          ))}
+          {groups
+            ? groups.map((g) => (
+                <li key={g.board.id}>
+                  <p className="flex items-center gap-1.5 px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">
+                    <BoardIcon board={g.board} size={14} /> <span className="truncate">{g.board.name}</span>
+                  </p>
+                  <ul>
+                    {g.tags.map((tag) => (
+                      <TagRow key={tag.id} tag={tag} />
+                    ))}
+                  </ul>
+                </li>
+              ))
+            : tags.map((tag) => <TagRow key={tag.id} tag={tag} />)}
           {tags.length === 0 && <li className="px-2 py-4 text-center text-xs text-muted-foreground">{t.tags.empty}</li>}
         </ul>
-        <NewTagRow boardId={boardId} />
+        <NewTagRow boardId={boardId} boards={boards} />
       </PopoverContent>
     </Popover>
   );
@@ -118,23 +135,39 @@ function TagRow({ tag }: { tag: Tag }) {
 }
 
 /** Plane's inline create: colour, name and Add on one line; Enter adds and stays ready for the next. */
-function NewTagRow({ boardId }: { boardId: string }) {
+function NewTagRow({ boardId, boards }: { boardId: string; boards?: { id: string; name: string }[] }) {
   const t = useT();
+  const [target, setTarget] = useState(boards?.[0]?.id ?? boardId);
   const [name, setName] = useState("");
   const [color, setColor] = useState<TagColor>("sky");
   const [pending, startTransition] = useTransition();
   return (
     <form
-      className="flex items-center gap-1 border-t bg-tray p-1.5 pl-1"
+      className="flex flex-wrap items-center gap-1 border-t bg-tray p-1.5 pl-1"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
         startTransition(async () => {
-          await createTag(boardId, { name, color });
+          await createTag(target, { name, color });
           setName("");
         });
       }}
     >
+      {boards && (
+        // Which board the new label goes on: labels belong to one board.
+        <Select value={target} onValueChange={setTarget}>
+          <SelectTrigger size="sm" aria-label={t.common.board} className="mb-1 w-full bg-card">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {boards.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                <BoardIcon board={b} size={14} /> {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       <ColorDot value={color} onChange={setColor} label={t.tags.color} />
       <input
         value={name}

@@ -14,6 +14,7 @@ import {
 import { Plus } from "lucide-react";
 import { addCard, rescheduleCard } from "@/app/actions";
 import { CardEditor } from "@/components/CardEditor";
+import { AppliedFilters, FiltersMenu, matches, NO_FILTERS, type Filters } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
 import { AvatarStack } from "@/components/atoms";
 import { addDays, monthOf, weekday, type ISODate } from "@/lib/dates";
@@ -36,6 +37,7 @@ export function CalendarView({
   tags,
   showBoard,
   targets,
+  currentUserId,
 }: {
   view: "month" | "week";
   days: ISODate[];
@@ -47,6 +49,8 @@ export function CalendarView({
   tags: Tag[];
   showBoard: boolean;
   targets: QuickAddTarget[];
+  /** For the filters' "Me". */
+  currentUserId: string;
 }) {
   const t = useT();
   const dndId = useId();
@@ -56,6 +60,9 @@ export function CalendarView({
   const [targetId, setTargetId] = useState(targets[0]?.boardId ?? "");
   const [, startTransition] = useTransition();
   useEffect(() => setCards(initial), [initial]);
+  // The same filters as a board's: they only hide cards.
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const shown = useMemo(() => cards.filter((c) => matches(filters, c)), [cards, filters]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -65,10 +72,10 @@ export function CalendarView({
 
   const byDay = useMemo(() => {
     const m = new Map<string, CardRow[]>();
-    for (const c of cards) if (c.dueDate) m.set(c.dueDate, [...(m.get(c.dueDate) ?? []), c]);
+    for (const c of shown) if (c.dueDate) m.set(c.dueDate, [...(m.get(c.dueDate) ?? []), c]);
     return m;
-  }, [cards]);
-  const unscheduled = cards.filter((c) => !c.dueDate && !c.done);
+  }, [shown]);
+  const unscheduled = shown.filter((c) => !c.dueDate && !c.done);
 
   function onDragEnd(e: DragEndEvent) {
     setDragging(null);
@@ -90,6 +97,12 @@ export function CalendarView({
       onDragEnd={onDragEnd}
       onDragCancel={() => setDragging(null)}
     >
+      {/* Filters in use run edge to edge under the header, as on a board; the button heads the calendar. */}
+      <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
+      <div className="px-4 py-5 md:px-6">
+      <div className="mb-3 flex justify-end">
+        <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
+      </div>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="overflow-x-auto rounded-lg border bg-card shadow-xs">
           <div className={cn("grid", cols === 7 ? "min-w-[46rem] grid-cols-7" : "min-w-[34rem] grid-cols-5")}>
@@ -142,6 +155,7 @@ export function CalendarView({
           onClose={() => setEditing(null)}
         />
       )}
+      </div>
     </DndContext>
   );
 }

@@ -13,17 +13,21 @@ export type View = "list" | "board" | "calendar" | "timeline";
 const FULL = { kind: "full" } as unknown as Parameters<ReturnType<typeof useRouter>["prefetch"]>[1];
 
 /**
- * Top row of a board's three views: the board on the left, the view switcher always at the right
- * edge of the same row, so it stays put when you switch views.
+ * Top row of a board's views: the board on the left, the view switcher always at the right edge of
+ * the same row, so it stays put when you switch views. Without a board it's All tasks' row.
  */
 export function ViewBar({
   boardId,
   active,
   children,
   actions,
+  pickedBoard,
 }: {
-  boardId: string;
+  /** null: every board's views (All tasks). */
+  boardId: string | null;
   active: View;
+  /** All tasks only: the board picked in its filter, kept when switching views. */
+  pickedBoard?: string | null;
   children?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
@@ -32,22 +36,33 @@ export function ViewBar({
       {children}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {actions}
-        <ViewTabs boardId={boardId} active={active} />
+        <ViewTabs boardId={boardId} active={active} pickedBoard={pickedBoard} />
       </div>
     </div>
   );
 }
 
-/** Switch between a board's views, in Plane's order. Calendar and timeline are filtered by ?board=. */
-export function ViewTabs({ boardId, active }: { boardId: string; active: View }) {
+/**
+ * Switch between a board's views, in Plane's order. Calendar and timeline are filtered by ?board=.
+ * Without a board, All tasks' views: every board's cards as a list, board, calendar or timeline.
+ */
+export function ViewTabs({ boardId, active, pickedBoard }: { boardId: string | null; active: View; pickedBoard?: string | null }) {
   const t = useT();
   const router = useRouter();
-  const tabs = [
-    { view: "list" as const, label: t.views.list, href: `/boards/${boardId}/list`, Icon: List },
-    { view: "board" as const, label: t.views.board, href: `/boards/${boardId}`, Icon: Columns3 },
-    { view: "calendar" as const, label: t.views.calendar, href: `/calendar?board=${boardId}`, Icon: CalendarDays },
-    { view: "timeline" as const, label: t.views.timeline, href: `/timeline?board=${boardId}`, Icon: ChartGantt },
-  ];
+  const q = pickedBoard ? `?board=${pickedBoard}` : "";
+  const tabs = boardId
+    ? [
+        { view: "list" as const, label: t.views.list, href: `/boards/${boardId}/list`, Icon: List },
+        { view: "board" as const, label: t.views.board, href: `/boards/${boardId}`, Icon: Columns3 },
+        { view: "calendar" as const, label: t.views.calendar, href: `/calendar?board=${boardId}`, Icon: CalendarDays },
+        { view: "timeline" as const, label: t.views.timeline, href: `/timeline?board=${boardId}`, Icon: ChartGantt },
+      ]
+    : [
+        { view: "list" as const, label: t.views.list, href: `/tasks/list${q}`, Icon: List },
+        { view: "board" as const, label: t.views.board, href: `/tasks${q}`, Icon: Columns3 },
+        { view: "calendar" as const, label: t.views.calendar, href: `/calendar${q}`, Icon: CalendarDays },
+        { view: "timeline" as const, label: t.views.timeline, href: `/timeline${q}`, Icon: ChartGantt },
+      ];
   return (
     <TabsNav aria-label={t.views.aria}>
       {tabs.map(({ view, label, href, Icon }) => (

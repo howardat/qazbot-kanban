@@ -12,14 +12,17 @@ import { loadRoomBoards } from "@/lib/workers";
 import { boardAudience, canManageBoard, canSeeBoard, loadBoardMembers } from "@/lib/board-access";
 import { requireUser } from "@/lib/session";
 
-/** Loads one board and renders it in the given layout; shared by the Board and List routes. */
-export async function BoardView({ id, layout }: { id: string; layout: "board" | "list" }) {
+/**
+ * Loads one board and renders it in the given layout; shared by the Board and List routes, and by All
+ * tasks with this board picked (`boards` is then its board picker's list).
+ */
+export async function BoardView({ id, layout, boards: picker }: { id: string; layout: "board" | "list"; boards?: { id: string; name: string }[] }) {
   const user = await requireUser();
-  await track(user.id, layout === "list" ? "board.list" : "board.view");
   if (!z.string().uuid().safeParse(id).success) notFound();
 
   const [board] = await db.select().from(boards).where(eq(boards.id, id));
   if (!board || !(await canSeeBoard(user, id))) notFound();
+  await track(user.id, picker ? "tasks.view" : layout === "list" ? "board.list" : "board.view");
 
   const [cols, cardRows, members, tags, boardMemberIds, canManage, audience, roomBoards] = await Promise.all([
     db.select().from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
@@ -51,6 +54,7 @@ export async function BoardView({ id, layout }: { id: string; layout: "board" | 
       canDelete={canDeleteBoard(user, board.createdBy)}
       assignableIds={audience ? [...audience] : null}
       layout={layout}
+      allTasks={picker && { boards: picker, picked: id }}
     />
   );
 }
