@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { enGB, ru } from "react-day-picker/locale";
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Flag, Hexagon, MessageSquare, Minus, Tag as TagIcon, UserPlus, X } from "lucide-react";
-import { Avatar, AvatarStack, DUE_TEXT, halfRow, PEOPLE_MENU, TagBadge } from "@/components/atoms";
+import { Avatar, AvatarStack, BoardIcon, DUE_TEXT, halfRow, PEOPLE_MENU, TagBadge } from "@/components/atoms";
 import { PriorityIcon } from "@/components/BoardToolbar";
 import type { QuickPatch } from "@/components/CardQuickProps";
 import { useT } from "@/components/I18nProvider";
@@ -96,6 +96,7 @@ export function BoardCard({
   onPatch,
   onCreateTag,
   titleField,
+  board,
 }: {
   card: CardData;
   done: boolean;
@@ -114,6 +115,8 @@ export function BoardCard({
   onCreateTag: (name: string) => void;
   /** A new card's draft: the title is this field instead of text. */
   titleField?: React.ReactNode;
+  /** Cross-board views: the board the card lives on, shown above it. */
+  board?: { id: string; name: string };
 }) {
   const t = useT();
   const [dateOpen, setDateOpen] = useState(false);
@@ -145,6 +148,12 @@ export function BoardCard({
       )}
     >
       <div className="px-3.5 pt-3 pb-3">
+        {board && (
+          <p className="mb-2 flex min-w-0 items-center gap-1.5 pr-6 text-[11px] text-muted-foreground">
+            <BoardIcon board={board} size={14} />
+            <span className="truncate">{board.name}</span>
+          </p>
+        )}
         {/* Priority (just a flag when unset) and labels */}
         {(show.priority || show.tags) && (
           <div className={cn("flex flex-wrap items-center gap-1.5 pr-6", !hasPills && "-mb-1")} {...guard}>

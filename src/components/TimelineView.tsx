@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { addCard, moveCard, quickUpdateCard, setCardDates } from "@/app/actions";
 import { CardQuickProps, type QuickPatch } from "@/components/CardQuickProps";
 import { CardEditor } from "@/components/CardEditor";
+import { AppliedFilters, FiltersMenu, matches, NO_FILTERS, type Filters } from "@/components/BoardToolbar";
 import { useT } from "@/components/I18nProvider";
 import { PageHeader } from "@/components/atoms";
 import { StateIcon } from "@/components/BoardToolbar";
@@ -108,7 +109,7 @@ function barStyle(card: CardRow, today: ISODate): React.CSSProperties {
 
 export function TimelineView({
   today,
-  cards,
+  cards: allCards,
   columns,
   members,
   tags,
@@ -116,6 +117,7 @@ export function TimelineView({
   boardName,
   filter,
   initialView = "month",
+  currentUserId = "",
 }: {
   today: ISODate;
   cards: CardRow[];
@@ -129,12 +131,17 @@ export function TimelineView({
   /** The board picker, shown beside the zoom and pager. */
   filter?: React.ReactNode;
   initialView?: TGanttViews;
+  /** For the filters' "Me". */
+  currentUserId?: string;
 }) {
   const t = useT();
+  // The same filters as a board's: they only hide cards.
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const cards = useMemo(() => allCards.filter((c) => matches(filters, c)), [allCards, filters]);
   const [editing, setEditing] = useState<CardRow | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [, startTransition] = useTransition();
-  useEffect(() => setOverrides({}), [cards]);
+  useEffect(() => setOverrides({}), [allCards]);
 
   // ---- Plane's timeline store ----
   const [chart, setChart] = useState<ChartState | null>(null);
@@ -255,7 +262,7 @@ export function TimelineView({
     setLists((prev) => ({ ...prev, [col]: list }));
     if (col === columnOf(id, before) && list.join() === before[col].join()) return;
     // The server counts positions among all the column's cards, hidden ones too: go in before the next shown one.
-    const all = cards.filter((c) => c.columnId === col && c.id !== id).map((c) => c.id);
+    const all = allCards.filter((c) => c.columnId === col && c.id !== id).map((c) => c.id);
     const next = list[list.indexOf(id) + 1];
     const index = next && all.includes(next) ? all.indexOf(next) : all.length;
     startTransition(() => moveCard(id, col, index));
@@ -488,6 +495,7 @@ export function TimelineView({
         actions={
           <>
             {filter}
+            <FiltersMenu value={filters} onChange={setFilters} members={members} tags={tags} currentUserId={currentUserId} />
             <Tabs value={currentView} onValueChange={(v) => updateCurrentViewRenderPayload(null, v as TGanttViews)}>
               <TabsList aria-label={t.timeline.zoom}>
                 {(["week", "month", "quarter"] as const).map((z) => (
@@ -508,6 +516,7 @@ export function TimelineView({
           </>
         }
       />
+      <AppliedFilters value={filters} onChange={setFilters} members={members} tags={tags} />
       {/* As tall as the rows, up to the space left on the page; then it scrolls down too. */}
       <div className="flex min-h-0 flex-col px-4 py-5 md:px-6">
         {columns.length === 0 ? (

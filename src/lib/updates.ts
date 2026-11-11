@@ -15,6 +15,48 @@ export type Release = { id: string; date: string; title: Record<Locale, string>;
  */
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-11-all-tasks",
+    date: "2026-11-11",
+    title: { en: "All tasks and a new home page", ru: "Все задачи и новая главная" },
+    changes: [
+      {
+        kind: "new",
+        text: {
+          en: "All tasks in the sidebar shows every board's cards in one place, as a list, board, calendar or timeline. Columns with the same name are joined; pick a board at the top to see just that one.",
+          ru: "«Все задачи» в боковом меню показывают карточки всех досок в одном месте — списком, доской, календарём или таймлайном. Колонки с одинаковым названием объединяются; выберите доску вверху, чтобы видеть только её.",
+        },
+      },
+      {
+        kind: "new",
+        text: {
+          en: "All tasks has everything a board has: filters, sorting, display options and labels. Open a card there to edit it, or drag it to another column its board has.",
+          ru: "Во «Всех задачах» есть всё, что и на доске: фильтры, сортировка, настройки отображения и метки. Карточку можно открыть и изменить там же или перетащить в другую колонку её доски.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "The home page is simpler: three numbers about your cards, then every board as a box. Create a board from the New board button or the empty box at the end.",
+          ru: "Главная стала проще: три числа о ваших карточках и все доски в виде плиток. Новую доску можно создать кнопкой «Новая доска» или пустой плиткой в конце.",
+        },
+      },
+      {
+        kind: "improved",
+        text: {
+          en: "Calendar and Timeline now have the same Filters as a board: by assignee, priority and label.",
+          ru: "В календаре и таймлайне теперь есть такие же фильтры, как на доске: по исполнителю, приоритету и метке.",
+        },
+      },
+      {
+        kind: "fixed",
+        text: {
+          en: "On a board, the last column now keeps the same gap from the right edge as the first one has from the left.",
+          ru: "На доске у последней колонки теперь такой же отступ от правого края, как у первой — от левого.",
+        },
+      },
+    ],
+  },
+  {
     id: "2026-11-09-rename-board",
     date: "2026-11-09",
     title: { en: "Rename a board", ru: "Переименование доски" },

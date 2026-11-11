@@ -64,11 +64,15 @@ export default async function CalendarPage({
 
   return (
     <main>
-      {board && (
+      {board ? (
         <ViewBar boardId={board.id} active="calendar">
           <Link href={`/boards/${board.id}`} className="truncate text-base font-semibold hover:underline">
             {board.name}
           </Link>
+        </ViewBar>
+      ) : (
+        <ViewBar boardId={null} active="calendar">
+          <h1 className="text-base font-semibold">{t.allTasks.title}</h1>
         </ViewBar>
       )}
       <PageHeader
@@ -100,8 +104,7 @@ export default async function CalendarPage({
           </>
         }
       />
-      <div className="px-4 py-5 md:px-6">
-        <CalendarView
+      <CalendarView
           view={view}
           days={days}
           month={view === "month" ? month : null}
@@ -112,8 +115,8 @@ export default async function CalendarPage({
           tags={tags}
           showBoard={!board}
           targets={targets}
+          currentUserId={user.id}
         />
-      </div>
     </main>
   );
 }

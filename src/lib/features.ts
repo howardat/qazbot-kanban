@@ -6,6 +6,7 @@ export const FEATURES = [
   "board.list",
   "calendar.view",
   "timeline.view",
+  "tasks.view",
   "workers.view",
   "worker.view",
   "usage.view",

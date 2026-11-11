@@ -160,6 +160,19 @@ export function DueBadge({
   );
 }
 
+/**
+ * The board layout's canvas: columns in a row that scrolls sideways, with the page's side padding on
+ * both ends. The padding sits on the content-wide row, since a scroller's own right padding is lost once
+ * it overflows. Every board-style view uses this, so the gutters match everywhere.
+ */
+export function ColumnsCanvas({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex-1 overflow-x-auto py-4">
+      <div className="flex h-full w-max min-w-full items-start gap-3 px-4 md:px-6">{children}</div>
+    </div>
+  );
+}
+
 /** Plane-style section card: header row with a hairline divider over the body. */
 export function Panel({
   icon,
